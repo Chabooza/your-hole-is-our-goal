@@ -1,0 +1,887 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Hole Is Our Goal! (test build)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#151917">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hole TEST">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700;800&family=B612+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: one full-screen 3D view from the driller's spot at the console. Thin overlays sit at the edges:
+   the yellow field book and alarms on the left, crew orders and the borehole section on the right. */
+:root {
+  color-scheme: dark;
+  --bg: #151917;
+  --glass: rgba(24, 29, 26, 0.84);
+  --edge: #0c0f0d;
+  --ink: #e6e8dc;
+  --muted: #9ba495;
+  --amber: #f2b630;
+  --sonic: #e0362b;
+  --crit: #e5483a;
+  --water: #4aaee9;
+  --lcd: #a6ee74;
+  --paper: #f2e7b4;
+  --paper-ink: #2c2618;
+  --paper-line: #d7c98a;
+  --f-display: 'Bungee', 'Arial Black', Impact, sans-serif;
+  --f-ui: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --f-mono: 'B612 Mono', ui-monospace, Consolas, monospace;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; background: var(--bg); color: var(--ink); }
+body { margin: 0; font-family: var(--f-ui); font-size: 15px; line-height: 1.35; overflow: hidden; }
+button { font-family: inherit; touch-action: manipulation; }
+html, body { overscroll-behavior: none; }
+.app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.more { display: contents; }
+.more-btn, .only-phone, .rotate, .touch-tips { display: none; }
+.tb.stop { background: #7a2018; border-color: #c8483a; color: #ffe9e4; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.app { position: relative; height: 100%; overflow: hidden; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#view.looking { cursor: grabbing; }
+
+/* top bar */
+.topbar { position: absolute; left: 0; right: 0; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 14px;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) 18px max(16px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(#0d110fe6, #0d110f00); pointer-events: none; }
+.topbar > * { pointer-events: auto; }
+.brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.logo { font-family: var(--f-display); font-size: 22px; color: var(--amber); letter-spacing: 0.02em; text-shadow: 2px 2px 0 #000; }
+.job { color: #c9cfc4; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; text-shadow: 0 1px 2px #000; }
+.topctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.clock { font-family: var(--f-mono); font-size: 16px; color: var(--lcd); background: #121c0e; border: 2px solid #050805; border-radius: 6px; padding: 2px 8px; letter-spacing: 0.08em; }
+.tb { background: #2f3832; color: var(--ink); border: 1px solid #56625a; border-radius: 6px; padding: 4px 10px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+.tb:hover { background: #435046; }
+.tb:disabled { opacity: 0.45; cursor: default; }
+.tb[aria-pressed="true"] { background: #4b5a3d; border-color: #7d9a5c; }
+.speed { display: inline-flex; border: 1px solid #56625a; border-radius: 6px; overflow: hidden; }
+.speed button { background: #2a312c; color: var(--muted); border: 0; padding: 4px 9px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.speed button.on { background: var(--amber); color: #1a1408; }
+
+/* overlays */
+.hud { position: absolute; z-index: 4; display: flex; flex-direction: column; gap: 8px; }
+.hud-left { left: max(14px, env(safe-area-inset-left, 0px)); top: var(--hud-top, 56px); width: 290px; }
+.hud-right { right: max(14px, env(safe-area-inset-right, 0px)); top: var(--hud-top, 56px); width: 286px; align-items: stretch; }
+body.notes-off .hud-left, body.notes-off .hud-right .crew-box, body.notes-off .logbox { display: none; }
+.book { background: var(--paper); color: var(--paper-ink); border-radius: 6px 10px 10px 6px; border-left: 9px solid #2f2a1b; padding: 8px 11px 9px; box-shadow: 0 4px 10px #0007;
+  background-image: repeating-linear-gradient(transparent 0 21px, var(--paper-line) 21px 22px); }
+.book .eyebrow { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 800; color: #7a6a2e; }
+.book h2 { font-size: 17px; line-height: 1.15; margin: 2px 0 4px; font-weight: 800; text-wrap: balance; }
+.book p { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+.prog { position: relative; height: 18px; border: 2px solid var(--paper-ink); border-radius: 9px; background: #fff8d8; overflow: hidden; margin: 6px 0 2px; }
+.prog i { position: absolute; inset: 0 auto 0 0; width: 0; background: #e7a52a; }
+.prog i.over { background: var(--crit); }
+.prog span { position: relative; display: block; text-align: center; font: 700 12px/14px var(--f-mono); }
+.layer { margin-top: 7px; padding-top: 5px; border-top: 2px dashed #b9aa66; }
+.layer b { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.layer b::before { content: ""; width: 13px; height: 13px; border-radius: 3px; background: var(--lc, #888); border: 2px solid var(--paper-ink); flex: none; }
+.layer p { font-size: 13.5px; font-weight: 500; margin: 2px 0 0; }
+.latest { margin-top: 6px; padding-top: 5px; border-top: 2px dashed #b9aa66; font-size: 13.5px; font-weight: 700; }
+.latest.crit { color: #a3221a; } .latest.warn { color: #8a5a00; } .latest.good { color: #1d6b22; }
+
+.alarms { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 2px solid transparent; box-shadow: 0 2px 0 #0007; }
+.chip.info { background: #1c2c3aee; color: #a6d6f7; border-color: #2c4a63; }
+.chip.warn { background: #3d2f0dee; color: #ffd36b; border-color: #6a5113; }
+.chip.crit { background: #4a1712f0; color: #ffd0c8; border-color: #8d2a20; animation: blink 1.1s steps(2) infinite; }
+@keyframes blink { 50% { border-color: #ff6a55; } }
+
+.panel-box { background: var(--glass); border: 1px solid #47524a; border-radius: 10px; padding: 7px 8px; backdrop-filter: blur(3px); }
+.side-h { margin: 0 0 5px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--amber); display: flex; justify-content: space-between; align-items: center; }
+.crew { display: flex; flex-direction: column; gap: 6px; }
+.cw { display: flex; flex-direction: column; gap: 4px; }
+.cw + .cw { border-top: 1px solid #3a433c; padding-top: 6px; }
+.cw-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cw-head b { font-size: 15px; }
+.cw-hat { width: 16px; height: 10px; border-radius: 8px 8px 2px 2px; border: 2px solid #000; background: #f6c623; flex: none; }
+.cw-tess .cw-hat { background: #f4f4ee; }
+.cw-role { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.cw-status { font-size: 12.5px; color: var(--lcd); margin-left: auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.cw-bar { height: 4px; background: #1a1f1c; border-radius: 3px; overflow: hidden; }
+.cw-bar i { display: block; height: 100%; width: 0; background: var(--amber); }
+.cw-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.order { flex: 1 1 auto; background: #3b453e; color: var(--ink); border: 1px solid #56625a; border-radius: 6px; padding: 4px 6px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.order:hover { background: #4a564d; }
+.order.hint { background: var(--amber); color: #1d1606; border-color: #ffd770; box-shadow: 0 0 0 2px #f2b63055; }
+#section { display: block; width: 200px; height: 330px; margin: 0 auto; }
+
+.logbox { position: absolute; z-index: 4; left: max(14px, env(safe-area-inset-left, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px)); width: 290px; }
+.logbox summary { cursor: pointer; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--amber); font-weight: 700; }
+#log { list-style: none; margin: 6px 0 0; padding: 0; max-height: 180px; overflow-y: auto; font-size: 13px; }
+#log li { display: grid; grid-template-columns: 40px 1fr; gap: 6px; padding: 3px 0; border-top: 1px solid #3a433c; }
+#log time { font-family: var(--f-mono); font-size: 11px; color: var(--muted); padding-top: 2px; }
+#log li.crit span { color: #ffb3a8; } #log li.warn span { color: #ffd36b; } #log li.good span { color: #b7f09a; }
+
+.views { position: absolute; z-index: 4; right: max(14px, env(safe-area-inset-right, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 360px; align-items: center; }
+.views span { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #c9cfc4; font-weight: 700; text-shadow: 0 1px 2px #000; margin-right: 2px; }
+
+.tip { position: absolute; z-index: 6; left: 0; top: 0; pointer-events: none; background: #101411f0; border: 1px solid #f2b630; border-radius: 8px; padding: 5px 9px; max-width: 280px; box-shadow: 0 4px 10px #0008; }
+.tip b { display: block; font-size: 14px; color: var(--amber); letter-spacing: 0.04em; }
+.tip span { display: block; font-size: 13px; color: var(--ink); }
+.bubble { position: absolute; z-index: 3; left: 0; top: 0; pointer-events: none; max-width: 220px; background: #fffdf4; color: #2a2320; border: 2px solid #2a2320; border-radius: 10px; padding: 5px 9px; font-size: 14px; font-weight: 700; line-height: 1.25; box-shadow: 0 3px 0 #0005; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 12px; height: 12px; margin-left: -6px; background: #fffdf4; border-right: 2px solid #2a2320; border-bottom: 2px solid #2a2320; transform: rotate(45deg); }
+.bubble.me { z-index: 6; left: 50%; top: auto; bottom: 27%; transform: translateX(-50%); max-width: min(440px, 74vw); font-size: 18px; font-weight: 800; padding: 8px 14px; text-align: center; border-width: 3px; }
+.bubble.me::after { border-right-width: 3px; border-bottom-width: 3px; bottom: -10px; }
+body.at-menu .bubble.me { display: none; }
+.paused-tag { position: absolute; z-index: 3; left: 50%; top: 42%; transform: translate(-50%, -50%); font-family: var(--f-display); font-size: 40px; color: #fffdf4; text-shadow: 3px 3px 0 #000; pointer-events: none; }
+.hint-strip { position: absolute; z-index: 3; left: 50%; bottom: max(10px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); font-size: 12.5px; color: #e6e8dc; background: #0d110fb0; border-radius: 999px; padding: 3px 12px; white-space: nowrap; pointer-events: none; }
+
+/* core inspection sheet (driller is standing at the core table) */
+.inspect { position: absolute; z-index: 7; left: max(14px, env(safe-area-inset-left, 0px)); right: max(14px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  max-height: 80%; overflow-y: auto; background: #f7f2e2; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; box-shadow: 0 8px 0 #000a; padding: 12px 16px 14px; }
+.insp-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 18px; }
+.insp-head .eyebrow { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 800; color: #8a4b0c; }
+.insp-head h2 { font-family: var(--f-display); font-weight: 400; font-size: 22px; margin: 0; line-height: 1.15; }
+.insp-head p { margin: 2px 0 0; font-size: 15px; font-weight: 600; color: #5d5240; }
+.insp-score { display: flex; align-items: center; gap: 12px; }
+.insp-pct { font-family: var(--f-display); font-size: 46px; line-height: 1; }
+.insp-pct.g { color: #2c8a22; } .insp-pct.a { color: #b07a07; } .insp-pct.r { color: #b3261b; }
+.insp-score div { display: flex; flex-direction: column; }
+.insp-stars { font-size: 24px; line-height: 1; color: #e0a020; letter-spacing: 2px; text-shadow: 1px 1px 0 #1b1710; }
+.insp-verdict { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #5d5240; }
+.insp-nav { display: flex; align-items: center; gap: 6px; }
+.insp-nav .nb { background: #e9e2cc; border: 2px solid #1b1710; border-radius: 8px; font-size: 16px; font-weight: 800; padding: 6px 11px; cursor: pointer; color: #2a2418; }
+.insp-nav .nb:disabled { opacity: 0.35; cursor: default; }
+.insp-nav span { font-family: var(--f-mono); font-size: 13px; color: #5d5240; min-width: 44px; text-align: center; }
+.insp-nav .btn-big { font-size: 16px; padding: 7px 16px; margin-left: 6px; }
+#inspCanvas { display: block; width: 100%; max-width: 1320px; height: auto; margin: 8px auto 4px; }
+.insp-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 4px 28px; }
+.insp-cols h3 { font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; margin: 6px 0 6px; color: #8a4b0c; }
+.insp-cols p { margin: 0; font-size: 15px; font-weight: 600; }
+.insp-cols p.clean { color: #2c8a22; font-weight: 800; }
+.insp-cols ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.insp-cols li { font-size: 15px; font-weight: 700; }
+.insp-cols li small { display: block; font-size: 13.5px; font-weight: 500; color: #4a4232; }
+#inspDrill { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 18px; }
+#inspDrill h3 { grid-column: 1 / -1; margin-bottom: 0; }
+.meter .m-top { display: flex; justify-content: space-between; gap: 8px; font-size: 14.5px; }
+.meter .m-top span { font-family: var(--f-mono); font-size: 12.5px; color: #4a4232; }
+.m-track { position: relative; height: 12px; border: 2px solid #2a2418; border-radius: 7px; background: #fff8d8; margin: 2px 0; }
+.m-zone { position: absolute; top: 0; bottom: 0; background: #9fd58a; }
+.m-mark { position: absolute; top: -4px; bottom: -4px; width: 5px; margin-left: -2.5px; background: #1b1710; border-radius: 3px; }
+.meter small { display: block; font-size: 13px; font-weight: 500; color: #4a4232; line-height: 1.25; }
+body.inspecting .hud, body.inspecting .logbox, body.inspecting .views, body.inspecting .hint-strip, body.inspecting .bubble { display: none !important; }
+
+/* thumb-pad mode: two pads, a gauge beside each, a note card, and buttons that pop up when they are needed */
+.ez { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.ez > * { pointer-events: auto; }
+body.easy .hud-left, body.easy .hud-right, body.easy .views, body.easy .logbox, body.easy .hint-strip, body.easy #btnNotes, body.easy #btnBore { display: none !important; }
+body.inspecting .ez, body.at-menu .ez { display: none; }
+.ez-card { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: var(--hud-top, 56px); width: min(330px, 42vw); background: var(--paper); color: var(--paper-ink);
+  border-radius: 6px 10px 10px 6px; border-left: 7px solid #2f2a1b; padding: 6px 10px 8px; box-shadow: 0 4px 10px #0007; pointer-events: none; }
+.ez-card h2 { font-size: 16px; line-height: 1.15; margin: 0 0 2px; font-weight: 800; }
+.ez-card p { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.25; }
+.ez-card .prog { height: auto; min-height: 16px; margin: 5px 0 0; }
+.ez-card .prog span { font-size: 11px; line-height: 13px; padding: 1px 4px; }
+.ez-layer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 5px; font-size: 13px; font-weight: 700; }
+.ez-layer b { display: flex; align-items: center; gap: 6px; }
+.ez-layer b::before { content: ""; width: 12px; height: 12px; border-radius: 3px; background: var(--lc, #888); border: 2px solid var(--paper-ink); flex: none; }
+.ez-layer span { font-family: var(--f-mono); font-size: 11.5px; font-weight: 400; }
+.ez:not([data-mode="core"]):not([data-mode="casing"]) .ez-layer { display: none; }
+.ez-status { position: absolute; left: 50%; bottom: max(14px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(46vw, 420px); text-align: center; pointer-events: none;
+  font-size: 16px; font-weight: 800; line-height: 1.2; padding: 6px 14px; border-radius: 12px; border: 2px solid #0c0f0d; background: #101411e8; color: var(--ink); box-shadow: 0 3px 0 #0007; }
+.ez-status.good { background: #1f5a22f0; color: #d9ffcf; }
+.ez-status.warn { background: #6a4b08f2; color: #ffe9a8; }
+.ez-status.crit { background: #7a1c14f4; color: #ffe1dc; }
+.ez[data-mode="auto"] .ez-status { bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 46px); }
+.ez-side { position: absolute; bottom: max(10px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: flex-end; gap: 8px; transition: opacity 0.25s; }
+.ez-left { left: max(12px, env(safe-area-inset-left, 0px)); }
+.ez-right { right: max(12px, env(safe-area-inset-right, 0px)); }
+.ez:not([data-mode="core"]):not([data-mode="casing"]) .ez-side { opacity: 0.3; }
+.ez-pad { position: relative; width: 88px; height: clamp(150px, 52vh, 250px); border-radius: 44px; background: #141a17d8; border: 3px solid #0c0f0d; box-shadow: inset 0 0 0 2px #47524a, 0 4px 0 #0007;
+  touch-action: none; cursor: ns-resize; }
+.ez-fill { position: absolute; left: 14px; right: 14px; border-radius: 30px; background: #f2b63066; pointer-events: none; }
+#ezFeed .ez-fill { top: 8px; height: calc(var(--p, 0) * (100% - 80px) + 32px); }
+#ezRot .ez-fill { bottom: 8px; top: calc(var(--p, 1) * (100% - 80px) + 40px); }
+.ez-knob { position: absolute; left: 50%; top: calc(var(--p, 0) * (100% - 80px) + 4px); width: 72px; height: 72px; margin-left: -36px; border-radius: 50%; display: grid; place-items: center; pointer-events: none;
+  background: var(--amber); color: #1d1606; border: 3px solid #1b1710; box-shadow: 0 3px 0 #1b1710; font-size: 15px; font-weight: 800; letter-spacing: 0.06em; }
+#ezRot .ez-knob { background: #6aa8f0; }
+.ez-pad em { position: absolute; left: 0; right: 0; text-align: center; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #c9cfc4; pointer-events: none; }
+#ezFeed em { bottom: 7px; } #ezRot em { top: 7px; }
+.ez-g { position: relative; width: 16px; height: clamp(150px, 52vh, 250px); border-radius: 8px; border: 3px solid #0c0f0d; box-sizing: border-box; }
+.ez-g i { position: absolute; left: -6px; right: -6px; height: 6px; margin-top: -3px; border-radius: 3px; background: #fffdf4; border: 2px solid #0c0f0d; box-sizing: border-box; }
+/* PUSH reads downward: light, good, hard, too hard. SPIN reads upward: good, too fast */
+.ez-push { background: linear-gradient(#76807a 0 23%, #4caf50 23% 54%, #e0a020 54% 81%, #d8362b 81% 100%); }
+.ez-spin { background: linear-gradient(#d8362b 0 44.5%, #4caf50 44.5% 100%); }
+.ez[data-mode="casing"] .ez-push { background: linear-gradient(#76807a 0 15%, #4caf50 15% 100%); }
+.ez[data-mode="casing"] .ez-spin { background: linear-gradient(#e0a020 0 44.5%, #4caf50 44.5% 88%, #76807a 88% 100%); }
+.ez-pump { position: absolute; right: 0; bottom: calc(100% + 10px); width: 88px; height: 88px; border-radius: 50%; border: 3px solid #1b1710; background: #2f3832; color: var(--ink); box-shadow: 0 4px 0 #0c0f0d;
+  font-size: 13px; font-weight: 800; letter-spacing: 0.08em; line-height: 1.15; cursor: pointer; animation: pumpPulse 0.9s ease-in-out infinite; }
+.ez-pump b { display: block; font-size: 20px; }
+.ez-pump small { display: block; font-family: var(--f-mono); font-size: 10px; font-weight: 400; letter-spacing: 0; }
+.ez-pump.on { background: #2f7fc4; color: #fff; animation: none; }
+@keyframes pumpPulse { 50% { box-shadow: 0 4px 0 #0c0f0d, 0 0 0 7px #4aaee988; } }
+.ez-ff { position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); font-size: 15px; padding: 8px 18px; min-height: 36px; }
+.ez-ff[aria-pressed="true"] { background: var(--amber); color: #1d1606; border-color: #ffd770; }
+body.phone .ez-card { left: max(8px, env(safe-area-inset-left, 0px)); padding: 5px 8px 6px; }
+body.phone .ez-card h2 { font-size: 14px; } body.phone .ez-card p { font-size: 13px; }
+body.phone .ez-status { font-size: 14.5px; }
+.ez-qte { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; touch-action: none; cursor: crosshair; background: radial-gradient(circle at 50% 50%, #0b0f0d99, #0b0f0d22 46%, #0b0f0d00 70%); }
+.q-box { display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; text-align: center; }
+.q-ring { position: relative; width: clamp(110px, 34vh, 170px); aspect-ratio: 1; }
+.q-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.q-track { fill: #0b0f0db0; stroke: #fffdf433; stroke-width: 10; }
+.q-prog { fill: none; stroke: var(--amber); stroke-width: 10; stroke-linecap: round; }
+.q-icon { position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(54px, 17vh, 86px); line-height: 1; color: #fffdf4; text-shadow: 0 3px 0 #000; }
+.q-icon.circle { animation: qSpin 1.1s linear infinite; }
+.q-icon.swipe { animation: qSwipe 0.5s ease-in-out infinite alternate; }
+@keyframes qSpin { to { transform: rotate(360deg); } }
+@keyframes qSwipe { from { transform: translateX(-16%); } to { transform: translateX(16%); } }
+.q-box b { font-family: var(--f-display); font-weight: 400; font-size: clamp(17px, 4.4vh, 24px); color: var(--amber); text-shadow: 2px 2px 0 #000; }
+.q-box span { font-size: 16px; font-weight: 800; color: #fffdf4; text-shadow: 0 2px 2px #000; min-height: 1.3em; }
+.q-time { width: min(260px, 60vw); height: 10px; border: 2px solid #0c0f0d; border-radius: 6px; background: #1b201d; overflow: hidden; }
+.q-time i { display: block; height: 100%; width: 100%; background: #6fd05a; }
+.ez-qte[data-state="ready"] .q-time i { background: #9ba495; }
+.ez-qte[data-state="fail"] .q-prog { stroke: var(--crit); }
+.ez-qte[data-state="fail"] .q-box b { color: #ff8a7a; }
+.ez-qte[data-state="fail"] .q-icon, .ez-qte[data-state="fail"] .q-time, .ez-qte[data-state="done"] .q-time { visibility: hidden; }
+.ez-qte[data-state="fail"] { background: none; }
+.ez-qte[data-state="done"] .q-prog { stroke: #6fd05a; }
+.ez-qte[data-state="done"] .q-icon { animation: none; }
+.ez[data-qte="1"] .ez-status { display: none; }
+@media (prefers-reduced-motion: reduce) { .q-icon.circle, .q-icon.swipe { animation: none; } }
+/* the well install: a note card with a gauge of the hole, a pad to pour and answer prompts on, and the engineer's drawing */
+.wl { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+body.well-job .hud-left, body.well-job .hud-right, body.well-job .views, body.well-job .logbox, body.well-job .hint-strip, body.well-job .ez, body.well-job .speed { display: none !important; }
+body.inspecting .wl, body.at-menu .wl { display: none; }
+.wl-pad { position: absolute; inset: 0; pointer-events: auto; touch-action: none; cursor: crosshair; display: grid; place-items: center; }
+.wl[data-mode="idle"] .wl-pad { display: none; }
+.wl[data-mode="qte"] .wl-pad { padding-left: min(262px, 32vw); background: radial-gradient(circle at 60% 50%, #0b0f0d99, #0b0f0d22 46%, #0b0f0d00 70%); }
+body.phone .wl[data-mode="qte"] .wl-pad { padding-left: min(200px, 28vw); }
+.wl[data-mode="pour"] .wl-pad { place-items: end; padding: 0 max(4vw, env(safe-area-inset-right, 0px)) max(9vh, env(safe-area-inset-bottom, 0px)) 0; }
+.wl[data-mode="pour"] .q-ring { width: clamp(84px, 24vh, 132px); }
+.wl[data-mode="pour"] .q-icon { font-size: clamp(40px, 12vh, 64px); }
+.wl[data-mode="pour"] .q-box { background: #0b0f0d8c; border-radius: 16px; padding: 10px 16px 12px; max-width: min(240px, 36vw); }
+.wl[data-mode="pour"] .q-box b { font-size: clamp(16px, 3.6vh, 20px); }
+.wl[data-mode="pour"] .q-box span { font-size: 14px; font-weight: 700; }
+.wl-box[data-state="pour"] .q-time, .wl-box[data-state="fail"] .q-time, .wl-box[data-state="done"] .q-time, .wl-box[data-state="fail"] .q-icon { visibility: hidden; }
+.wl-box[data-state="pour"] .q-time { display: none; }
+.wl-box[data-state="ready"] .q-time i { background: #9ba495; }
+.wl-box[data-state="fail"] .q-prog { stroke: var(--crit); }
+.wl-box[data-state="fail"] b { color: #ff8a7a; }
+.wl-box[data-state="done"] .q-prog { stroke: #6fd05a; }
+.wl-box[data-state="done"] .q-icon { animation: none; }
+.q-icon.mash { animation: qMash 0.22s ease-in-out infinite alternate; }
+@keyframes qMash { from { transform: translateY(-8%); } to { transform: translateY(10%); } }
+.wl-tape { white-space: nowrap; font-family: var(--f-mono); font-size: clamp(20px, 5.6vh, 30px) !important; font-weight: 700; color: var(--lcd) !important; background: #121c0e; border: 2px solid #050805; border-radius: 8px; padding: 0 10px; letter-spacing: 0.04em; min-height: 0 !important; text-shadow: none !important; }
+.wl-tape:empty { display: none; }
+.wl-bar { position: relative; width: min(300px, 62vw); height: 26px; border: 3px solid #0c0f0d; border-radius: 14px; background: #1b201d; overflow: hidden; display: none; }
+.wl-box[data-type="timing"] .wl-bar { display: block; }
+.wl-box[data-type="timing"][data-state="fail"] .wl-bar, .wl-box[data-type="timing"][data-state="done"] .wl-bar { visibility: hidden; }
+.wl-bar i { position: absolute; top: 0; bottom: 0; background: #4caf50; }
+.wl-bar u { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -4px; background: #fffdf4; border-radius: 4px; box-shadow: 0 0 0 2px #0c0f0d; }
+.wl-card { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: var(--hud-top, 56px); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: min(250px, 31vw); max-height: 560px; display: flex; flex-direction: column;
+  background: var(--paper); color: var(--paper-ink); border-radius: 6px 10px 10px 6px; border-left: 7px solid #2f2a1b; padding: 6px 9px 7px; box-shadow: 0 4px 10px #0007; pointer-events: none; box-sizing: border-box; }
+.wl[data-scene="1"] .wl-card { display: none; }
+.wl-card h2 { font-size: 16px; line-height: 1.15; margin: 0 0 2px; font-weight: 800; }
+.wl-card p { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.22; }
+.wl-card small { display: block; font-family: var(--f-mono); font-size: 10.5px; margin: 3px 0 2px; color: #5d5240; }
+.wl-card canvas { flex: 1 1 0; min-height: 0; width: 100%; display: block; }
+.wl-msg { position: absolute; left: 50%; bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 58px); transform: translateX(-50%); max-width: min(34vw, 440px); text-align: center; pointer-events: none;
+  font-size: 16px; font-weight: 800; line-height: 1.2; padding: 6px 14px; border-radius: 12px; border: 2px solid #0c0f0d; background: #101411e8; color: var(--ink); box-shadow: 0 3px 0 #0007; }
+.wl-msg.good { background: #1f5a22f0; color: #d9ffcf; }
+.wl-msg.warn { background: #6a4b08f2; color: #ffe9a8; }
+.wl-msg.crit { background: #7a1c14f4; color: #ffe1dc; }
+.wl-call { position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); pointer-events: auto; white-space: nowrap; }
+.wl-call:active { transform: translateX(-50%) translateY(3px); }
+.wl-draw { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: var(--hud-top, 56px); pointer-events: auto; font-size: 14px; padding: 7px 14px; }
+body.phone .wl-card { left: max(8px, env(safe-area-inset-left, 0px)); width: min(190px, 27vw); padding: 5px 7px 6px; }
+body.phone .wl-card h2 { font-size: 14px; } body.phone .wl-card p { font-size: 12px; }
+body.phone .wl-msg { font-size: 14px; bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 50px); }
+.sheet.plan { width: min(680px, 100%); }
+.plan-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.plan-head img { width: 64px; height: 72px; border-radius: 8px; background: #bfe3f5; border: 2px solid #1b1710; object-fit: cover; flex: none; }
+.plan-head h2 { margin: 0; } .plan-head p { margin: 0; }
+#planCanvas { display: block; width: 100%; height: auto; border: 3px solid #1b1710; border-radius: 6px; box-sizing: border-box; }
+.rp-stats dd.g { color: #2c8a22; font-weight: 800; } .rp-stats dd.a { color: #a36f05; font-weight: 800; } .rp-stats dd.r { color: #b3261b; font-weight: 800; }
+.rp-grade small { color: #6d6247; font-weight: 700; }
+/* throw a Zonnic at a helper: a button that pops up while coring, then a ring that shrinks onto a target band */
+.ts-offer { position: absolute; z-index: 7; left: 50%; top: 24%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: #e0362b; color: #fffdf4; border: 3px solid #1b1710; border-radius: 16px; padding: 8px 20px 9px; box-shadow: 0 5px 0 #1b1710; cursor: pointer; animation: tsWig 0.5s ease-in-out infinite alternate; }
+.ts-offer b { font-family: var(--f-display); font-weight: 400; font-size: clamp(18px, 4vh, 24px); letter-spacing: 0.02em; text-shadow: 2px 2px 0 #1b1710; line-height: 1.05; }
+.ts-offer span { font-size: 15px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.ts-offer kbd { margin-left: 4px; }
+body.touch .ts-offer kbd { display: none; }
+.ts-offer .ts-bar { width: 100%; height: 6px; border-radius: 3px; background: #7a1c14; overflow: hidden; margin-top: 3px; }
+.ts-offer .ts-bar i { display: block; height: 100%; width: 100%; background: #ffd770; }
+@keyframes tsWig { from { transform: translateX(-50%) rotate(-2.5deg) scale(1); } to { transform: translateX(-50%) rotate(2.5deg) scale(1.05); } }
+.ts-aim { position: absolute; inset: 0; z-index: 7; touch-action: none; cursor: crosshair; background: #0b0f0d26; }
+.ts-zone { position: absolute; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none; }
+.ts-text { position: absolute; left: 0; right: 0; top: calc(var(--hud-top, 56px) + 4px); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+.ts-band { position: absolute; left: 50%; top: 50%; width: 138px; height: 138px; transform: translate(-50%, -50%); border-radius: 50%; border: 18px solid #4caf50cc; box-sizing: border-box; box-shadow: 0 0 0 2px #0c0f0d, inset 0 0 0 2px #0c0f0d; }
+.ts-ring { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; transform: translate(-50%, -50%) scale(3); border-radius: 50%; border: 5px solid #fffdf4; box-sizing: border-box; box-shadow: 0 0 0 2px #0c0f0d; }
+.ts-dot { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #e0362b; box-shadow: 0 0 0 2px #0c0f0d; }
+.ts-aim[data-state="hit"] .ts-band { border-color: #6fd05a; } .ts-aim[data-state="miss"] .ts-band { border-color: #e5483acc; }
+.ts-aim[data-state="hit"] .ts-ring, .ts-aim[data-state="miss"] .ts-ring { opacity: 0.5; }
+.ts-aim b { font-family: var(--f-display); font-weight: 400; font-size: clamp(17px, 4.2vh, 24px); color: var(--amber); text-shadow: 2px 2px 0 #000; pointer-events: none; text-align: center; }
+.ts-aim span { font-size: 16px; font-weight: 800; color: #fffdf4; text-shadow: 0 2px 2px #000; pointer-events: none; min-height: 1.3em; text-align: center; padding: 0 16px; }
+.ts-aim[data-state="miss"] b { color: #ff8a7a; } .ts-aim[data-state="hit"] b { color: #9df07e; }
+body.inspecting .ts-offer, body.at-menu .ts-offer, body.inspecting .ts-aim, body.at-menu .ts-aim { display: none !important; }
+body.tossing .ez-status, body.tossing .ez-ff, body.tossing .ez-card { visibility: hidden; }
+body.phone .ts-offer { top: 20%; padding: 6px 16px 7px; }
+/* Marl's handiwork: something has quit, the Investigate button, and the card that shows what was wrong */
+.ml-warn { position: absolute; z-index: 7; left: 50%; top: 24%; transform: translateX(-50%); max-width: 86vw; text-align: center; pointer-events: none; font-family: var(--f-display); font-size: clamp(17px, 4vh, 24px);
+  color: #ffe1dc; background: #7a1c14f2; border: 3px solid #1b1710; border-radius: 14px; padding: 8px 18px; box-shadow: 0 5px 0 #1b1710; animation: blink 0.6s steps(2) infinite; }
+.ml-offer { background: #f2b630; color: #1d1606; }
+.ml-offer b { text-shadow: none; }
+.ml-card { position: absolute; z-index: 8; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(560px, 94vw); max-height: 96%; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+  background: #f7f2e2; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; box-shadow: 0 8px 0 #000a; padding: 10px 14px 12px; }
+.ml-card .eyebrow { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 800; color: #8a4b0c; }
+.ml-card canvas { display: block; width: 100%; height: auto; max-height: 44vh; object-fit: contain; border: 3px solid #1b1710; border-radius: 8px; box-sizing: border-box; background: #7f9a6b; }
+.ml-card p { margin: 0; font-size: 15.5px; font-weight: 600; }
+.ml-card .ml-say { font-family: var(--f-display); font-size: clamp(18px, 4.4vh, 26px); line-height: 1.12; color: #b3261b; }
+.ml-card .btn-big { align-self: flex-start; margin-top: 2px; }
+body.inspecting .ml-warn, body.at-menu .ml-warn, body.inspecting .ml-offer, body.at-menu .ml-offer, body.inspecting .ml-card, body.at-menu .ml-card { display: none !important; }
+body.phone .ml-card { padding: 7px 10px 9px; gap: 4px; } body.phone .ml-card p { font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .ml-warn { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ts-offer { animation: none; } }
+#briefEasy { display: none; }
+body.easy #briefEasy { display: block; }
+body.easy #briefFull { display: none; }
+@media (prefers-reduced-motion: reduce) { .ez-pump { animation: none; } .ez-side { transition: none; } }
+
+/* main menu: the title and two buttons over the drone's view of the site */
+.menu { position: absolute; inset: 0; z-index: 20; display: none; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; pointer-events: none;
+  padding: max(4vh, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(6vh, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(#0b0f0dd0 0, #0b0f0d00 38%, #0b0f0d00 64%, #0b0f0dc0 100%); }
+body.at-menu .menu { display: flex; }
+body.at-menu .topbar, body.at-menu .hud, body.at-menu .logbox, body.at-menu .views, body.at-menu .hint-strip, body.at-menu .bubble, body.at-menu .tip, body.at-menu .paused-tag { display: none !important; }
+.menu > * { pointer-events: auto; }
+.menu-title { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, min(10.5vw, 17vh), 124px); line-height: 0.96; margin: 0; color: var(--amber); text-transform: uppercase; transform: rotate(-2deg);
+  -webkit-text-stroke: 0.09em #1b1710; paint-order: stroke fill; text-shadow: 0.05em 0.08em 0 #1b1710; text-wrap: balance; }
+.menu-title span { color: #fffdf4; }
+.menu-sub { margin: 1.4vh 0 0; font-size: clamp(13px, 2.4vh, 19px); font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #f2e7b4; text-shadow: 0 2px 3px #000; }
+.menu-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 16px; }
+.menu-btns .btn-big { font-size: clamp(18px, 3.4vh, 26px); padding: 0.5em 1.5em; min-width: 7.5em; }
+
+/* pick your crew */
+.pick-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 6px; }
+.slot-driller { grid-column: 1 / -1; justify-self: center; width: min(100%, 420px); }
+.slot { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; text-align: left; background: #e9e2cc; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; padding: 6px 10px 6px 6px; cursor: pointer; }
+.slot img { grid-row: 1 / 3; width: 74px; height: 84px; border-radius: 8px; background: #bfe3f5; border: 2px solid #1b1710; object-fit: cover; }
+.slot small { align-self: end; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #8a4b0c; }
+.slot b { align-self: start; font-family: var(--f-display); font-weight: 400; font-size: 20px; line-height: 1; }
+.slot i { grid-column: 1 / -1; font-style: normal; font-size: 13.5px; font-weight: 600; color: #5d5240; line-height: 1.2; }
+.slot[aria-pressed="true"] { background: #fde3a2; box-shadow: 0 0 0 4px var(--amber); }
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; background: #fffdf4; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; padding: 6px 6px 7px; cursor: pointer; box-shadow: 0 3px 0 #1b1710; }
+.card:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b1710; }
+.card img { width: 100%; aspect-ratio: 8 / 9; border-radius: 8px; background: #bfe3f5; object-fit: cover; }
+.card b { font-size: 16px; font-weight: 800; }
+.card em { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--amber); color: #1d1606; border: 2px solid #1b1710; border-radius: 999px; padding: 0 7px; }
+.card.used { background: #fde3a2; }
+.card.no { opacity: 0.42; }
+.trade { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #5d5240; }
+.trade.driller { color: #b3261b; }
+.pick-msg { margin: 0 0 2px; font-size: 15px !important; font-weight: 700 !important; color: #5d5240; min-height: 1.35em; }
+.pick-msg.warn { color: #b3261b; }
+body.phone .pick-slots { gap: 6px; }
+body.phone .slot { padding: 4px 6px 4px 4px; gap: 2px 7px; border-width: 2px; }
+body.phone .slot img { width: 50px; height: 56px; }
+body.phone .slot b { font-size: 16px; }
+body.phone .slot i { display: none; }
+body.phone .pick-grid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; }
+@media (max-width: 520px) { .pick-slots { grid-template-columns: 1fr; } }
+body.phone .slot-driller { width: min(100%, 340px); }
+
+/* settings */
+.sheet.narrow { width: min(520px, 100%); }
+.set-row { display: grid; grid-template-columns: 8em 1fr auto; align-items: center; gap: 10px 14px; padding: 9px 0; border-bottom: 1px solid #d9cfb2; font-size: 17px; font-weight: 700; }
+.set-row output { font-family: var(--f-mono); font-size: 13px; min-width: 3.4em; text-align: right; color: #5d5240; }
+.set-row input[type=range] { width: 100%; accent-color: #b3730a; height: 28px; margin: 0; }
+.switch { justify-self: start; position: relative; width: 58px; height: 30px; border-radius: 16px; border: 2px solid #1b1710; background: #cfc6ac; cursor: pointer; padding: 0; }
+.switch span { position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fffdf4; border: 2px solid #1b1710; transition: transform 0.12s; box-sizing: border-box; }
+.switch[aria-checked="true"] { background: #6fae4a; }
+.switch[aria-checked="true"] span { transform: translateX(28px); }
+.seg { display: inline-flex; border: 2px solid #1b1710; border-radius: 8px; overflow: hidden; justify-self: start; }
+.seg button { background: #e9e2cc; color: #2a2418; border: 0; border-right: 2px solid #1b1710; padding: 6px 14px; font-size: 15px; font-weight: 800; cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--amber); }
+.set-note { font-size: 14.5px !important; color: #5d5240; margin: 8px 0 0; }
+@media (prefers-reduced-motion: reduce) { .switch span { transition: none; } }
+
+/* modals */
+.modal { position: fixed; inset: 0; z-index: 50; background: #060807cc; display: grid; place-items: center; overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.sheet { box-sizing: border-box; width: min(860px, 100%); background: #f7f2e2; color: #2a2418; border-radius: 12px; border: 3px solid #1b1710; box-shadow: 0 10px 0 #000a; padding: 20px 22px; }
+.sheet h2 { font-family: var(--f-display); font-weight: 400; font-size: 26px; margin: 0 0 2px; color: #2a2418; }
+.sheet .sub { color: #6d6247; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; margin: 0 0 12px; }
+.sheet h3 { font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; margin: 16px 0 6px; color: #8a4b0c; }
+.sheet p, .sheet li { font-size: 16px; font-weight: 500; max-width: 70ch; }
+.sheet ol { padding-left: 22px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 22px; }
+.ground { width: 100%; border-collapse: collapse; font-size: 15px; }
+.ground td { color: #2a2418; font-family: var(--f-ui); padding: 3px 6px; border-bottom: 1px solid #d9cfb2; vertical-align: top; }
+.ground td:first-child { font-family: var(--f-mono); font-size: 13px; white-space: nowrap; color: #5d5240; }
+.sw { display: inline-block; width: 12px; height: 12px; border: 2px solid #2a2418; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 3px 16px; font-size: 15px; }
+kbd { font-family: var(--f-mono); font-size: 12px; background: #2a2418; color: #f7f2e2; border-radius: 4px; padding: 1px 5px; }
+.go { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; position: sticky; bottom: -20px; background: #f7f2e2; padding: 10px 0 20px; }
+.btn-big { background: #f2b630; color: #1d1606; border: 3px solid #1b1710; border-radius: 10px; padding: 10px 20px; font-size: 19px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 0 #1b1710; }
+.btn-big:active { transform: translateY(3px); box-shadow: 0 1px 0 #1b1710; }
+.btn-big.alt { background: #e9e2cc; }
+.safety { background: #fde3a2; border: 2px solid #c98a12; border-radius: 8px; padding: 8px 12px; font-weight: 700; margin-top: 12px; }
+.rp-grade { display: flex; align-items: center; gap: 16px; font-size: 17px; }
+.rp-letter { font-family: var(--f-display); font-size: 56px; line-height: 1; width: 78px; height: 78px; display: grid; place-items: center; border: 3px solid #1b1710; border-radius: 12px; background: #fff; }
+.g-A { color: #2c8a22; } .g-B { color: #5f8a16; } .g-C { color: #b07a07; } .g-D, .g-F { color: #b3261b; }
+.rp-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 4px 20px; margin: 12px 0 0; }
+.rp-stats div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid #d9cfb2; padding: 3px 0; }
+.rp-stats dt { font-weight: 700; color: #6d6247; } .rp-stats dd { margin: 0; text-align: right; font-weight: 600; }
+.rp-table { overflow-x: auto; }
+.rp-table table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 560px; }
+.rp-table th { font-family: var(--f-ui); text-align: left; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #6d6247; border-bottom: 2px solid #2a2418; padding: 4px 6px; }
+.rp-table td { color: #2a2418; font-family: var(--f-ui); border-bottom: 1px solid #d9cfb2; padding: 4px 6px; font-variant-numeric: tabular-nums; }
+.rp-table td.g { color: #2c8a22; font-weight: 800; } .rp-table td.a { color: #a36f05; font-weight: 800; } .rp-table td.r { color: #b3261b; font-weight: 800; }
+
+@media (max-width: 1100px) {
+  .hud-left, .logbox { width: 240px; }
+  .hud-right { width: 240px; }
+  .job { display: none; }
+}
+body.touch .touch-tips { display: block; background: #e3ecd6; border: 2px solid #5d7a3c; border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
+body.touch .touch-tips p { margin: 0 0 4px; }
+
+/* Phone layout (held sideways): a thin bar on top, the field book in a narrow column on the left, the crew in a
+   narrow column on the right, the Look buttons in one row along the bottom. The middle is left clear for the panel. */
+body.phone { --col: clamp(124px, 18vw, 168px); }
+body.phone .topbar { flex-wrap: nowrap; gap: 6px; padding: 4px max(8px, env(safe-area-inset-right, 0px)) 10px max(8px, env(safe-area-inset-left, 0px)); }
+body.phone .logo { font-size: 13px; white-space: nowrap; }
+@media (max-width: 800px) { body.phone .logo { display: none; } }
+body.phone .bubble.me { font-size: 15.5px; bottom: 30%; }
+body.phone .job { display: none; }
+body.phone .topctl { flex-wrap: nowrap; gap: 5px; }
+body.phone .tb { padding: 6px 10px; min-height: 32px; white-space: nowrap; }
+body.phone .speed button { padding: 6px 9px; min-height: 32px; }
+body.phone .clock { font-size: 14px; padding: 4px 6px; }
+body.phone .more-btn, body.phone .only-phone { display: inline-block; }
+body.phone .no-phone { display: none; }
+body.phone .more { display: none; position: absolute; z-index: 8; top: calc(var(--hud-top, 44px) - 2px); right: max(8px, env(safe-area-inset-right, 0px)); flex-direction: column; gap: 6px; padding: 8px;
+  background: var(--glass); border: 1px solid #47524a; border-radius: 10px; backdrop-filter: blur(3px); }
+body.phone .more.open { display: flex; }
+
+body.phone .hud-left { left: max(8px, env(safe-area-inset-left, 0px)); top: var(--hud-top, 44px); width: var(--col); gap: 4px; max-height: calc(100% - 92px); }
+body.phone .book { cursor: pointer; padding: 5px 7px 6px; border-left-width: 5px; background-image: none; overflow-y: auto; }
+body.phone .book .eyebrow, body.phone .book .layer, body.phone .book .latest { display: none; }
+body.phone .book h2 { font-size: 14px; margin: 0 0 2px; }
+body.phone .book p { font-size: 13px; line-height: 1.22; margin: 0; }
+body.phone .prog { height: auto; min-height: 14px; margin: 5px 0 0; border-width: 1.5px; }
+body.phone .prog span { font-size: 10px; line-height: 12px; padding: 1px 3px; }
+body.phone .book.min p, body.phone .book.min .prog { display: none; }
+body.phone .book.min h2 { margin: 0; }
+body.phone .book.min h2::after { content: "  ▸"; }
+body.phone .chip { font-size: 12px; padding: 1px 8px; }
+
+body.phone .hud-right { top: var(--hud-top, 44px); right: max(8px, env(safe-area-inset-right, 0px)); width: var(--col); max-height: calc(100% - 92px); overflow-y: auto; gap: 5px; }
+body.phone.crew-open .hud-right { width: 214px; }
+body.phone .crew-box { padding: 5px 6px; }
+body.phone .crew-box .side-h { cursor: pointer; margin: 0 0 3px; font-size: 11px; letter-spacing: 0.1em; }
+body.phone .crew-box .side-h { white-space: nowrap; }
+body.phone #crewTog { color: var(--ink); letter-spacing: 0.04em; text-decoration: underline; }
+body.phone .crew { gap: 3px; }
+body.phone .cw-head b { font-size: 13px; }
+body.phone .cw-status { font-size: 11.5px; }
+body.phone .order { padding: 8px 6px; font-size: 13.5px; white-space: normal; }
+body.phone:not(.crew-open) .cw-role, body.phone:not(.crew-open) .cw-bar, body.phone:not(.crew-open) .order:not(.hint) { display: none; }
+body.phone:not(.crew-open) .cw + .cw { border-top: 0; padding-top: 0; }
+body.phone #section { width: 109px; height: 180px; }
+
+body.phone .views { left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); bottom: max(6px, env(safe-area-inset-bottom, 0px)); max-width: none;
+  flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+body.phone .views::-webkit-scrollbar { display: none; }
+body.phone .views span { display: none; }
+body.phone .views .tb { flex: none; }
+body.phone .logbox, body.phone .hint-strip { display: none; }
+body.phone .paused-tag { font-size: 28px; }
+
+body.phone .inspect { left: 6px; right: 6px; top: 6px; bottom: 6px; max-height: none; padding: 8px 10px 10px; }
+body.phone .insp-head h2 { font-size: 17px; }
+body.phone .insp-head p { font-size: 13.5px; }
+body.phone .insp-pct { font-size: 32px; }
+body.phone .insp-stars { font-size: 18px; }
+body.phone .insp-nav .btn-big { font-size: 14px; padding: 7px 10px; }
+.insp-scroll { overflow-x: auto; }
+body.phone #inspCanvas { width: 1000px; max-width: none; }
+body.phone .insp-cols { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+body.phone .modal { padding: 6px; place-items: start center; }
+body.phone .sheet { padding: 12px 14px; }
+body.phone .sheet h2 { font-size: 20px; }
+body.phone .sheet p, body.phone .sheet li { font-size: 15px; }
+body.phone .keys, body.phone .keys-h { display: none; }
+body.phone .sheet .go { bottom: -12px; padding: 8px 0 12px; margin-top: 8px; }
+body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
+
+/* a phone held upright: ask for it to be turned, but let the player carry on */
+@media (orientation: portrait) {
+  body.phone:not(.upright) .rotate { display: grid; position: fixed; inset: 0; z-index: 60; place-items: center; background: #0b0f0d; padding: 20px; text-align: center; }
+  body.phone .topbar { flex-wrap: wrap; }
+  body.phone .logo { display: none; }
+  body.phone .topctl { flex-wrap: wrap; }
+  body.phone .hud-left { right: max(8px, env(safe-area-inset-right, 0px)); width: auto; max-height: none; }
+  body.phone .book h2, body.phone .book p { display: inline; }
+  body.phone .book h2 { margin-right: 6px; }
+  body.phone .hud-right { top: auto; bottom: calc(46px + env(safe-area-inset-bottom, 0px)); max-height: 50%; }
+}
+.rotate b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 24px; color: var(--amber); }
+.rotate p { font-size: 16px; margin: 6px 0 16px; }
+.rotate .turn { width: 54px; height: 92px; margin: 0 auto 16px; border: 4px solid var(--amber); border-radius: 10px; animation: turn 2.4s ease-in-out infinite; }
+@keyframes turn { 0%, 25% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+@media (prefers-reduced-motion: reduce) { .chip.crit, .rotate .turn { animation: none; } }
+</style>
+
+<div class="app">
+  <canvas id="view" aria-label="First-person 3D view from the driller's console of a sonic drilling rig"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">YOUR HOLE IS OUR GOAL!</span>
+      <span class="job">FS 250 sonic · MW-01 · 4×6 tooling · 10 ft runs</span>
+    </div>
+    <div class="topctl">
+      <span class="clock" id="clock" aria-label="Shift clock">07:00</span>
+      <div class="speed" role="group" aria-label="Game speed">
+        <button type="button" data-speed="1" class="on">1×</button><button type="button" data-speed="2">2×</button><button type="button" data-speed="4">4×</button>
+      </div>
+      <button type="button" class="tb" id="btnPause" aria-pressed="false">Pause</button>
+      <button type="button" class="tb" id="btnSmoke" aria-pressed="false">Light a smoke</button>
+      <button type="button" class="tb" id="btnBerate">Berate<span class="no-phone"> helper</span></button>
+      <button type="button" class="tb more-btn" id="btnMore" aria-expanded="false" aria-controls="more">Menu</button>
+      <div class="more" id="more">
+        <button type="button" class="tb" id="btnSettings">Settings</button>
+        <button type="button" class="tb" id="btnNotes">Hide notes</button>
+        <button type="button" class="tb" id="btnBore" aria-pressed="true">Borehole</button>
+        <button type="button" class="tb" id="btnCore" disabled>Inspect core</button>
+        <button type="button" class="tb" id="btnHelp">How to drill</button>
+      </div>
+    </div>
+  </header>
+
+  <aside class="hud hud-left">
+    <div class="book" id="book" aria-live="polite">
+      <div class="eyebrow">Driller's field book</div>
+      <h2 id="nbTitle">Run 1</h2>
+      <p id="nbText"></p>
+      <div class="prog"><i id="nbBar"></i><span id="nbBarTxt"></span></div>
+      <div class="layer"><b id="nbLayer"></b><p id="nbTip"></p></div>
+      <div class="latest" id="latest"></div>
+    </div>
+    <div class="alarms" id="alarms" aria-live="polite"></div>
+  </aside>
+
+  <aside class="hud hud-right">
+    <div class="panel-box crew-box"><h3 class="side-h" id="crewH"><span>Crew<span class="no-phone"> orders</span></span> <span class="only-phone" id="crewTog">show all</span></h3><div class="crew" id="crew"></div></div>
+    <div class="panel-box" id="bhWrap"><h3 class="side-h">Borehole MW-01 <span>ft</span></h3><canvas id="section" width="200" height="330" aria-label="Borehole section"></canvas></div>
+  </aside>
+
+  <details class="logbox panel-box"><summary>Shift log</summary><ul id="log"></ul></details>
+
+  <div class="views" role="group" aria-label="Look at">
+    <span>Look</span>
+    <button type="button" class="tb stop only-phone" id="btnNeutral">Levers neutral</button>
+    <button type="button" class="tb" data-view="work">Work view</button>
+    <button type="button" class="tb" data-view="panel">Panel</button>
+    <button type="button" class="tb" data-view="rig">Head</button>
+    <button type="button" class="tb" data-view="clamps">Clamps</button>
+    <button type="button" class="tb" data-view="mast">Mast</button>
+    <button type="button" class="tb" data-view="rack">Casing rack</button>
+    <button type="button" class="tb" data-view="horses">Sawhorses</button>
+    <button type="button" class="tb" data-view="table">Core table</button>
+    <button type="button" class="tb" data-view="truck">Water truck</button>
+  </div>
+  <div class="hint-strip" id="hintStrip">Drag to look around · drag a lever or knob to work it · click switches · scroll to zoom</div>
+
+  <div class="tip" id="tip" hidden><b></b><span></span></div>
+  <div class="bubble" id="bubDale" hidden><span></span></div>
+  <div class="bubble" id="bubTess" hidden><span></span></div>
+  <div class="bubble me" id="bubMe" role="status" hidden><span></span></div>
+  <div class="paused-tag" id="pausedTag" hidden>PAUSED</div>
+
+  <div class="ez" id="easy" data-mode="auto" hidden>
+    <div class="ez-card" aria-live="polite">
+      <h2 id="ezTitle"></h2>
+      <p id="ezText"></p>
+      <div class="prog"><i id="ezBar"></i><span id="ezBarTxt"></span></div>
+      <div class="ez-layer"><b id="ezLayer"></b><span id="ezRate"></span></div>
+    </div>
+    <div class="ez-status" id="ezStatus" hidden></div>
+    <div class="ez-side ez-left">
+      <div class="ez-g ez-push" aria-hidden="true"><i id="ezPushM"></i></div>
+      <div class="ez-pad" id="ezFeed" role="slider" aria-label="Push on the bit" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="ez-fill"></span><span class="ez-knob">PUSH</span><em>more ▼</em></div>
+    </div>
+    <div class="ez-side ez-right">
+      <button type="button" class="ez-pump" id="ezPump" aria-pressed="false" hidden>PUMP<b id="ezPumpTxt">OFF</b><small id="ezTank"></small></button>
+      <div class="ez-pad" id="ezRot" role="slider" aria-label="Spin" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="ez-fill"></span><span class="ez-knob">SPIN</span><em>more ▲</em></div>
+      <div class="ez-g ez-spin" aria-hidden="true"><i id="ezSpinM"></i></div>
+    </div>
+    <button type="button" class="tb ez-ff" id="ezFF" aria-pressed="false" hidden>Fast forward ▶▶</button>
+    <div class="ez-qte" id="ezQte" data-state="idle" role="group" aria-label="Quick-time event" hidden>
+      <div class="q-box" aria-live="assertive">
+        <div class="q-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="q-track" cx="60" cy="60" r="52"/><circle class="q-prog" id="ezQProg" cx="60" cy="60" r="52"/></svg><div class="q-icon" id="ezQIcon" aria-hidden="true"></div></div>
+        <b id="ezQTitle"></b><span id="ezQHow"></span>
+        <div class="q-time"><i id="ezQTime"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble" id="bubEng" hidden><span></span></div>
+  <button type="button" class="ts-offer" id="tsOffer" hidden><b>Throw a Zonnic!</b><span id="tsWho"></span><span class="ts-key"><kbd>Z</kbd></span><span class="ts-bar"><i id="tsBar"></i></span></button>
+  <div class="ml-warn" id="mlWarn" role="alert" hidden></div>
+  <button type="button" class="ts-offer ml-offer" id="mlOffer" hidden><b id="mlWhat"></b><span>Investigate <kbd>M</kbd></span></button>
+  <div class="ml-card" id="mlCard" role="dialog" aria-label="What was wrong" hidden>
+    <div class="eyebrow">You go and have a look</div>
+    <canvas id="mlCv" aria-hidden="true"></canvas>
+    <p id="mlFind"></p>
+    <p class="ml-say" id="mlSay"></p>
+    <button type="button" class="btn-big" id="mlFix">Fix it</button>
+  </div>
+  <div class="ts-aim" id="tsAim" data-state="go" role="group" aria-label="Throw a Zonnic: timing" hidden>
+    <div class="ts-zone" id="tsZone" aria-hidden="true"><div class="ts-band"></div><div class="ts-ring" id="tsRing"></div><div class="ts-dot"></div></div>
+    <div class="ts-text"><b id="tsTitle" aria-live="assertive"></b><span id="tsHow"></span></div>
+  </div>
+  <div class="wl" id="well" data-mode="idle" hidden>
+    <div class="wl-pad" id="wlPad" role="group" aria-label="Pour and prompts">
+      <div class="q-box wl-box" id="wlBox" data-state="pour" aria-live="polite">
+        <div class="q-ring" id="wlRing"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="q-track" cx="60" cy="60" r="52"/><circle class="q-prog" id="wlProg" cx="60" cy="60" r="52"/></svg><div class="q-icon" id="wlIcon" aria-hidden="true"></div></div>
+        <b id="wlQTitle"></b><span id="wlQHow"></span><span class="wl-tape" id="wlTape"></span>
+        <div class="wl-bar" id="wlBar" aria-hidden="true"><i id="wlZone"></i><u id="wlMark"></u></div>
+        <div class="q-time" id="wlTime"><i id="wlTimeI"></i></div>
+      </div>
+    </div>
+    <div class="wl-card" aria-live="polite">
+      <h2 id="wlTitle"></h2>
+      <p id="wlText"></p>
+      <small id="wlBags"></small>
+      <canvas id="wlHole" aria-label="The drawing beside what is in the hole so far"></canvas>
+    </div>
+    <div class="wl-msg" id="wlMsg" role="status" hidden></div>
+    <button type="button" class="btn-big wl-call" id="wlCall" hidden>Call it</button>
+    <button type="button" class="tb wl-draw" id="wlDraw" hidden>The drawing</button>
+  </div>
+
+  <section class="inspect" id="inspect" aria-label="Core inspection" hidden>
+    <div class="insp-head">
+      <div><div class="eyebrow">At the core table</div><h2 id="inspTitle">Run 1</h2><p id="inspSum"></p></div>
+      <div class="insp-score"><span class="insp-pct" id="inspPct">100%</span><div><span class="insp-stars" id="inspStars">★★★</span><span class="insp-verdict" id="inspVerdict"></span></div></div>
+      <div class="insp-nav">
+        <button type="button" class="nb" id="inspPrev" aria-label="Earlier run">◀</button><span id="inspCount">1 / 1</span><button type="button" class="nb" id="inspNext" aria-label="Later run">▶</button>
+        <button type="button" class="btn-big" id="inspBack">Back to the rig</button>
+      </div>
+    </div>
+    <div class="insp-scroll"><canvas id="inspCanvas" aria-label="Close-up of the core sample laid out in two rows"></canvas></div>
+    <div class="insp-cols"><div id="inspDrill"></div><div id="inspLoss"></div></div>
+  </section>
+</div>
+
+<div class="menu" id="menu">
+  <div>
+    <h1 class="menu-title">Your hole<br>is <span>our goal!</span></h1>
+    <p class="menu-sub">Sonic drilling simulator · FS 250 rig · Borehole MW-01</p>
+  </div>
+  <div class="menu-btns">
+    <button type="button" class="btn-big" id="menuStart">Start</button>
+    <button type="button" class="btn-big alt" id="menuNew" hidden>Start a new hole</button>
+    <button type="button" class="btn-big alt" id="menuSettings">Settings</button>
+  </div>
+</div>
+
+<div class="modal" id="pick" role="dialog" aria-modal="true" aria-labelledby="pickTitle" hidden>
+  <div class="sheet">
+    <h2 id="pickTitle">Pick your crew</h2>
+    <p class="sub">One driller and two helpers · tap a job, then tap who gets it</p>
+    <div class="pick-slots" id="pickSlots"></div>
+    <p class="pick-msg" id="pickMsg" aria-live="polite"></p>
+    <h3>Who is in the yard</h3>
+    <div class="pick-grid" id="pickGrid"></div>
+    <div class="go">
+      <button type="button" class="btn-big" id="pickGo">Next</button>
+      <button type="button" class="btn-big alt" id="pickBack">Back</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="settings" role="dialog" aria-modal="true" aria-labelledby="setTitle" hidden>
+  <div class="sheet narrow">
+    <h2 id="setTitle">Settings</h2>
+    <div class="set-row"><span id="setCtlL">Controls</span><div class="seg" role="group" aria-labelledby="setCtlL"><button type="button" data-ctl="easy">Thumb pads</button><button type="button" data-ctl="full">Full rig</button></div></div>
+    <p class="set-note" id="setCtlNote">Thumb pads: you push and spin, the crew does the rest. Full rig: you run every lever.</p>
+    <div class="set-row"><span id="setSoundL">Sound</span><button type="button" class="switch" id="setSound" role="switch" aria-checked="true" aria-labelledby="setSoundL"><span></span></button></div>
+    <div class="set-row"><label for="setVol">Volume</label><input type="range" id="setVol" min="0" max="100" step="5" value="100"><output id="setVolOut">100%</output></div>
+    <div class="set-row"><label for="setSens">Look speed</label><input type="range" id="setSens" min="40" max="200" step="10" value="100"><output id="setSensOut">100%</output></div>
+    <div class="set-row"><span id="setShakeL">Camera shake</span><button type="button" class="switch" id="setShake" role="switch" aria-checked="true" aria-labelledby="setShakeL"><span></span></button></div>
+    <div class="set-row"><span id="setGfxL">Picture quality</span><div class="seg" role="group" aria-labelledby="setGfxL"><button type="button" data-gfx="low">Low</button><button type="button" data-gfx="medium">Medium</button><button type="button" data-gfx="high">High</button></div></div>
+    <p class="set-note">Low is the fastest and turns the shadows off. Try it if the game stutters on a phone.</p>
+    <div class="go">
+      <button type="button" class="btn-big" id="setDone">Done</button>
+      <button type="button" class="btn-big alt" id="setQuit" hidden>Quit to main menu</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="plan" role="dialog" aria-modal="true" aria-labelledby="planTitle" hidden>
+  <div class="sheet plan">
+    <div class="plan-head"><img id="planFace" alt="" hidden><div><h2 id="planTitle">Installation drawing</h2><p class="sub" id="planFrom"></p></div></div>
+    <canvas id="planCanvas" aria-label="Section drawing of the well, with depths"></canvas>
+    <h3>In this order</h3>
+    <ol id="planSteps"></ol>
+    <p class="safety"><b>Pour, pull, pour.</b> Never fill more than about 6 in. up inside the casing. Pour to the red line, pull a joint of casing and rack it, then pour again, all the way to the top. Too much in the casing and it packs solid: the next pull, with the vibes on, rips the well in half.</p>
+    <p>You pour by drawing circles. A bag fills about 3 ft of hole. The tape shows what has landed, not what is still falling, and the deeper the hole the later it reads. Stop early and top it up.</p>
+    <div class="go"><button type="button" class="btn-big" id="planGo">Got it. Build the well</button></div>
+  </div>
+</div>
+
+<div class="rotate" id="rotate"><div><div class="turn"></div><b>Turn your phone sideways</b><p>The control panel needs the wide view.</p><button type="button" class="btn-big alt" id="rotateOk">Play upright anyway</button></div></div>
+
+<div class="modal" id="brief" role="dialog" aria-modal="true" aria-labelledby="briefTitle" hidden>
+  <div class="sheet">
+    <h2 id="briefTitle">Tailgate meeting</h2>
+    <p class="sub">07:00 · Borehole MW-01 · Riverside terrace</p>
+    <div id="briefEasy">
+      <p>You are the driller on a three-person sonic crew. The job: core borehole MW-01 to <b>60 ft</b>, 10 ft at a time, and leave it cased. Dale, Tess and the rig handle all the pipe. You do the drilling, with two thumb pads, and you watch the rig while you do it.</p>
+      <div class="cols">
+        <div>
+          <h3>PUSH, left thumb</h3>
+          <p>Slide it <b>down</b> to push the bit into the ground. It stays where you leave it. The gauge beside it shows how hard that is for this ground: <b>keep the needle in the green</b>. Too light is slow. Too hard and the sonic head loses its hum, and soft core gets squashed or shaken apart.</p>
+        </div>
+        <div>
+          <h3>SPIN, right thumb</h3>
+          <p>Slide it <b>up</b> to rotate. Some spin speeds you up in gravel, till and shale. Past the red line it twists the core. Clay wants hardly any.</p>
+        </div>
+      </div>
+      <h3>One 10 ft run</h3>
+      <ol>
+        <li><b>Core the run.</b> Push and spin the rod down 10 ft. Ease off when the ground changes and through cobbles: the line at the bottom of the screen tells you how it is going.</li>
+        <li><b>Drive the casing.</b> The crew adds a casing joint, then a <b>PUMP</b> button pops up. Pump on, then push and spin the casing down.</li>
+        <li><b>Crew at work.</b> They trip the rods out, shake the core out of the barrel and run back in. <i>Fast forward</i> speeds it up. <b>Stay sharp:</b> when a joint is being made up, a prompt pops up. Draw circles or swipe side to side before the bar runs out, or the pipe goes over and the helpers scatter.</li>
+        <li><b>Core table.</b> You walk over to see what you recovered, where core was lost and why.</li>
+        <li><b>Throw a Zonnic.</b> Now and then while you core, a red button pops up for 3 seconds. Tap it, then tap again when the shrinking white ring sits on the green band. Hit, and it sticks to the helper's hard hat.</li>
+      </ol>
+      <p><b>Then the well.</b> At 60 ft the engineer walks over with a drawing. You pour bentonite and sand by drawing circles, never more than 6 in. up inside the casing, then pull a joint of casing and pour again. Prompts pop up for the casing and for every length of PVC. The tape reads late, so stop early: too much in the casing and the next pull rips the well in half.</p>
+      <p>The view follows the work by itself. Drag anywhere on the picture to look around.</p>
+      <p class="safety">Want to run every lever yourself? Settings, then Controls, then Full rig. It is best with a mouse and keyboard.</p>
+    </div>
+    <div id="briefFull">
+    <p>You are the driller on a three-person sonic crew, standing at the console of a truck-mounted rig modelled on the Fraste FS 250 with a sonic head. The job: core MW-01 to <b>60 ft</b> with continuous core and leave it cased for a monitoring well. Tooling is 4 × 6 in: a 4 in core barrel inside 6 in casing, cored in 10 ft runs. Nothing on this rig is automatic: you slide the head, present the casing, make and break every joint and run the winch.</p>
+    <div class="touch-tips">
+      <p><b>On a phone or tablet.</b> Hold the phone sideways. <b>One finger</b> on a lever or knob drags it, and a tap flips a switch. One finger anywhere else turns your head.</p>
+      <p><b>Two fingers:</b> pinch to zoom, drag to look around. <b>Panel</b> gives a close-up of the controls, <b>Work view</b> shows the panel with the rig above it, and <b>Levers neutral</b> stops every lever at once.</p>
+    </div>
+    <div class="cols">
+      <div>
+        <h3>Working the rig</h3>
+        <p><b>Drag anywhere</b> to turn your head and look around. Scroll to zoom.</p>
+        <p><b>Drag a lever or knob</b> up and down to work it (the HEAD SLIDE lever goes side to side). <b>Click</b> switches and buttons. Your hands reach for whatever you touch.</p>
+        <p>Levers: <b>push away</b> to feed down, rotate forward or lower the winch. <b>Pull back</b> to raise or reverse.</p>
+        <p>The <b>Look</b> buttons swing your head to the panel (<i>Work view</i> is where you start), the head, the clamps, the mast, the casing rack, the sawhorses, the core table or the water truck.</p>
+      </div>
+      <div>
+        <h3>What's in the ground</h3>
+        <table class="ground">
+          <tr><td>0–3 ft</td><td><span class="sw" style="background:#6e4a2a"></span>Topsoil and fill</td></tr>
+          <tr><td>3–14 ft</td><td><span class="sw" style="background:#8f7f66"></span>Silty clay, sticky</td></tr>
+          <tr><td>14–28 ft</td><td><span class="sw" style="background:#d8b465"></span>Fine sand, heaves</td></tr>
+          <tr><td>28–40 ft</td><td><span class="sw" style="background:#b49466"></span>Sand and gravel, cobbles</td></tr>
+          <tr><td>40–52 ft</td><td><span class="sw" style="background:#7b7a6e"></span>Dense glacial till</td></tr>
+          <tr><td>52 ft +</td><td><span class="sw" style="background:#59606a"></span>Weathered shale</td></tr>
+        </table>
+        <p style="margin-top:6px">Water table about <b>12 ft</b>.</p>
+      </div>
+    </div>
+    <h3>Your crew</h3>
+    <p><b>Dale, lead hand:</b> hooks the winch to the rods, spins joints with the chain wrench, takes pipe from the clamps and stabs rods, but only when you call with the Crew orders buttons; a highlighted button is the next call. <b>Tess, core hand:</b> catches the core when you shake it out, and runs the water truck to the hydrant.</p>
+    <p><b>After every sample</b> you walk over to the core table for a close look at what came up: how much you recovered, where core was lost and why, and how close you were to the sweet spot. <i>Inspect core</i> in the top bar takes you back there any time.</p>
+    <h3>You run all the iron yourself</h3>
+    <div class="cols">
+      <p><b>Threads.</b> Ease the head down until it lands, then turn FORWARD slowly to make up. REVERSE unscrews. Something must hold the pipe below (a clamp, or the casing arm), or it just spins with the head. When the rotation pressure jumps, the joint is tight.</p>
+      <p><b>Two clamps.</b> The BOTTOM CLAMP only holds. The TOP CLAMP grips and swings. To break a rod joint: joint between the clamps, bottom clamp closed, top clamp open, BREAK-OUT to MAKE to wind it round, close the top clamp, BREAK-OUT to BREAK. Twice. The head alone will never break a rod joint.</p>
+      <p><b>Head slide.</b> With HEAD SIDE on LEFT the head travels far left to centre. On RIGHT it travels centre to far right. Either way it stops dead on centre of mast.</p>
+      <p><b>Casing arm.</b> The rack on your right holds three joints a row. The arm stands one up beside the mast. Slide the head over it, ease down, thread in, bring it back to centre.</p>
+    </div>
+    <h3>One 10 ft run, start to finish</h3>
+    <ol>
+      <li><b>Core run.</b> Clamps open, sonic on, tune the frequency, drill the rod down 10 ft. No pump water: it washes the core.</li>
+      <li><b>Override the casing.</b> Bottom clamp closed, reverse the head off the rods. Raise the casing arm, slide right, thread into the joint, slide back to centre, lower it over the rods onto the casing, make it up. Open the clamp, pump on, drive the casing to the same depth. Clamp and reverse the head off.</li>
+      <li><b>Trip out in 20 ft stands.</b> Thread back onto the rods. With an odd number of rods, take the top single off with the head first: pull one joint up, break it with the clamps, spin it out, set it in the top clamp, unscrew the head and call Dale to grab it. For the rest, raise the rods 2 ft, clamp, unscrew the head, slide it LEFT, bring the winch hook down and call Dale to hook up. Pull 20 ft, break the joint with the clamps, call for the chain wrench, then lay the stand on the sawhorses with the winch.</li>
+      <li><b>Barrel.</b> Head back to centre and onto the barrel. Pull it clear, TILT out 45 degrees and switch the sonic on so Tess can catch the core.</li>
+      <li><b>Back in.</b> Tilt in, run the barrel down, set it in the clamp, then stands back in with the winch (torque each joint with the top clamp), the odd single with the head, and a new rod on top.</li>
+    </ol>
+    <p><b>Then the well.</b> At 60 ft the engineer walks over with an installation drawing. Dale and Tess pour bentonite and sand down the casing and thread the 2 in. PVC together: you pour by drawing circles with the mouse (or hold <kbd>Space</kbd>), never more than 6 in. up inside the casing, then pull a joint of casing (<kbd>Enter</kbd>) and pour again, answering a prompt for every joint and every length of PVC. The tape reads late, and later the deeper the hole, so stop early and top it up. Too much in the casing packs solid, and the next pull rips the well in half.</p>
+    <h3>Reading the gauges</h3>
+    <div class="cols">
+      <p><b>Resonance:</b> the penetration rate jumps, the rig stops shaking and the oscillation pressure dips. Every layer has its own sweet spot.</p>
+      <p><b>Rotation pressure</b> at relief (2,800 psi) means a stall. Back off the feed and let the sonic work.</p>
+      <p><b>Pump pressure</b> climbing on an override in clay means a plug. Cut the flow and keep the sonic on, or the hose will blow.</p>
+      <p><b>Water in the casing</b> below the 12 ft water table while the shoe is in sand means sand is heaving in.</p>
+    </div>
+    <p class="safety">Safety: never move a control while someone has hands on the pipe. Centre the levers and switch the sonic off before you call them in. And never open a clamp that is the only thing holding the rods: they will drop down the hole.</p>
+    <h3 class="keys-h">Keyboard</h3>
+    <div class="keys">
+      <span><kbd>W</kbd>/<kbd>S</kbd> feed raise / down</span>
+      <span><kbd>A</kbd>/<kbd>D</kbd> rotation rev / fwd</span>
+      <span><kbd>R</kbd>/<kbd>F</kbd> winch raise / lower</span>
+      <span><kbd>J</kbd>/<kbd>L</kbd> head slide left / right</span>
+      <span><kbd>K</kbd> head side switch</span>
+      <span><kbd>U</kbd>/<kbd>Y</kbd> casing arm raise / lower</span>
+      <span><kbd>C</kbd> bottom clamp · <kbd>X</kbd> top clamp</span>
+      <span><kbd>,</kbd>/<kbd>.</kbd> break-out break / make</span>
+      <span><kbd>Q</kbd> head tilt</span>
+      <span><kbd>Space</kbd> all levers neutral</span>
+      <span><kbd>↑</kbd>/<kbd>↓</kbd> frequency (Shift: ×5)</span>
+      <span><kbd>O</kbd> oscillator · <kbd>P</kbd> pump</span>
+      <span><kbd>[</kbd>/<kbd>]</kbd> pump flow</span>
+      <span><kbd>T</kbd>/<kbd>G</kbd> throttle · <kbd>E</kbd> engine</span>
+      <span><kbd>V</kbd> look at panel · <kbd>H</kbd> horn</span>
+      <span><kbd>I</kbd> inspect core · <kbd>B</kbd> light a smoke</span>
+      <span><kbd>N</kbd> berate a helper</span>
+      <span><kbd>Z</kbd> throw a Zonnic (when it pops up)</span>
+      <span><kbd>Esc</kbd> pause · <kbd>1</kbd> <kbd>2</kbd> <kbd>4</kbd> speed</span>
+    </div>
+    </div>
+    <div class="go"><button type="button" class="btn-big" id="briefGo">Start the shift</button></div>
+  </div>
+</div>
+
+<div class="modal" id="report" role="dialog" aria-modal="true" aria-labelledby="reportTitle" hidden>
+  <div class="sheet">
+    <h2 id="reportTitle">Daily driller's report</h2>
+    <p class="sub">Borehole MW-01 · FS 250 sonic · 4×6 tooling</p>
+    <div id="reportBody"></div>
+    <div class="go">
+      <button type="button" class="btn-big" id="againBtn">Drill another hole</button>
+      <button type="button" class="btn-big alt" id="reviewBtn">Look at the rig</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+<script src="js/sim.js" charset="utf-8"></script>
+<script src="js/audio.js" charset="utf-8"></script>
+<script src="js/crew.js" charset="utf-8"></script>
+<script src="js/world.js" charset="utf-8"></script>
+<script src="js/panel.js" charset="utf-8"></script>
+<script src="js/hud.js" charset="utf-8"></script>
+<script src="js/inspect.js" charset="utf-8"></script>
+<script src="js/auto.js" charset="utf-8"></script>
+<script src="js/easy.js" charset="utf-8"></script>
+<script src="js/well.js" charset="utf-8"></script>
+<script src="js/toss.js" charset="utf-8"></script>
+<script src="js/nag.js" charset="utf-8"></script>
+<script src="js/marl.js" charset="utf-8"></script>
+<script src="js/main.js" charset="utf-8"></script>
+<script>
+// On its own web address the game can be installed as an app and started with no signal (see sw.js).
+// Inside a Claude artifact page this does nothing.
+if ('serviceWorker' in navigator && !/claude|anthropic/.test(location.hostname) && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
