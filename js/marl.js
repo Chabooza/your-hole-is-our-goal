@@ -38,7 +38,7 @@ window.MARL = (() => {
 
   function quiet() {
     const S = APP.S;
-    return !(S.done || S.paused || APP.away || APP.menu || APP.fly || APP.freeze || WELL.active || TOSS.state.state || NAG.active || (APP.easy && (AUTO.st.qte || AUTO.st.failed)));
+    return !(S.done || S.paused || APP.away || APP.menu || APP.fly || APP.freeze || WELL.active || TOSS.state.state || NAG.active || AARON.active || (APP.easy && (AUTO.st.qte || AUTO.st.failed)));
   }
   function init(app) {
     APP = app;

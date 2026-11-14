@@ -30,7 +30,7 @@ window.NAG = (() => {
   // coring, and nothing else going on
   function drilling() {
     const S = APP.S;
-    if (S.done || S.paused || APP.away || APP.menu || APP.fly || APP.freeze || WELL.active || TOSS.state.state || MARL.active) return false;
+    if (S.done || S.paused || APP.away || APP.menu || APP.fly || APP.freeze || WELL.active || TOSS.state.state || MARL.active || AARON.active) return false;
     if (APP.easy) return AUTO.manual === 'core' && !AUTO.st.qte && !AUTO.st.failed;
     return S.phase === 'CORE_RUN' && S.head.conn === 'core' && S.head.hz > 8;
   }

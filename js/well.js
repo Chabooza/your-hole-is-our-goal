@@ -30,7 +30,7 @@ window.WELL = (() => {
   const FT_PER_BAG = 3;          // roughly how much hole one bag fills
   const FT_PER_TURN = 1.1;       // how much one circle on the screen pours
   const MAX_RATE = 3.2;          // the fastest a bag can go down the hole, ft of hole per second
-  const lagAt = depth => 0.5 + Math.max(0, depth) * 0.045;      // seconds for a pour to land and show on the tape
+  const lagAt = depth => SITES.pourLag(depth, S.site.n);        // seconds for a pour to land and show on the tape: longer the deeper, and on later holes
   const COL = { bent: '#8f9189', sand: '#e3c765' };
   const WORD = { bent: 'bentonite', sand: 'sand' };
   const CIRC = 2 * Math.PI * 52;
@@ -160,6 +160,7 @@ window.WELL = (() => {
     steps.push(`<b>The well.</b> 2 in. PVC in 10 ft lengths: <b>${p.L} ft of screen</b> on the bottom, then riser to surface. ${p.up ? `Bottom of the well at <b>${f1(p.B)} ft</b>.` : `It sits on the <b>bottom of the hole</b>, ${f1(p.B)} ft.`}`);
     steps.push(`<b>Sand.</b> Round the screen and up to <b>${f1(p.sandTop)} ft</b>, 1 ft over the top of the screen.`);
     steps.push('<b>Bentonite seal.</b> From the sand to the top of the hole, <b>0 ft</b>.');
+    steps.push(`<b>Mind the delay.</b> At the bottom of this hole a pour takes about <b>${Math.round(lagAt(p.D))} seconds</b> to fall through the water and show on the tape. It gets quicker as the hole fills.`);
     E.planSteps.innerHTML = steps.map(s => `<li>${s}</li>`).join('');
     E.planGo.textContent = W.seenPlan ? 'Back to the hole' : 'Got it. Build the well';
     E.plan.hidden = false;
@@ -187,7 +188,7 @@ window.WELL = (() => {
     c.stroke();
     c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(8, 8, Wd - 16, Hd - 16);
     c.fillStyle = INK; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
-    c.font = '400 20px Bungee, "Arial Black", sans-serif'; c.fillText('MW-01 WELL INSTALLATION', 22, 38);
+    c.font = '400 20px Bungee, "Arial Black", sans-serif'; c.fillText(`${S.site.well} WELL INSTALLATION`, 22, 38);
     c.font = '600 13px "Barlow Condensed", "Arial Narrow", sans-serif'; c.fillText('2 in. PVC monitoring well · depths in feet below ground · not to scale', 22, 55);
     const top = 78, bot = Hd - 30, d0 = -5, d1 = p.D + 1.5, y = d => top + (d - d0) / (d1 - d0) * (bot - top);
     const hx = 78, hw = 84, cx = hx + hw / 2;
@@ -327,13 +328,17 @@ window.WELL = (() => {
 
   // ---------- the prompts ----------
   const QT = {
-    circle: { how: 'Draw circles, clockwise', keys: 'or tap A and D in turn', icon: '↻', limit: 4.5 },
-    swipe: { how: 'Swipe side to side, fast', keys: 'or tap A and D in turn', icon: '⇆', limit: 4.5 },
-    mash: { how: 'Tap as fast as you can', keys: 'or hammer the Space bar', icon: '⇊', limit: 4 },
-    timing: { how: 'Tap when the marker is in the green', keys: 'or press Space', icon: '◎', limit: 6.5 },
+    circle: { how: 'Draw circles, clockwise', keys: 'or tap A and D in turn', icon: '↻' },
+    swipe: { how: 'Swipe side to side, fast', keys: 'or tap A and D in turn', icon: '⇆' },
+    mash: { how: 'Tap as fast as you can', keys: 'or hammer the Space bar', icon: '⇊' },
+    timing: { how: 'Tap when the marker is in the green', keys: 'or press Space', icon: '◎' },
   };
+  // How long a prompt allows and how much it asks for comes from the hole (js/sites.js): later holes are faster.
   function qNew(type, label, retry) {
-    return { type, label, state: 'ready', hold: retry ? 0.5 : 0.8, t: 0, prog: 0, turn: 0, strokes: 0, dir: 0, ext: 0, keyLast: '', taps: 0, zc: 0.22 + Math.random() * 0.56, zw: 0.24, pos: 0, ph: Math.random() * 2, why: '' };
+    const tn = S.site.tune, limit = type === 'mash' ? tn.mashTime : type === 'timing' ? tn.aimTime : tn.spinTime;
+    return { type, label, state: 'ready', hold: retry ? 0.5 : 0.8, t: 0, prog: 0, turn: 0, strokes: 0, dir: 0, ext: 0, keyLast: '', taps: 0,
+      limit, turns: tn.turns, need: tn.strokes, keys: tn.keys, tapsNeed: tn.taps, sweep: tn.sweep,
+      zc: 0.22 + Math.random() * 0.56, zw: tn.zone, pos: 0, ph: Math.random() * 2, why: '' };
   }
   function fumble(why) {
     const q = W.q, casing = W.phase === 'pull';
@@ -349,9 +354,9 @@ window.WELL = (() => {
     if (q.state === 'ready') { q.hold -= dt; if (q.hold <= 0) q.state = 'go'; }
     else if (q.state === 'go') {
       q.t += dt;
-      if (q.type === 'timing') { const u = (q.ph + q.t * 0.55) % 2; q.pos = u < 1 ? u : 2 - u; }
+      if (q.type === 'timing') { const u = (q.ph + q.t * q.sweep) % 2; q.pos = u < 1 ? u : 2 - u; }
       if (q.prog >= 1) { q.state = 'done'; q.hold = 0.5; S.sfx.push('ok'); }
-      else if (q.t >= QT[q.type].limit) fumble();
+      else if (q.t >= q.limit) fumble();
     } else if (q.state === 'fail') {
       if (WORLD.panicHit) S.sfx.push('clank');
       q.hold -= dt; if (q.hold <= 0) W.q = qNew(q.type, q.label, true);
@@ -497,10 +502,12 @@ window.WELL = (() => {
     R.drill = R.score;
     R.well = { score: s, engineer: W.name, plan: W.plan, results: W.results, bags: W.bags, fumbles: W.fumbles, spill: W.spill, pulls: W.pulls, clean: W.pullLog.filter(v => v >= -1 && v <= 1).length, wrecks: W.wrecks };
     R.score = Math.round(R.drill * 0.65 + s * 0.35);
+    const A = AARON.settle(S);                   // Aaron's deadline, from hole 3 on: late costs points off the combined grade
+    if (A) { R.aaron = { limit: A.limit, late: A.late, spare: A.spare, pen: A.pen }; R.score = Math.max(0, R.score - A.pen); }
     R.grade = R.score >= 90 ? 'A' : R.score >= 80 ? 'B' : R.score >= 70 ? 'C' : R.score >= 60 ? 'D' : 'F';
     W.say = s >= 90 ? 'Textbook. I will sign that one off.' : s >= 75 ? 'Good enough for me. Nice work.' : s >= 55 ? 'Hmm. It will do, I suppose.' : 'We may be drilling this one again.';
     W.sayT = 3.2; W.phase = 'verdict'; W.pt = 0; W.msg = '';
-    log(`Well MW-01 is built. ${W.name}: "${W.say}"`, s >= 75 ? 'good' : 'warn');
+    log(`Well ${S.site.well} is built. ${W.name}: "${W.say}"`, s >= 75 ? 'good' : 'warn');
     S.sfx.push('done');
   }
 
@@ -509,7 +516,7 @@ window.WELL = (() => {
     if (!W || S.paused) return;
     const q = W.q;
     if (q && q.state === 'go') {
-      if (q.type === 'mash') { q.taps++; q.prog = clamp(q.taps / 12, 0, 1); }
+      if (q.type === 'mash') { q.taps++; q.prog = clamp(q.taps / q.tapsNeed, 0, 1); }
       else if (q.type === 'timing') { if (Math.abs(q.pos - q.zc) <= q.zw / 2) q.prog = 1; else fumble(W.phase === 'pull' ? 'Missed it!' : 'Cross-threaded it!'); }
     }
   }
@@ -525,7 +532,7 @@ window.WELL = (() => {
         const d = Math.atan2(Math.sin(h - lh), Math.cos(h - lh));
         if (Math.abs(d) < 2.2) {
           if (W.phase === 'pour') turnBuf += Math.abs(d);                      // either way round pours
-          else { q.turn = Math.max(0, q.turn + d); q.prog = clamp(q.turn / (2 * Math.PI * 1.6), 0, 1); }   // clockwise on screen counts up
+          else { q.turn = Math.max(0, q.turn + d); q.prog = clamp(q.turn / (2 * Math.PI * q.turns), 0, 1); }   // clockwise on screen counts up
         }
       }
       lh = h; lp = p;
@@ -535,7 +542,7 @@ window.WELL = (() => {
       else if (d * q.dir > 0) q.ext = p.x;
       else if (Math.abs(d) > 45) { q.dir = -q.dir; q.ext = p.x; q.strokes++; }
       lp = p;
-      q.prog = clamp(q.strokes / 7, 0, 1);
+      q.prog = clamp(q.strokes / q.need, 0, 1);
     } else lp = p;
   }
   // Returns true if the key was used. Space pours (S for a trickle), Enter pulls or calls it, the prompts take A / D or Space.
@@ -550,7 +557,7 @@ window.WELL = (() => {
       if (q.type === 'circle' || q.type === 'swipe') {
         const k = e.code === 'KeyA' || e.code === 'ArrowLeft' ? 'L' : e.code === 'KeyD' || e.code === 'ArrowRight' ? 'R' : '';
         if (!k) return false;
-        if (k !== q.keyLast) { q.keyLast = k; q.prog = clamp(q.prog + 1 / 8, 0, 1); }
+        if (k !== q.keyLast) { q.keyLast = k; q.prog = clamp(q.prog + 1 / q.keys, 0, 1); }
         return true;
       }
       if (e.code === 'Space' || e.code === 'Enter') { if (!e.repeat) padDown(e); return true; }
@@ -696,7 +703,7 @@ window.WELL = (() => {
       set(E.qHow, 'qh', q.state === 'fail' ? 'The crew is getting set to try again.' : q.state === 'done' ? '' : touch() ? T.how : `${T.how}, ${T.keys}`);
       set(E.tape, 'tape', '');
       E.prog.style.strokeDashoffset = (CIRC * (1 - (q.state === 'done' ? 1 : q.prog))).toFixed(1);
-      E.timeI.style.width = (clamp(1 - q.t / T.limit, 0, 1) * 100).toFixed(1) + '%';
+      E.timeI.style.width = (clamp(1 - q.t / q.limit, 0, 1) * 100).toFixed(1) + '%';
       E.mark.style.left = (q.pos * 100).toFixed(1) + '%';
     } else last.qs = '';
   }

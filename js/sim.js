@@ -12,7 +12,8 @@ window.SIM = (() => {
   const BARREL = 14, JT = 10, CAS_STUB = 2.3;    // casing top always ends below the break-out zone;                      // core barrel with its top sub, and one rod / casing joint
   const PRES_TOP = 14.9;                           // top of a casing joint standing on the presenter arm
   const HOOK_TOP = 31, HOOK_CLEAR = 6;           // winch hook travel, and how far it must stay above the head
-  const RUN_LEN = 10, TARGET = 60, WT = 12;        // core run length, total depth, water table
+  const RUN_LEN = 10;                              // core run length
+  let TARGET = 60, WT = 12;                        // total depth and water table: set by the site (useSite)
   const BARREL_CAP = 10.8;                         // the barrel holds a little more than a run, for slough
   const GAL_PER_FT = 1.23, TANK_CAP = 200;         // 6" casing holds ~1.23 gal per ft
   const AREA = 3.0;                                // feed cylinder area, in² (2,500 psi ≈ 7,500 lbf)
@@ -24,26 +25,38 @@ window.SIM = (() => {
   // crew positions along their walking paths (the 3D world maps these numbers to places on site)
   const POS = { rotary: 600, dale: 612, rack: 792, tess: 905, table: 880, katch: 700, truckHome: 30, truckAway: -380, hoseFix: 430, cab: 110 };
 
-  const LAYERS = [
-    { id: 'topsoil', name: 'Topsoil & fill', short: 'Topsoil', top: 0, bot: 3, color: '#6e4a2a', pat: 'roots',
+  // The materials, and how each one drills. A site (js/sites.js) stacks them up in its own order and thicknesses.
+  const MATS = [
+    { id: 'topsoil', name: 'Topsoil & fill', short: 'Topsoil', color: '#6e4a2a', pat: 'roots',
       base: 14, fRes: 84, torque: 0.35, oscLoad: 0.3, maxRpm: 40, rotBen: 0, k: 0.05, heave: 0, wob: 1200, compress: 0.8, wash: 0.3,
       tip: 'Loose and soft. The head weight alone will sink you, so dial in some holdback or you will squash the core.' },
-    { id: 'clay', name: 'Silty clay', short: 'Silty clay', top: 3, bot: 14, color: '#8f7f66', pat: 'dash',
+    { id: 'clay', name: 'Silty clay', short: 'Silty clay', color: '#8f7f66', pat: 'dash',
       base: 8, fRes: 72, torque: 0.9, oscLoad: 0.8, maxRpm: 25, rotBen: 0.05, k: 0.01, heave: 0, wob: 2500, compress: 1, wash: 0.15,
       tip: 'Sticky. Keep rotation slow (under 25 rpm) and let the sonic do the cutting. Shoving it compresses the core.' },
-    { id: 'sand', name: 'Fine sand, saturated', short: 'Fine sand', top: 14, bot: 28, color: '#d8b465', pat: 'dots',
+    { id: 'sand', name: 'Fine sand, saturated', short: 'Fine sand', color: '#d8b465', pat: 'dots',
       base: 12, fRes: 112, torque: 0.5, oscLoad: 0.45, maxRpm: 50, rotBen: 0.1, k: 0.8, heave: 1, wob: 1500, compress: 0.2, wash: 0.85,
       tip: 'Heaving sand. No water during the core run or you will wash the core out. Keep the casing full and trip out slow.' },
-    { id: 'gravel', name: 'Sand & gravel, cobbles', short: 'Sand & gravel', top: 28, bot: 40, color: '#b49466', pat: 'pebbles',
-      base: 6, fRes: 96, torque: 1.2, oscLoad: 0.7, maxRpm: 80, rotBen: 0.4, k: 1.2, heave: 0.5, wob: 3500, compress: 0, wash: 0.5,
+    { id: 'gravel', name: 'Sand & gravel, cobbles', short: 'Sand & gravel', color: '#b49466', pat: 'pebbles',
+      base: 6, fRes: 96, torque: 1.2, oscLoad: 0.7, maxRpm: 80, rotBen: 0.4, k: 1.2, heave: 0.5, wob: 3500, compress: 0, wash: 0.5, cob: [1.6, 4.2, 0.5, 1.2],
       tip: 'Cobbles. When the rotation pressure jumps, ease off the feed and keep it turning. Flush hard on the override.' },
-    { id: 'till', name: 'Glacial till', short: 'Till', top: 40, bot: 52, color: '#7b7a6e', pat: 'clasts',
+    { id: 'till', name: 'Glacial till', short: 'Till', color: '#7b7a6e', pat: 'clasts',
       base: 5, fRes: 64, torque: 1.4, oscLoad: 1.0, maxRpm: 70, rotBen: 0.5, k: 0.02, heave: 0, wob: 5000, compress: 0.1, wash: 0.2,
       tip: 'Dense and stubborn. It needs feed and rotation. You will be on bottom a long time, so watch the head temperature.' },
-    { id: 'shale', name: 'Weathered shale', short: 'Shale', top: 52, bot: 70, color: '#59606a', pat: 'lam',
+    { id: 'shale', name: 'Weathered shale', short: 'Shale', color: '#59606a', pat: 'lam',
       base: 3.4, fRes: 130, torque: 1.6, oscLoad: 1.1, maxRpm: 110, rotBen: 0.8, k: 0.05, heave: 0, wob: 6000, compress: 0, wash: 0.1,
-      tip: 'Rock. High frequency, real rotation, steady feed. The hole is finished at 60 ft.' },
+      tip: 'Rock. High frequency, real rotation, steady feed.' },
   ];
+  const MAT = {}; MATS.forEach(m => { MAT[m.id] = m; });
+  let LAYERS = [];
+  // Lay the ground out for one of the career's sites. Only one hole is drilled at a time, so this is module state:
+  // the layers, the target depth and the water table are whatever the current hole's site says.
+  function useSite(n) {
+    const st = SITES.get(n);
+    let top = 0;
+    LAYERS = st.layers.map(([id, bot, ch]) => { const L = Object.assign({}, MAT[id], ch || {}, { top, bot }); top = bot; return L; });
+    TARGET = st.depth; WT = st.wt;
+    return { n: st.n, name: st.name, well: st.well, depth: st.depth, wt: st.wt, hard: st.hard, tune: st.tune, blurb: st.blurb };
+  }
   const layerAt = d => LAYERS.find(L => d < L.bot) || LAYERS[LAYERS.length - 1];
 
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -63,16 +76,22 @@ window.SIM = (() => {
       tel: { n: 0, res: 0, push: 0, rpm: 0 } };   // how it was drilled, weighted by footage: resonance, feed, rotation
   }
 
-  function newGame(seed) {
+  // site: which of the career's holes this is (1 to 10). It decides the depth, the water table and the ground.
+  function newGame(seed, site) {
     seed = seed || (Date.now() % 1e9);
+    const st = useSite(site || 1);
     const r = rng(seed);
     const fOff = {};
-    LAYERS.forEach(L => { fOff[L.id] = Math.round((r() * 2 - 1) * 6); });
-    const cobbles = [];
-    let d = 28.6 + r() * 1.5;
-    while (d < 39) { const len = 0.5 + r() * 0.7; cobbles.push({ a: d, b: d + len }); d += len + 1.6 + r() * 2.6; }
+    LAYERS.forEach(L => { if (fOff[L.id] == null) fOff[L.id] = Math.round((r() * 2 - 1) * 6); });
+    const cobbles = [];                           // cobbles and boulders, in every layer that has them
+    for (const L of LAYERS) {
+      if (!L.cob || L.top >= TARGET) continue;
+      const [g0, g1, l0, l1] = L.cob, end = Math.min(L.bot, TARGET + 2) - 1;
+      let d = L.top + 0.6 + r() * 1.5;
+      while (d < end) { const len = l0 + r() * (l1 - l0); cobbles.push({ a: d, b: d + len }); d += len + g0 + r() * (g1 - g0); }
+    }
     const S = {
-      seed, t: 0, clock0: 7 * 3600, paused: true, done: false,
+      seed, site: st, t: 0, clock0: 7 * 3600, paused: true, done: false,
       fOff, cobbles,
       ctl: { throttle: 0, feed: 0, feedSet: 0.3, holdback: 0, rot: 0, oscOn: false, oscSet: 60, pumpOn: false, pumpSet: 0.5,
         clampB: false, clampT: false, brk: 0, slide: 0, side: false, arm: 0, tilt: false, winch: 0 },
@@ -88,7 +107,7 @@ window.SIM = (() => {
       tc: { ang: 0 },                              // top clamp rotation, 0 (break end) .. 1 (make end)
       winch: { y: HOOK_TOP - 1, conn: null },
       arm: { ang: 0, holds: false },
-      rack: { casing: 6 },
+      rack: { casing: Math.round(TARGET / JT) },
       yard: { stands: 0, singles: 0 },
       work: 'core', contact: null,
       hole: { depth: 0, heave: 0 },
@@ -111,7 +130,8 @@ window.SIM = (() => {
       stats: { onBottom: 0, heave: 0, overflowGal: 0, loose: 0, drops: 0 },
       flags: {}, tipT: {}, sfx: [], report: null,
     };
-    log(S, 'Rig set up over MW-01. The core barrel is threaded on the head and sitting at the collar.');
+    log(S, `Rig set up over ${st.well}. The core barrel is threaded on the head and sitting at the collar.`);
+    log(S, `Hole ${st.n} of ${SITES.COUNT}: ${st.name}. ${st.depth} ft, water at ${st.wt} ft. ${st.blurb}`);
     return S;
   }
 
@@ -539,6 +559,15 @@ window.SIM = (() => {
     if (S.water.level >= a - 0.01) S.water.level = b;
   }
 
+  // Sand coming up into the casing while the rods are out. It bridges off after a while, so one trip only brings in
+  // so much (more in ground that runs harder). Without that limit a deep hole with shallow water would fill by the yard.
+  function tripHeave(S, hv, Ls) {
+    hv = Math.min(hv, 0.6 * Ls.heave - (S.tripHv || 0));
+    if (hv <= 0) return 0;
+    S.tripHv = (S.tripHv || 0) + hv;
+    S.hole.heave = Math.min(S.hole.depth, S.hole.heave + hv); S.stats.heave += hv;
+    return hv;
+  }
   // the core string moved in the hole (moved > 0 = deeper), by the head or by the winch
   function tripMove(S, moved, dt) {
     const w = S.water;
@@ -551,8 +580,7 @@ window.SIM = (() => {
     const vUp = -moved / dt;
     const Ls = layerAt(S.casing.depth - 0.05);
     if (vUp > 0.7 && S.core.bit > WT && Ls.heave > 0 && S.casing.depth > WT) {
-      const hv = (vUp - 0.7) * 0.06 * dt * Ls.heave;
-      S.hole.heave = Math.min(S.hole.depth, S.hole.heave + hv); S.stats.heave += hv;
+      tripHeave(S, (vUp - 0.7) * 0.06 * dt * Ls.heave, Ls);
       if (!S.flags.swabMsg) { S.flags.swabMsg = 1; log(S, 'Pulling fast in sand swabs the hole. Sand is being sucked up into the casing.', 'warn'); }
     }
     const sandy = S.run.segs.some(s => s.layer === 'sand' || s.layer === 'gravel');
@@ -570,7 +598,7 @@ window.SIM = (() => {
   }
 
   function startTrip(S) {
-    S.phase = 'TRIP_OUT';
+    S.phase = 'TRIP_OUT'; S.tripHv = 0;
     S.openGap = S.hole.depth - S.casing.depth > 0.5;
     if (S.openGap) log(S, `Casing is only at ${S.casing.depth.toFixed(1)} ft with the core at ${S.hole.depth.toFixed(1)} ft. The open hole may cave when you pull.`, 'warn');
     const r = rodsIn(S);
@@ -624,7 +652,7 @@ window.SIM = (() => {
     score -= wear * 30;
     score -= S.stats.loose * 2;
     score -= (S.stats.fumbles || 0) * 2;
-    score -= Math.max(0, shiftMin - 600) / 15;
+    score -= Math.max(0, shiftMin - TARGET * 10) / 15;      // ten minutes of shift a foot before the clock costs anything
     if (S.casing.depth < TARGET - 0.5) score -= 5;
     score = Math.round(clamp(score, 0, 100));
     const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
@@ -1133,9 +1161,7 @@ window.SIM = (() => {
         const q = k * (w.level - WT);
         w.level -= q / 60 * dt / GAL_PER_FT;
         if (Ls.heave > 0 && open) {
-          const hv = q / 60 * dt * 0.08 * Ls.heave;
-          S.hole.heave = Math.min(S.hole.depth, S.hole.heave + hv); S.stats.heave += hv;
-          S.heaving = q > 0.3;
+          S.heaving = tripHeave(S, q / 60 * dt * 0.08 * Ls.heave, Ls) > 0 && q > 0.3;
         }
       } else {
         const headAbove = (shoeBelowWT ? WT : S.casing.depth) - w.level;
@@ -1428,8 +1454,10 @@ window.SIM = (() => {
     return { title: nm(S, title), text: nm(S, text), layer: L, order: ord };
   }
 
+  useSite(1);
   return {
-    MAST_TOP, MAST_BOT, RUN_LEN, TARGET, WT, TANK_CAP, PD_MAX, HB_MAX, AREA, HEAD_W, CORE_WPF, POS, LAYERS, TASKS, CLOCK_RATE,
+    MAST_TOP, MAST_BOT, RUN_LEN, TANK_CAP, PD_MAX, HB_MAX, AREA, HEAD_W, CORE_WPF, POS, MATS, TASKS, CLOCK_RATE,
+    get TARGET() { return TARGET; }, get WT() { return WT; }, get LAYERS() { return LAYERS; }, useSite,
     TH, CLAMP_B, CLAMP_T, ZONE_LO, ZONE_HI, BARREL, JT, PRES_TOP, HOOK_TOP, HOOK_CLEAR,
     layerAt, newGame, step, order, ACT, guidance, nm, clockStr, taskProgress, notesText, noteKeys, NOTE_TEXT,
     coreTop, casTop, btm, rodsIn, runTarget, rodDown, BARREL_CAP, hangBot, gripB, gripT, held, zoneJoint, jointY, attached, onBottomCore,

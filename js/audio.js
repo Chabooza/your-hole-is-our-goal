@@ -76,6 +76,8 @@ window.AUDIO = (() => {
       case 'clank': burst(2400, 0.25, 0.5); burst(700, 0.18, 0.4); break;
       case 'clamp': burst(900, 0.3, 0.6, 'lowpass'); break;
       case 'switch': burst(3500, 0.05, 0.4); break;
+      case 'ring': for (let i = 0; i < 6; i++) setTimeout(() => blip(i % 2 ? 1568 : 1319, 0.09, 0.2), i * 95); break;      // a cell phone trill
+      case 'buzz': burst(150, 0.22, 0.5, 'lowpass'); setTimeout(() => burst(150, 0.22, 0.5, 'lowpass'), 300); break;       // a text coming in
       case 'crank': burst(180, 1.2, 0.5, 'lowpass'); break;
       case 'burst': burst(1800, 1.4, 0.8, 'highpass'); break;
       case 'ok': blip(880, 0.12, 0.15); break;

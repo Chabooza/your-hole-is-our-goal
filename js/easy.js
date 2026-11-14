@@ -35,9 +35,11 @@ window.EASY = (() => {
     AUDIO.init(); S.ctl.pumpSet = 0.55; SIM.ACT.setPump(S, !S.ctl.pumpOn);
   }
   // ---- quick-time events at the connections: draw circles, or swipe side to side, before the time runs out ----
-  const Q = { src: null, state: 'idle', t: 0, limit: 4.5, hold: 0, prog: 0, turn: 0, strokes: 0, ext: 0, dir: 0, lp: null, lh: null, keyLast: '' };
+  const Q = { src: null, state: 'idle', t: 0, limit: 4.5, turns: 1.6, need: 7, keys: 8, hold: 0, prog: 0, turn: 0, strokes: 0, ext: 0, dir: 0, lp: null, lh: null, keyLast: '' };
   const CIRC = 2 * Math.PI * 52;
   function qStart(src, retry) {
+    const tn = APP.S.site.tune;                  // later holes: less time, more circles, more swipes (js/sites.js)
+    Q.limit = tn.spinTime; Q.turns = tn.turns; Q.need = tn.strokes; Q.keys = tn.keys;
     Q.src = src; Q.state = 'ready'; Q.hold = retry ? 0.5 : 0.7; Q.t = 0; Q.prog = 0; Q.turn = 0; Q.strokes = 0; Q.dir = 0; Q.lp = null; Q.lh = null; Q.keyLast = '';
     E.qte.hidden = false; E.root.dataset.qte = '1';
     E.qTitle.textContent = src.label;
@@ -55,20 +57,20 @@ window.EASY = (() => {
       const h = Math.atan2(dy, dx);
       if (Q.lh != null) { const d = Math.atan2(Math.sin(h - Q.lh), Math.cos(h - Q.lh)); if (Math.abs(d) < 2.2) Q.turn = Math.max(0, Q.turn + d); }   // clockwise on screen counts up
       Q.lh = h; Q.lp = p;
-      Q.prog = clamp(Q.turn / (2 * Math.PI * 1.6), 0, 1);
+      Q.prog = clamp(Q.turn / (2 * Math.PI * Q.turns), 0, 1);
     } else {
       const d = p.x - Q.ext;
       if (Q.dir === 0) { if (Math.abs(d) > 40) { Q.dir = Math.sign(d); Q.ext = p.x; Q.strokes = 1; } }
       else if (d * Q.dir > 0) Q.ext = p.x;                       // still going the same way: move the turning point
       else if (Math.abs(d) > 45) { Q.dir = -Q.dir; Q.ext = p.x; Q.strokes++; }
       Q.lp = p;
-      Q.prog = clamp(Q.strokes / 7, 0, 1);
+      Q.prog = clamp(Q.strokes / Q.need, 0, 1);
     }
   }
   function qKey(e) {      // on a keyboard: tap A and D (or left and right) in turn
     const k = e.code === 'KeyA' || e.code === 'ArrowLeft' ? 'L' : e.code === 'KeyD' || e.code === 'ArrowRight' ? 'R' : '';
     if (!k) return true;
-    if (Q.state === 'go' && k !== Q.keyLast) { Q.keyLast = k; Q.prog = clamp(Q.prog + 1 / 8, 0, 1); }
+    if (Q.state === 'go' && k !== Q.keyLast) { Q.keyLast = k; Q.prog = clamp(Q.prog + 1 / Q.keys, 0, 1); }
     return true;
   }
   function qUpdate(S, dt) {
@@ -181,7 +183,7 @@ window.EASY = (() => {
     // the note card
     let title, text, p = 0, bar = '';
     if (st.failed) { title = 'The crew is stuck'; text = st.failed + ' Open the menu and start a new hole.'; }
-    else if (S.done) { title = 'Hole finished'; text = 'MW-01 is cored, cased and built.'; p = 1; bar = 'Done'; }
+    else if (S.done) { title = 'Hole finished'; text = `${S.site.well} is cored, cased and built.`; p = 1; bar = 'Done'; }
     else if (m === 'core') {
       const tg = SIM.runTarget(S), d0 = tg - SIM.RUN_LEN;
       title = `Run ${S.run.n}: core ${d0.toFixed(0)} to ${tg.toFixed(0)} ft`; text = 'Your turn. PUSH and SPIN the rod down. Keep both needles in the green.';
