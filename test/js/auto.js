@@ -205,12 +205,14 @@ window.AUTO = (() => {
     yield* spin(1, 'thread onto rod', () => SIM.attached(S));
   }
 
+  // prev: the rods that came out and go back. now: the rods the next run needs (one more, except after a 5 ft half run)
   function* tripIn() {
-    const prev = S.runs.length - 1;
+    const prev = SIM.needRods(S.runs.length - 1), now = SIM.needRods(S.runs.length);
     say('Barrel back in the hole.', 'head');
     A.setTilt(S, false); yield* until('tilt in', () => S.head.tilt <= 0, 30);
     c.feed = 1;
-    yield* until('barrel in', () => (prev === 0 ? SIM.onBottomCore(S) : SIM.coreTop(S) <= 2.62), 90); c.feed = 0;
+    yield* until('barrel in', () => SIM.onBottomCore(S) || (prev > 0 && SIM.coreTop(S) <= 2.62), 90); c.feed = 0;
+    if (prev === 0 && now === 0) return;            // the barrel alone, and it is all the next run needs: ready to core
     yield* headOff();
     if (S.yard.stands > 0) {
       yield* headTo(S.head.y + 1); yield* slideTo(-1);
@@ -241,14 +243,21 @@ window.AUTO = (() => {
       c.winch = 1; yield* until('hook clear', () => S.winch.y >= S.head.y + SIM.HOOK_CLEAR + 0.2, 60); c.winch = 0;
       yield* slideTo(0);
     }
+    let headOn = false;
     if (SIM.rodsIn(S) < prev) {                     // the odd single goes back with the head
       yield* stab();
       say('Running the rods to the bottom.', 'head');
       A.setClampB(S, false);
       c.feed = 1; yield* until('to bottom', () => SIM.onBottomCore(S), 90); c.feed = 0;
-      yield* headOff();
+      headOn = true;
+      if (now > SIM.rodsIn(S)) { yield* headOff(); headOn = false; }
     }
-    yield* stab();                                  // the new rod for the next run
+    if (now > SIM.rodsIn(S)) yield* stab();         // the new rod for the next run
+    else if (!headOn) {                             // no new rod this time: the head goes back on the string as it stands
+      say('Head back onto the rods.', 'head');
+      yield* land('core'); A.setClampB(S, true);
+      yield* spin(1, 'thread onto rods', () => SIM.attached(S));
+    }
   }
 
   function* script() {
@@ -256,7 +265,11 @@ window.AUTO = (() => {
     A.engineStart(S); yield* until('engine', () => S.engine.on, 20);
     c.throttle = 1; yield* wait(2.5);
     while (!S.done) {
-      yield* coreRun(); yield* casing(); yield* tripOut();
+      yield* coreRun();
+      // a geotechnical half run (5, 15, 25 ft) gets no casing: the rods come straight out
+      if (SIM.halfRun(S)) yield* until('run over', () => S.phase === 'TRIP_OUT', 20); else yield* casing();
+      yield* tripOut();
+      if (S.phase === 'SPT') { say('Rods are out. Time for the SPT.', 'clamps'); yield* until('spt', () => S.phase !== 'SPT', 1e9); }
       if (!S.done) yield* tripIn();
     }
   }

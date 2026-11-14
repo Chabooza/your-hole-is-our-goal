@@ -49,6 +49,8 @@ window.AARON = (() => {
   const casT = (a, b) => span(a, b, L => 44 / L.base);
   // the crew's pipe handling for the run that starts at `from`: tripping out, and back in unless it is the last run
   const crewT = (from, final) => (final ? 165 + 51 * Math.max(0, Math.floor((from - 10) / 20)) : from === 0 ? 125 : 180 + 90 * Math.ceil(from / 20));
+  // the same on a geotechnical hole, by the depth the 5 ft run ends at (5, 10, 15 ... 40 ft), from robot runs
+  const CREW_GEO = [28, 89, 137, 195, 223, 258, 264, 324];
   function wellT(S) {
     const D = SIM.TARGET; let s = 20 + (D / 10 + 2) * 7;
     for (let d = 10; d <= D; d += 10) s += 22 + SITES.pourLag(d, S.site.n);
@@ -58,13 +60,19 @@ window.AARON = (() => {
   function par(S) {
     const D = SIM.TARGET, R = SIM.RUN_LEN, from = Math.min(D - R, Math.max(0, Math.round((S.run.from || 0) / R) * R));
     const bit = clamp(Math.max(S.hole.depth, S.core.bit || 0), from, from + R);
-    let drill = 0, crew = 0;
+    let drill = 0, crew = 0, spt = 0;
     for (let f = from; f < D; f += R) {
-      const a = f === from ? bit : f;
-      drill += (f === from ? 0 : 5) + coreT(S, a, f + R) + casT(f, f + R);
-      crew += crewT(f, f + R >= D);
+      const a = f === from ? bit : f, e = f + R;
+      if (SIM.GEO) {                              // 5 ft runs: casing only when the run ends on a 10, and an SPT after every run
+        drill += (f === from ? 0 : 5) + coreT(S, a, e) + (e % 10 === 0 ? casT(e - 10, e) : 0);
+        crew += CREW_GEO[Math.min(CREW_GEO.length, Math.round(e / R)) - 1];
+        spt += SPT.parTime(e);
+      } else {
+        drill += (f === from ? 0 : 5) + coreT(S, a, e) + casT(f, e);
+        crew += crewT(f, e >= D);
+      }
     }
-    return { drill, crew, well: S.site.job === 'well' ? wellT(S) : 0 };          // no well to build on a job that has none
+    return { drill, crew, well: S.site.job === 'well' ? wellT(S) : spt };          // the player's own work after the drilling: the well, or the SPTs
   }
   function allow(S) {
     const p = par(S), k = clamp((S.site.n - FIRST) / Math.max(1, SITES.COUNT - FIRST), 0, 1), s = lerp(SLACK[0], SLACK[1], k);
@@ -182,7 +190,7 @@ window.AARON = (() => {
     let d = dS;                                   // game time that went by on the rig
     if (!d && !S.paused && !off && !st) {         // the rig is held still: a prompt, a breakdown, a throw, or the well install
       if (S.done) { const W = S.well; if (W && WELL.active && $('plan').hidden && /^(pour|pull|wreck|pvc|result)$/.test(W.phase)) d = dt; }
-      else if ((APP.easy && AUTO.st.qte) || TOSS.busy || NAG.busy || MARL.busy) d = dt;
+      else if ((APP.easy && AUTO.st.qte) || TOSS.busy || NAG.busy || MARL.busy || SPT.testing) d = dt;
     }
     A.left -= d;
     if (!A.half && A.left <= A.limit / 2 && A.left > 150) { A.half = true; text(pick(HALF)); }

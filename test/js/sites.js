@@ -1,8 +1,13 @@
 'use strict';
 /* The career. It is split into mission types (TYPES): environmental drilling, where the hole is cored and a monitoring
-   well is built in it, and geotechnical drilling, which has no holes yet. Each type has its own list of holes, its own
-   saved progress and its own job at the end of the hole (`job`: 'well' builds a well; '' goes straight to the report,
-   graded on the drilling alone). One type is the current one: the type of the hole being drilled.
+   well is built in it, and geotechnical drilling, where the hole is cored 5 ft at a time and an SPT (a hammer test of
+   how hard the ground is) is run at every 5 ft. Each type has its own list of holes, its own saved progress and its
+   own job (`job`: 'well' builds a well at the end; 'spt' runs the tests as the hole goes down, js/spt.js; '' goes
+   straight to the report, graded on the drilling alone). One type is the current one: the type of the hole being drilled.
+
+   A geotechnical site also says what is going to be built on it (`build`, drawn by js/spt.js at the end of the hole:
+   it stands if the blow counts on the log were right, and falls down if they were 20% or more out). Its depth is a
+   multiple of 5 ft, 15 to 40. The first 5 ft should be ground that stands up (clay, till, anything above the water).
 
    The ten environmental holes, easiest first. Each one is a site with its own depth, water table and ground, and a
    difficulty from 0 (hole 1) to 1 (hole 10) that speeds up the quick-time prompts and stretches the pour delay.
@@ -49,13 +54,44 @@ window.SITES = (() => {
       blurb: 'Marl picked the spot. Everything that can be in the ground is in this ground.',
       layers: [['topsoil', 3], ['sand', 18, { heave: 1.6 }], ['gravel', 34, { cob: [0.9, 2.2, 0.7, 1.6] }], ['clay', 42], ['sand', 54, { heave: 1.6 }], ['till', 68, { name: 'Bouldery till', base: 4, cob: [2.2, 4.5, 0.6, 1.2] }], ['shale', 90, { name: 'Hard shale', base: 2.6 }]] },
   ];
-  const GEO = [];                // the geotechnical holes: none yet. Add sites here, in the same form as LIST, and the type opens
+  const GEO = [
+    { name: 'Hot tub deck', depth: 15, wt: 30, build: 'hottub',
+      blurb: 'Three tests in easy, dry ground. The owner wants a hot tub that seats twelve.',
+      layers: [['topsoil', 2], ['clay', 9], ['sand', 25, { name: 'Fine sand, dry', heave: 0 }]] },
+    { name: 'Grain bin pad', depth: 20, wt: 26, build: 'bin',
+      blurb: 'Clay over till over dry sand. Nothing sloughs, so every test should be a good one.',
+      layers: [['topsoil', 3], ['clay', 8], ['till', 14], ['sand', 30, { name: 'Fine sand, dry', heave: 0 }]] },
+    { name: 'Cell tower', depth: 25, wt: 12, build: 'tower',
+      blurb: 'Water at 12 ft with sand under it. The 15 ft test has open hole above it: expect slough.',
+      layers: [['topsoil', 2], ['clay', 11], ['sand', 19], ['till', 35]] },
+    { name: 'Hockey rink', depth: 25, wt: 9, build: 'rink',
+      blurb: 'Cobbles from 13 ft and water at 9. The town wants the rink done by October.',
+      layers: [['topsoil', 3], ['clay', 13], ['gravel', 21, { cob: [1.5, 3.8, 0.5, 1.2] }], ['till', 35]] },
+    { name: 'Water tower', depth: 30, wt: 10, build: 'watertower',
+      blurb: 'A long bed of wet sand in the middle of the hole. A lot of weight is going on top of it.',
+      layers: [['topsoil', 2], ['clay', 8], ['sand', 18, { heave: 1.1 }], ['clay', 23], ['till', 40]] },
+    { name: 'Highway overpass', depth: 30, wt: 8, build: 'overpass',
+      blurb: 'Fill, cobbles and running sand over rock. The trucks are counting on your numbers.',
+      layers: [['topsoil', 4, { name: 'Road fill', short: 'Fill' }], ['gravel', 12, { cob: [1.4, 3.4, 0.5, 1.2] }], ['sand', 20, { heave: 1.2 }], ['till', 26, { base: 4.6 }], ['shale', 40]] },
+    { name: 'Parking garage', depth: 35, wt: 7, build: 'garage',
+      blurb: 'Seven tests. Wet sand at 15 ft and cobbles at 25: both land on open hole.',
+      layers: [['topsoil', 5, { name: 'Old fill', short: 'Fill' }], ['clay', 10], ['sand', 18, { heave: 1.2 }], ['gravel', 26, { cob: [1.3, 3.2, 0.5, 1.2] }], ['till', 31], ['shale', 45]] },
+    { name: 'Condo tower', depth: 40, wt: 6, build: 'condo',
+      blurb: 'Eight tests, two beds of running sand, and forty storeys riding on the log.',
+      layers: [['topsoil', 3], ['clay', 6], ['sand', 16, { heave: 1.3 }], ['clay', 22], ['sand', 28, { heave: 1.3 }], ['till', 36, { base: 4.4 }], ['shale', 50]] },
+    { name: 'River bridge', depth: 40, wt: 3, build: 'bridge',
+      blurb: 'Water at 3 ft. Sand that runs, cobbles, more sand, then hard till and rock.',
+      layers: [['topsoil', 3, { name: 'River silt', short: 'Silt' }], ['sand', 12, { heave: 1.4 }], ['gravel', 20, { cob: [1.2, 3, 0.5, 1.2] }], ['clay', 25], ['sand', 33, { heave: 1.5 }], ['till', 37, { base: 4.2 }], ['shale', 50, { name: 'Hard shale', base: 2.8 }]] },
+    { name: "Marl's dream home", depth: 40, wt: 4, build: 'mansion',
+      blurb: 'Marl bought a swamp and wants a mansion on it. Everything sloughs. Count carefully.',
+      layers: [['topsoil', 4, { name: 'Peat & muck', short: 'Peat' }], ['sand', 13, { heave: 1.6 }], ['clay', 17], ['gravel', 26, { cob: [1, 2.6, 0.6, 1.4] }], ['sand', 33, { heave: 1.6 }], ['till', 37, { name: 'Bouldery till', base: 4, cob: [2.2, 4.5, 0.6, 1.2] }], ['shale', 50, { name: 'Hard shale', base: 2.6 }]] },
+  ];
   // The mission types. `job` is what happens once the hole is at depth; `prefix` names the borehole (MW-01, BH-01).
   const TYPES = [
     { id: 'env', name: 'Environmental drilling', short: 'Environmental', job: 'well', prefix: 'MW', key: 'yhiog-career', list: LIST,
       blurb: 'Core the hole to see what is in the ground, then build a monitoring well in it.' },
-    { id: 'geo', name: 'Geotechnical drilling', short: 'Geotechnical', job: '', prefix: 'BH', key: 'yhiog-career-geo', list: GEO,
-      blurb: 'Drilling to find out what the ground can carry before something gets built on it.' },
+    { id: 'geo', name: 'Geotechnical drilling', short: 'Geotechnical', job: 'spt', prefix: 'BH', key: 'yhiog-career-geo', list: GEO,
+      blurb: 'Core 5 ft at a time and hammer in an SPT at every stop. Count the blows right, or what gets built falls down.' },
   ];
   TYPES.forEach(T => { T.career = { open: 1, last: 1, best: {} }; });
   let cur = TYPES[0];            // the current mission type
@@ -89,7 +125,7 @@ window.SITES = (() => {
     const T = typeOf(t).list.length ? typeOf(t) : TYPES[0];
     n = clampN(n, T);
     const s = T.list[n - 1];
-    return { n, type: T.id, kind: T.short, job: T.job, of: T.list.length, name: s.name, blurb: s.blurb, depth: s.depth, wt: s.wt, layers: s.layers,
+    return { n, type: T.id, kind: T.short, job: T.job, of: T.list.length, build: s.build || '', name: s.name, blurb: s.blurb, depth: s.depth, wt: s.wt, layers: s.layers,
       well: T.prefix + '-' + String(n).padStart(2, '0'), hard: hard(n, T), tune: tune(n, T), lagBottom: pourLag(s.depth, n) };
   }
 

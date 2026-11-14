@@ -427,6 +427,55 @@ body.at-menu .shades { display: none; }
 body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 @keyframes jit { 50% { transform: translate(1.5px, -1px); } }
 #well[data-tape="1"] .wl-tape { color: #ffd84d !important; border-color: #a8860f; }
+/* The SPT on a geotechnical hole (js/spt.js): a drawing of the hole and the rig table, with the words down the right */
+.spt { position: fixed; left: 0; right: 0; bottom: 0; top: var(--hud-top, 56px); z-index: 26; background: #8a6a45; touch-action: manipulation; user-select: none; -webkit-user-select: none; overflow: hidden; cursor: pointer; }
+.spt canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.spt-side { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: 10px; bottom: 10px; width: min(370px, 37vw); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.spt-side > * { pointer-events: auto; }
+.spt-head { background: var(--paper); color: var(--paper-ink); border: 3px solid #1b1710; border-radius: 12px; padding: 5px 12px 7px; box-shadow: 0 4px 0 #0006; }
+.spt-head b { display: block; font-family: var(--f-display); font-weight: 400; font-size: clamp(16px, 3.3vh, 23px); letter-spacing: 0.04em; }
+.spt-head span { display: block; font-size: clamp(14px, 2.7vh, 17px); font-weight: 700; line-height: 1.2; }
+.spt-q { display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; background: #10150fe8; color: #fffdf4; border: 3px solid #050805; border-radius: 12px; padding: 8px 12px 10px; }
+.spt-q b { font-size: clamp(17px, 3.4vh, 22px); font-weight: 800; }
+.spt-q span { font-size: clamp(13px, 2.5vh, 16px); font-weight: 700; color: #cfd8c8; }
+.spt-q[data-state="fail"] b { color: #ff8a7a; } .spt-q[data-state="done"] b { color: #8fe07a; }
+.spt-bar { position: relative; width: 100%; height: 28px; border: 3px solid #0c0f0d; border-radius: 14px; background: #1b201d; overflow: hidden; }
+.spt-bar i { position: absolute; top: 0; bottom: 0; background: #4caf50; }
+.spt-bar u { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -4px; background: #fffdf4; border-radius: 4px; box-shadow: 0 0 0 2px #0c0f0d; }
+.spt-q .q-time { width: 100%; }
+.spt-q[data-state="ready"] .q-time i { background: #9ba495; }
+.spt-q[data-state="fail"] .spt-bar, .spt-q[data-state="done"] .spt-bar, .spt-q[data-state="fail"] .q-time, .spt-q[data-state="done"] .q-time { visibility: hidden; }
+.spt-talk { display: flex; gap: 9px; align-items: center; background: #fffdf4; color: #2a2320; border: 3px solid #1b1710; border-radius: 14px; padding: 7px 10px; box-shadow: 0 4px 0 #0006; }
+.spt-talk img { width: 54px; height: 60px; object-fit: cover; border: 2px solid #1b1710; border-radius: 9px; background: #bfe3f5; flex: none; }
+.spt-talk b { display: block; font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #8a4b0c; }
+.spt-talk span { display: block; font-size: clamp(16px, 3.2vh, 21px); font-weight: 800; line-height: 1.2; }
+.spt-ask { background: var(--paper); color: var(--paper-ink); border: 3px solid #1b1710; border-radius: 12px; padding: 8px 10px 10px; box-shadow: 0 4px 0 #0006; }
+.spt-ask p { margin: 0 0 8px; font-size: clamp(14px, 2.7vh, 17px); font-weight: 700; line-height: 1.2; }
+.spt-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.spt-btns .btn-big { flex: 1 1 auto; font-size: clamp(14px, 2.8vh, 17px); padding: 8px 10px; white-space: nowrap; }
+.spt-nums { display: flex; gap: 6px; margin-bottom: 8px; }
+.spt-num { flex: 1 1 0; min-width: 0; text-align: center; border: 2px solid #1b1710; border-radius: 9px; background: #fffdf4; padding: 3px 3px 5px; }
+.spt-num[data-sel="1"] { outline: 3px solid #1b6fd1; }
+.spt-num small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #6d6247; }
+.spt-num div { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.spt-num b { font-family: var(--f-mono); font-size: clamp(20px, 4.4vh, 28px); min-width: 1.6em; }
+.spt-num button { height: clamp(28px, 6vh, 38px); border: 2px solid #1b1710; border-radius: 8px; background: var(--amber); color: #1d1606; font: inherit; font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; box-shadow: 0 2px 0 #1b1710; padding: 0; }
+.spt-num button:active { transform: translateY(2px); box-shadow: none; }
+#sptGo { align-self: stretch; }
+.spt-chat { position: absolute; left: 24%; top: 12%; max-width: min(300px, 30vw); background: #fffdf4; color: #2a2320; border: 3px solid #1b1710; border-radius: 12px; padding: 6px 10px; font-size: clamp(14px, 2.8vh, 18px); font-weight: 800; line-height: 1.2; box-shadow: 0 4px 0 #0006; pointer-events: none; }
+.spt-cap { position: absolute; left: 50%; bottom: 5%; transform: translateX(-50%); width: min(560px, 82vw); text-align: center; background: #e9f8e2; color: #173d14; border: 3px solid #1b1710; border-radius: 14px; padding: 9px 16px 8px; box-shadow: 0 5px 0 #0007; pointer-events: none; }
+.spt-cap[data-bad="1"] { background: #ffe1dc; color: #5a120c; }
+.spt-cap b { display: block; font-family: var(--f-display); font-weight: 400; font-size: clamp(22px, 5vh, 34px); letter-spacing: 0.04em; }
+.spt-cap span { display: block; font-size: clamp(15px, 3vh, 19px); font-weight: 700; line-height: 1.2; }
+.spt-cap small { display: block; margin-top: 5px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+.spt[data-fin="1"] .spt-side { left: 50%; right: auto; transform: translateX(-50%); width: min(560px, 82vw); text-align: center; }
+body.spt-job .ar-timer, body.spt-job .ar-text { z-index: 27; }
+body.phone .spt-side { width: min(300px, 38vw); gap: 5px; top: 6px; bottom: 6px; }
+body.phone .spt-talk img { width: 40px; height: 44px; }
+body.phone .spt-head { padding: 3px 9px 5px; }
+body.phone .spt[data-sub="fix"] .spt-talk, body.phone .spt[data-sub="fix"] .spt-head span { display: none; }
+body.phone .spt-ask { padding: 5px 8px 7px; } body.phone .spt-ask p { margin-bottom: 5px; } body.phone .spt-nums { margin-bottom: 5px; }
+#brief[data-job="spt"] .env-only { display: none; }
 /* Greg's call comes over the shift report, on an older phone */
 .aaron[data-who="greg"] { z-index: 60; }
 .aaron[data-who="greg"] .ar-phone { background: #2b2620; }
@@ -856,6 +905,23 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
   </section>
 </div>
 
+<div class="spt" id="spt" hidden>
+  <canvas id="sptCv" aria-label="The SPT: the hole, the rods and the hammer"></canvas>
+  <div class="spt-side">
+    <div class="spt-head"><b id="sptTitle">SPT</b><span id="sptStep"></span></div>
+    <div class="spt-q" id="sptQ" data-type="timing" data-state="ready" aria-live="polite" hidden>
+      <b id="sptQTitle"></b><span id="sptQHow"></span>
+      <div class="spt-bar" id="sptBar" aria-hidden="true"><i id="sptZone"></i><u id="sptMark"></u></div>
+      <div class="q-time" aria-hidden="true"><i id="sptTime"></i></div>
+    </div>
+    <div class="spt-talk" id="sptTalk" aria-live="polite" hidden><img id="sptFace" alt=""><div><b id="sptWho"></b><span id="sptSay"></span></div></div>
+    <div class="spt-ask" id="sptAsk" hidden></div>
+    <button type="button" class="btn-big" id="sptGo" hidden>Start the hammer</button>
+  </div>
+  <div class="spt-chat" id="sptChat" hidden></div>
+  <div class="spt-cap" id="sptCap" hidden></div>
+</div>
+
 <div class="aaron" id="aaron" data-state="ring" hidden>
   <div class="ar-phone">
     <div class="ar-screen">
@@ -1017,6 +1083,17 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <h2 id="briefTitle">Tailgate meeting</h2>
     <p class="sub" id="briefSub">07:00</p>
     <p class="safety brief-site" id="briefSite"></p>
+    <div id="briefGeo" hidden>
+      <p><b>This is a geotechnical hole.</b> Somebody is going to build on this ground, and the engineer needs to know how hard it is. No well goes in. What is different:</p>
+      <ol>
+        <li><b>5 ft runs.</b> You core 5 ft at a time, with the same 10 ft tooling. The feed stops by itself at the mark.</li>
+        <li><b>Casing every 10 ft only.</b> So at 5, 15, 25 ft the bottom 5 ft of the hole is open. In wet sand it sloughs in when the barrel comes out, and the test at that depth lands on slough: not a good pen.</li>
+        <li><b>An SPT at every 5 ft.</b> The rods come out and AW rods go down with the pen on the bottom. Tap in the green to thread each joint: miss, and the rods drop down the hole. Then the anvil spins on and the hammer is set on top.</li>
+        <li><b>Count the blows.</b> The rod is marked three times, 6 in. apart. Count the hammer blows for each 6 in. <b>in your head</b>: nothing on screen keeps count.</li>
+        <li><b>The helper reports to the engineer.</b> Sometimes he has it wrong. Say he is right, or say no and give the real numbers. Whatever you agree to goes on the log.</li>
+      </ol>
+      <p><b>Then it gets built.</b> If the numbers on the log are 20% or more out, what they build falls down, and the hole is not passed.</p>
+    </div>
     <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole. From hole 3 on, expect a call from Aaron: he has another job waiting and gives you a deadline. Finish late and it costs you points. Score <b>95 or better</b> on any hole and you earn a Safety Buck for the shop, where there is gear and one-time help to buy. You bring one item per hole. Score <b>85 or better</b> and you earn a Swag Token: hard hats, glasses, gloves and outfits that do nothing but look good.</p>
     <div id="briefEasy">
       <p>You are the driller on a three-person sonic crew. The job: core borehole {well} to <b>{depth} ft</b>, 10 ft at a time, and leave it cased. Dale, Tess and the rig handle all the pipe. You do the drilling, with two thumb pads, and you watch the rig while you do it.</p>
@@ -1038,7 +1115,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
         <li><b>Core table.</b> You walk over to see what you recovered, where core was lost and why.</li>
         <li><b>Throw a Zonnic.</b> Now and then while you core, a red button pops up for 3 seconds. Tap it, then tap again when the shrinking white ring sits on the green band. Hit, and it sticks to the helper's hard hat.</li>
       </ol>
-      <p><b>Then the well.</b> At {depth} ft the engineer walks over with a drawing. You pour bentonite and sand by drawing circles, never more than 6 in. up inside the casing, then pull a joint of casing and pour again. Prompts pop up for the casing and for every length of PVC. The tape reads late, so stop early: too much in the casing and the next pull rips the well in half.</p>
+      <p class="env-only"><b>Then the well.</b> At {depth} ft the engineer walks over with a drawing. You pour bentonite and sand by drawing circles, never more than 6 in. up inside the casing, then pull a joint of casing and pour again. Prompts pop up for the casing and for every length of PVC. The tape reads late, so stop early: too much in the casing and the next pull rips the well in half.</p>
       <p>The view follows the work by itself. Drag anywhere on the picture to look around.</p>
       <p class="safety">Want to run every lever yourself? Settings, then Controls, then Full rig. It is best with a mouse and keyboard.</p>
     </div>
@@ -1149,6 +1226,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <script src="js/auto.js" charset="utf-8"></script>
 <script src="js/easy.js" charset="utf-8"></script>
 <script src="js/well.js" charset="utf-8"></script>
+<script src="js/spt.js" charset="utf-8"></script>
 <script src="js/toss.js" charset="utf-8"></script>
 <script src="js/nag.js" charset="utf-8"></script>
 <script src="js/marl.js" charset="utf-8"></script>

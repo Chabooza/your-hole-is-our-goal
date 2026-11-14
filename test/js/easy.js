@@ -187,7 +187,7 @@ window.EASY = (() => {
     else if (m === 'core') {
       const tg = SIM.runTarget(S), d0 = tg - SIM.RUN_LEN;
       title = `Run ${S.run.n}: core ${d0.toFixed(0)} to ${tg.toFixed(0)} ft`; text = 'Your turn. PUSH and SPIN the rod down. Keep both needles in the green.';
-      p = (S.core.bit - d0) / SIM.RUN_LEN; bar = `Rod down ${Math.max(0, S.core.bit - d0).toFixed(1)} of 10.0 ft`;
+      p = (S.core.bit - d0) / SIM.RUN_LEN; bar = `Rod down ${Math.max(0, S.core.bit - d0).toFixed(1)} of ${SIM.RUN_LEN.toFixed(1)} ft`;
     } else if (m === 'casing') {
       title = `Run ${S.run.n}: drive the casing`; text = 'Your turn. PUMP on, then PUSH and SPIN the casing down over the rods.';
       const from = S.run.from || 0, need = Math.max(0.01, S.hole.depth - from);

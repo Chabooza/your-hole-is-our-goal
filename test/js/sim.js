@@ -12,8 +12,12 @@ window.SIM = (() => {
   const BARREL = 14, JT = 10, CAS_STUB = 2.3;    // casing top always ends below the break-out zone;                      // core barrel with its top sub, and one rod / casing joint
   const PRES_TOP = 14.9;                           // top of a casing joint standing on the presenter arm
   const HOOK_TOP = 31, HOOK_CLEAR = 6;           // winch hook travel, and how far it must stay above the head
-  const RUN_LEN = 10;                              // core run length
+  // Core run length. Environmental holes core 10 ft at a time: one rod a run. Geotechnical holes (GEO) core 5 ft at a
+  // time with the same 10 ft tooling, and stop after every run for an SPT (js/spt.js). So every second run stops
+  // half way down a rod (a "half run", at 5, 15, 25 ft): no casing goes on after it, and the bottom 5 ft is open hole.
+  let RUN_LEN = 10, GEO = false;
   let TARGET = 60, WT = 12;                        // total depth and water table: set by the site (useSite)
+  const GEO_MIN_FT = 13;                           // shift minutes a foot a geotechnical hole is allowed before the clock costs points
   const BARREL_CAP = 10.8;                         // the barrel holds a little more than a run, for slough
   const GAL_PER_FT = 1.23, TANK_CAP = 200;         // 6" casing holds ~1.23 gal per ft
   const AREA = 3.0;                                // feed cylinder area, in² (2,500 psi ≈ 7,500 lbf)
@@ -55,7 +59,8 @@ window.SIM = (() => {
     let top = 0;
     LAYERS = st.layers.map(([id, bot, ch]) => { const L = Object.assign({}, MAT[id], ch || {}, { top, bot }); top = bot; return L; });
     TARGET = st.depth; WT = st.wt;
-    return { n: st.n, type: st.type, kind: st.kind, job: st.job, of: st.of, name: st.name, well: st.well, depth: st.depth, wt: st.wt, hard: st.hard, tune: st.tune, blurb: st.blurb };
+    GEO = st.job === 'spt'; RUN_LEN = GEO ? 5 : 10;
+    return { n: st.n, type: st.type, kind: st.kind, job: st.job, of: st.of, build: st.build, name: st.name, well: st.well, depth: st.depth, wt: st.wt, hard: st.hard, tune: st.tune, blurb: st.blurb };
   }
   const layerAt = d => LAYERS.find(L => d < L.bot) || LAYERS[LAYERS.length - 1];
 
@@ -107,7 +112,7 @@ window.SIM = (() => {
       tc: { ang: 0 },                              // top clamp rotation, 0 (break end) .. 1 (make end)
       winch: { y: HOOK_TOP - 1, conn: null },
       arm: { ang: 0, holds: false },
-      rack: { casing: Math.round(TARGET / JT) },
+      rack: { casing: Math.floor(TARGET / JT + 0.01) },
       yard: { stands: 0, singles: 0 },
       work: 'core', contact: null,
       hole: { depth: 0, heave: 0 },
@@ -181,8 +186,17 @@ window.SIM = (() => {
     return 0;
   }
   const jointY = S => coreTop(S) - JT * (S.jt ? S.jt.above : 1);
-  // a run is one rod: it is done when the rod is down to the table
-  const runTarget = S => S.core.len - (BARREL - RUN_LEN);
+  // a run is one rod: it is done when the rod is down to the table. A geotechnical run is 5 ft: it is done at its mark
+  const runTarget = S => (GEO ? Math.min(S.core.len - (BARREL - JT), RUN_LEN * S.run.n) : S.core.len - (BARREL - RUN_LEN));
+  // rods on top of the barrel once n runs are finished: one more every run, or every second run on 5 ft runs
+  const needRods = n => (GEO ? Math.floor(Math.max(0, n) / 2) : Math.max(0, n));
+  const halfRun = S => GEO && S.run.n % 2 === 1;
+  // ft of the open hole between a and b that will run in when nothing holds it back: loose ground below the water table
+  function wetRun(a, b) {
+    let s = 0;
+    for (const L of LAYERS) { const lo = Math.max(a, L.top, WT), hi = Math.min(b, L.bot); if (hi > lo && L.k >= 0.5) s += (hi - lo) * clamp(0.45 + 0.4 * L.heave, 0, 1); }
+    return s;
+  }
   const rodDown = S => S.core.len > 0 && S.core.bit >= runTarget(S) - 0.03;
   const onBottomCore = S => S.core.len > 0 && S.core.bit >= btm(S) - 0.03;
   // is anything stopping the core string from falling down the hole?
@@ -385,7 +399,7 @@ window.SIM = (() => {
         const r = rodsIn(S);
         if (S.yard.singles === 0) {
           if (S.yard.stands > 0) return no('There are still stands on the sawhorses. Winch those in first.');
-          if (r >= S.runs.length) return no('The string is already made up for this run.');
+          if (r >= needRods(S.runs.length)) return no('The string is already made up for this run.');
           if (S.phase !== 'TRIP_IN') return no('Not now. A new rod goes on once the barrel is back on bottom.');
         }
         if (!leversNeutral(S)) return no(NEUTRAL_MSG);
@@ -510,6 +524,7 @@ window.SIM = (() => {
   // ---------- core bookkeeping ----------
   // one stretch of core: depth a..b, what it is, how much of it survived (q), and what damaged it (why)
   function addSeg(r, a, b, layer, color, q, slough, why) {
+    why = why || '';                             // (so that stretches with no damage, slough above all, join up into one)
     const last = r.segs[r.segs.length - 1];
     if (last && last.layer === layer && last.slough === slough && last.why === why && Math.abs(last.q - q) < 0.12 && Math.abs(last.b - a) < 0.02) {
       const la = last.b - last.a, lb = b - a;
@@ -590,10 +605,11 @@ window.SIM = (() => {
       S.openGap = false;
       const gap = S.hole.depth - S.casing.depth;
       const Lg = layerAt(S.casing.depth + 0.1);
-      if (gap > 0.5 && Lg.k >= 0.5 && S.casing.depth + gap > WT) {
-        S.hole.heave = Math.min(S.hole.depth, S.hole.heave + gap * 0.85); S.stats.heave += gap * 0.85;
-        log(S, `The open hole below the casing caved in. About ${(gap * 0.85).toFixed(1)} ft of sand is now in the hole.`, 'crit');
-        S.sfx.push('alarm');
+      const cave = GEO ? wetRun(S.casing.depth, S.hole.depth) : gap > 0.5 && Lg.k >= 0.5 && S.casing.depth + gap > WT ? gap * 0.85 : 0;
+      if (cave > 0.2) {
+        S.hole.heave = Math.min(S.hole.depth, S.hole.heave + cave); S.stats.heave += cave;
+        log(S, GEO ? `The open hole sloughed in as the barrel came out. About ${cave.toFixed(1)} ft of wet sand is sitting on bottom.` : `The open hole below the casing caved in. About ${cave.toFixed(1)} ft of sand is now in the hole.`, GEO ? 'warn' : 'crit');
+        S.sfx.push(GEO ? 'buzz' : 'alarm');
       }
     }
   }
@@ -601,7 +617,8 @@ window.SIM = (() => {
   function startTrip(S) {
     S.phase = 'TRIP_OUT'; S.tripHv = 0;
     S.openGap = S.hole.depth - S.casing.depth > 0.5;
-    if (S.openGap) log(S, `Casing is only at ${S.casing.depth.toFixed(1)} ft with the core at ${S.hole.depth.toFixed(1)} ft. The open hole may cave when you pull.`, 'warn');
+    if (S.openGap && GEO) log(S, `No casing on this run: ${(S.hole.depth - S.casing.depth).toFixed(1)} ft of open hole under the shoe. Wet sand will slough in when the barrel comes out.`, wetRun(S.casing.depth, S.hole.depth) > 0.2 ? 'warn' : 'info');
+    else if (S.openGap) log(S, `Casing is only at ${S.casing.depth.toFixed(1)} ft with the core at ${S.hole.depth.toFixed(1)} ft. The open hole may cave when you pull.`, 'warn');
     const r = rodsIn(S);
     if (r === 0) log(S, 'Head is on the barrel. Open the clamps and pull the barrel out of the hole.');
     else if (r % 2) log(S, `Tripping out ${r} rod${r > 1 ? 's' : ''} and the barrel. Odd number: take the top single off with the head first.`);
@@ -626,17 +643,32 @@ window.SIM = (() => {
     S.runs.push(r);
     const pct = Math.round(r.recovery * 100);
     log(S, `Run ${r.n} is in the sleeve: ${r.from.toFixed(1)} to ${r.to.toFixed(1)} ft, ${pct}% recovery.${notesText(r)}`, pct >= 90 ? 'good' : pct >= 70 ? 'warn' : 'crit');
+    if (GEO) {                                    // rods are out: the SPT goes down the hole before anything else (js/spt.js)
+      S.phase = 'SPT';
+      S.spt = { depth: Math.round(S.hole.depth / RUN_LEN) * RUN_LEN, n: r.n, last: S.hole.depth >= TARGET - 0.3 };
+      log(S, `Barrel is empty. Sonic off. Time for the SPT at ${S.spt.depth} ft.`);
+      return;
+    }
     if (S.hole.depth >= TARGET - 0.3) { finish(S); return; }
+    nextRun(S);
+  }
+  function nextRun(S) {
     S.phase = 'TRIP_IN'; S.tagged = false;
     S.flags.warnShort = 0; S.flags.fullMsg = 0;
     S.run = newRun(S.runs.length + 1, S.hole.depth - S.hole.heave);
-    log(S, 'Barrel is empty. Sonic off, tilt the barrel back IN and run it back in the hole.');
+    log(S, GEO ? 'The SPT is done. Tilt the barrel back IN and run it back in the hole.' : 'Barrel is empty. Sonic off, tilt the barrel back IN and run it back in the hole.');
+  }
+  // the SPT at this depth is finished (called by js/spt.js): back in the hole, or the hole is done
+  function sptDone(S) {
+    const last = S.spt && S.spt.last;
+    S.spt = null;
+    if (last) finish(S); else nextRun(S);
   }
 
   function finish(S) {
     S.done = true; S.phase = 'DONE';
     S.report = report(S);
-    log(S, `Hole complete at ${S.hole.depth.toFixed(1)} ft, cored and cased. Next: the well.`, 'good');
+    log(S, GEO ? `Hole complete at ${S.hole.depth.toFixed(1)} ft. Every SPT is on the log.` : `Hole complete at ${S.hole.depth.toFixed(1)} ft, cored and cased. Next: the well.`, 'good');
     S.sfx.push('done');
   }
 
@@ -653,8 +685,8 @@ window.SIM = (() => {
     score -= wear * 30;
     score -= S.stats.loose * 2;
     score -= (S.stats.fumbles || 0) * 2;
-    score -= Math.max(0, shiftMin - TARGET * 10) / 15;      // ten minutes of shift a foot before the clock costs anything
-    if (S.casing.depth < TARGET - 0.5) score -= 5;
+    score -= Math.max(0, shiftMin - TARGET * (GEO ? GEO_MIN_FT : 10)) / 15;      // ten minutes of shift a foot before the clock costs anything (more on 5 ft runs: twice the trips)
+    if (S.casing.depth < Math.floor(TARGET / JT + 0.01) * JT - 0.5) score -= 5;
     score = Math.round(clamp(score, 0, 100));
     const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
     return { drilled, rec, recovery, shiftMin, score, grade, wear, casing: S.casing.depth, waterUsed: S.water.used, spilled: S.water.spilled,
@@ -1032,6 +1064,10 @@ window.SIM = (() => {
         const room = h.y - MAST_BOT;
         if (room <= 0.001) { vDown = 0; pFeed = pdSet * c.feed; S.headBottomed = true; }
         else if (vDown * dt > room) vDown = room / dt;
+        if (GEO && conn === 'core' && S.phase === 'CORE_RUN') {          // 5 ft runs: the driller stops at the mark on the rod
+          const mark = runTarget(S) - S.core.bit;
+          if (mark <= 0.001) { vDown = 0; pFeed = 140; } else if (vDown * dt > mark) vDown = mark / dt;
+        }
       } else if (feedUp) {
         const grip = (stringW + HEAD_W) / AREA + (conn === 'casing' ? S.casing.depth * 6 * (1 - 0.5 * lube) + S.cuttings * 900 : 0) + S.stuck * 2600 * (1 - 0.6 * res);
         const vCmd = -c.feed * 1.2 * flowK;
@@ -1090,7 +1126,9 @@ window.SIM = (() => {
 
     // job phases follow what the driller actually does
     const nowOn = attached(S) ? h.conn : null;
-    if (S.phase === 'CORE_RUN' && !h.conn && S.run.fill >= 0.5) {
+    if (S.phase === 'CORE_RUN' && halfRun(S) && rodDown(S) && S.run.fill >= 0.5 && (!h.conn || feedUp || (!c.oscOn && h.hz < 1 && Math.abs(c.feed) < 0.04))) {
+      S.run.to = S.core.bit; startTrip(S);       // a half run: no casing, straight to pulling the rods
+    } else if (S.phase === 'CORE_RUN' && !h.conn && S.run.fill >= 0.5 && (!GEO || rodDown(S))) {
       S.run.to = S.core.bit; S.phase = 'OVERRIDE';
       log(S, `Run ${S.run.n} cored to ${S.core.bit.toFixed(1)} ft. Now override the casing down to the same depth.`);
     } else if (S.phase === 'OVERRIDE' && nowOn === 'core') startTrip(S);
@@ -1100,9 +1138,9 @@ window.SIM = (() => {
       log(S, 'Barrel is tilted out. Switch the sonic on to vibrate the core out for Tess.');
     } else if (S.phase === 'TRIP_IN') {
       if (!S.tagged && onBottomCore(S) && S.core.bit > 0) tagged(S);
-      if (nowOn === 'core' && rodsIn(S) >= S.runs.length && onBottomCore(S)) {
+      if (nowOn === 'core' && rodsIn(S) >= needRods(S.runs.length) && onBottomCore(S)) {
         S.phase = 'CORE_RUN'; S.run.from = btm(S); S.run.to = S.run.from;
-        log(S, `New rod is on. Run ${S.run.n} is ready to core from ${S.run.from.toFixed(1)} ft. Open the clamps.`, 'good');
+        log(S, `${needRods(S.runs.length) > needRods(S.runs.length - 1) ? 'New rod is on' : 'Back on bottom'}. Run ${S.run.n} is ready to core from ${S.run.from.toFixed(1)} ft. Open the clamps.`, 'good');
       }
     }
 
@@ -1203,7 +1241,7 @@ window.SIM = (() => {
     // run full message
     if (S.phase === 'CORE_RUN' && rodDown(S) && !S.flags.fullMsg) {
       S.flags.fullMsg = 1;
-      log(S, `Rod is down: ${S.core.bit.toFixed(1)} ft. That is the run. Stop and break the head off the rods.`, 'warn');
+      log(S, halfRun(S) ? `At the mark: ${S.core.bit.toFixed(1)} ft. That is the 5 ft run. Sonic off. No casing this time: pull the rods for the SPT.` : `Rod is down: ${S.core.bit.toFixed(1)} ft. That is the run. Stop and break the head off the rods.`, 'warn');
       S.sfx.push('ok');
     }
 
@@ -1223,7 +1261,7 @@ window.SIM = (() => {
     if (w.truckAway) al.push(['info', 'Water truck away at the hydrant']);
     if (S.heaving) al.push(['crit', 'Sand heaving into the casing']);
     if (S.stuck > 0.5) al.push(['crit', S.stuck >= 0.99 ? 'String STUCK' : 'String sticking']);
-    if (S.phase === 'CORE_RUN' && rodDown(S)) al.push(['warn', S.run.fill >= BARREL_CAP ? 'Core barrel overfull' : 'Rod is down: stop the run']);
+    if (S.phase === 'CORE_RUN' && rodDown(S)) al.push(['warn', S.run.fill >= BARREL_CAP ? 'Core barrel overfull' : halfRun(S) ? 'At the 5 ft mark: stop the run' : 'Rod is down: stop the run']);
     if (driving && held(S, conn) && (feedDown || feedUp || c.oscOn)) al.push(['crit', 'A clamp is closed on the string']);
     if (S.winchBlock) al.push(['crit', S.winchBlock]);
     if (S.slideBlock) al.push(['warn', S.slideBlock]);
@@ -1327,6 +1365,7 @@ window.SIM = (() => {
         title = `Run ${r.n}: core ${f(r.from)} to ${f(runTarget(S))} ft`;
         if (text) break;
         if (on !== 'core') text = h.conn === 'core' ? 'Keep turning until the joint is tight.' : headToCentre(threadOn('rods', top));
+        else if (rodDown(S) && halfRun(S)) text = 'At the mark, that is the 5 ft run. Centre the levers and switch the sonic OFF. No casing on this one: the rods come straight out for the SPT.';
         else if (rodDown(S)) text = 'Rod is down, that is the run. Centre the levers, sonic OFF. Close the BOTTOM CLAMP, then run ROTATION in REVERSE to unscrew the head from the rods.';
         else if (held(S, 'core')) text = 'Open the clamps so the string can move.';
         else if (!c.oscOn) text = 'Switch the OSCILLATOR on and set a frequency. Then ease the FEED lever down.';
@@ -1407,7 +1446,7 @@ window.SIM = (() => {
       case 'TRIP_IN': {
         title = S.tagged ? `Barrel on bottom at ${f(btm(S))} ft` : 'Trip in';
         if (text) break;
-        const prev = S.runs.length - 1, j = S.jt;                 // rods that came out and have to go back
+        const prev = needRods(S.runs.length - 1), now = needRods(S.runs.length), j = S.jt;                 // rods that came out and have to go back, and rods the next run needs
         if (h.tilt > 0.01 || c.tilt) text = c.oscOn ? 'Switch the OSCILLATOR off.' : 'Flip TILT to IN to bring the barrel back to vertical.';
         else if (wn.conn === 'stand') {
           if (dTask === 'SPIN_IN') text = 'Hands off: Dale is spinning the stand in.';
@@ -1440,7 +1479,7 @@ window.SIM = (() => {
           else if (h.x > -0.98) text = c.side ? 'Flip HEAD SIDE to LEFT, then slide the head LEFT to the stop.' : 'Raise the head off the string and slide it LEFT to the stop.';
           else if (wn.y > 6) text = `Winch the hook DOWN to Dale at the sawhorses (below 6 ft, now ${f(wn.y)}).`;
           else { text = `${S.yard.stands} stand${S.yard.stands > 1 ? 's' : ''} on the sawhorses. Call Dale: HOOK UP.`; ord = 'HOOK'; }
-        } else if (rods < prev || (rods < S.runs.length && onBottomCore(S))) {
+        } else if (rods < prev || (rods < now && onBottomCore(S))) {
           const b = stabBlock(S), what = rods < prev ? 'the single' : 'a new rod';
           if (h.x < -0.02 || (centred(S) && h.y < top + JT + TH + 0.15)) text = h.x < -0.02 ? headToCentre('') : `Raise the head above ${f(top + JT + TH + 0.2)} ft to make room for ${what}.`;
           else if (b) text = b;
@@ -1448,8 +1487,11 @@ window.SIM = (() => {
         } else text = headToCentre(threadOn('rods', top));
         break;
       }
+      case 'SPT':
+        title = `SPT at ${S.spt ? S.spt.depth : 0} ft`; text = 'The rods are out. The crew runs the SPT down the hole: AW rods, the anvil, then the hammer. Count the blows.';
+        break;
       case 'DONE':
-        title = 'Hole complete'; text = 'Nice work. The hole is cored and cased.';
+        title = 'Hole complete'; text = GEO ? 'Nice work. The hole is cored and every SPT is on the log.' : 'Nice work. The hole is cored and cased.';
         break;
     }
     return { title: nm(S, title), text: nm(S, text), layer: L, order: ord };
@@ -1457,7 +1499,7 @@ window.SIM = (() => {
 
   useSite(1);
   return {
-    MAST_TOP, MAST_BOT, RUN_LEN, TANK_CAP, PD_MAX, HB_MAX, AREA, HEAD_W, CORE_WPF, POS, MATS, TASKS, CLOCK_RATE,
+    MAST_TOP, MAST_BOT, get RUN_LEN() { return RUN_LEN; }, get GEO() { return GEO; }, needRods, halfRun, sptDone, wetRun, TANK_CAP, PD_MAX, HB_MAX, AREA, HEAD_W, CORE_WPF, POS, MATS, TASKS, CLOCK_RATE,
     get TARGET() { return TARGET; }, get WT() { return WT; }, get LAYERS() { return LAYERS; }, useSite,
     TH, CLAMP_B, CLAMP_T, ZONE_LO, ZONE_HI, BARREL, JT, PRES_TOP, HOOK_TOP, HOOK_CLEAR,
     layerAt, newGame, step, order, ACT, guidance, nm, clockStr, taskProgress, notesText, noteKeys, NOTE_TEXT,

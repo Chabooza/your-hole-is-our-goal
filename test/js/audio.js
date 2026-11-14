@@ -81,6 +81,7 @@ window.AUDIO = (() => {
       case 'crank': burst(180, 1.2, 0.5, 'lowpass'); break;
       case 'burst': burst(1800, 1.4, 0.8, 'highpass'); break;
       case 'ok': blip(880, 0.12, 0.15); break;
+      case 'blow': burst(1900, 0.08, 0.6); burst(260, 0.14, 0.7, 'lowpass'); blip(1320, 0.06, 0.1); break;      // the SPT hammer landing on the anvil
       case 'done': blip(660, 0.12, 0.15); setTimeout(() => blip(990, 0.16, 0.15), 120); break;
       case 'alarm': blip(1200, 0.2, 0.2); setTimeout(() => blip(900, 0.25, 0.2), 200); break;
       case 'horn': hornT = 0.6; break;

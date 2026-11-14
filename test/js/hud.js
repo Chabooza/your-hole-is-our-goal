@@ -124,10 +124,10 @@ window.HUD = (() => {
     if (side.title.textContent !== gd.title) side.title.textContent = gd.title;
     if (side.text.textContent !== gd.text) side.text.textContent = gd.text;
     let p = 0, txt = '';
-    if (s.phase === 'CORE_RUN') { const tg = SIM.runTarget(s), d0 = tg - SIM.RUN_LEN; p = (s.core.bit - d0) / SIM.RUN_LEN; txt = `Rod down ${Math.max(0, s.core.bit - d0).toFixed(1)} of 10.0 ft`; }
+    if (s.phase === 'CORE_RUN') { const tg = SIM.runTarget(s), d0 = tg - SIM.RUN_LEN; p = (s.core.bit - d0) / SIM.RUN_LEN; txt = `Rod down ${Math.max(0, s.core.bit - d0).toFixed(1)} of ${SIM.RUN_LEN.toFixed(1)} ft`; }
     else if (s.phase === 'OVERRIDE') { const need = Math.max(0.01, s.hole.depth - (s.run.from || 0)); p = (s.casing.depth - s.run.from) / need; txt = `Casing ${s.casing.depth.toFixed(1)} of ${s.hole.depth.toFixed(1)} ft`; }
     else if (s.phase === 'TRIP_OUT') { const b = Math.max(0, s.core.bit); p = s.hole.depth > 0 ? 1 - b / s.hole.depth : 1; txt = `${SIM.rodsIn(s)} rod${SIM.rodsIn(s) === 1 ? '' : 's'} + barrel in the hole`; }
-    else if (s.phase === 'TRIP_IN') { const b = SIM.btm(s); p = b > 0 ? Math.max(0, s.core.bit) / b : 1; txt = `${SIM.rodsIn(s)} of ${s.runs.length} rods on, barrel at ${Math.max(0, s.core.bit).toFixed(1)} ft`; }
+    else if (s.phase === 'TRIP_IN') { const b = SIM.btm(s); p = b > 0 ? Math.max(0, s.core.bit) / b : 1; txt = `${SIM.rodsIn(s)} of ${SIM.needRods(s.runs.length)} rods on, barrel at ${Math.max(0, s.core.bit).toFixed(1)} ft`; }
     else if (s.phase === 'EXTRUDE') { p = SIM.taskProgress(s.crew[1]); txt = 'Shaking the core out'; }
     else { p = 1; txt = 'Done'; }
     side.bar.style.width = (clamp(p, 0, 1) * 100).toFixed(1) + '%';
@@ -192,7 +192,7 @@ window.HUD = (() => {
     let verdict = '';
     if (res) {
       const nxt = st.n < SITES.COUNT ? SITES.get(st.n + 1) : null;
-      const tail = !res.passed ? `You need ${SITES.PASS} or better${st.job === 'well' ? ', drilling and well together,' : ''} to open the next hole.`
+      const tail = !res.passed ? (r.spt && r.spt.collapsed ? `${r.spt.name.charAt(0).toUpperCase() + r.spt.name.slice(1)} fell down: the blow counts on the log were ${Math.round(r.spt.err * 100)}% out. A hole cannot pass with that. ` : '') + `You need ${SITES.PASS} or better${st.job === 'well' ? ', drilling and well together,' : st.job === 'spt' ? ', drilling and SPT log together,' : ''} to open the next hole.`
         : res.last ? 'That was the last hole. You have drilled the lot.'
         : res.opened ? `Hole ${nxt.n}, ${nxt.name}, is now open.` : `Hole ${nxt.n}, ${nxt.name}, is open.`;
       verdict = `<div class="rp-pass ${res.passed ? 'ok' : 'no'}"><b>${res.passed ? 'Passed' : 'Not passed'}</b><span>Hole ${st.n} of ${SITES.COUNT} · ${st.name} · pass mark ${SITES.PASS}. ${tail}${res.record ? ' A new best for this hole.' : res.best > r.score ? ` Your best here is ${res.best}.` : ''}${res.tokens ? ` <b class="rp-buck tok">+${res.tokens} Swag Token</b> for scoring ${SWAG.NEED} or better.` : ''}${res.bucks ? ` <b class="rp-buck">+${res.bucks} Safety Buck</b> for scoring ${SHOP.NEED} or better.` : ''}${res.tokens || res.bucks ? ' Spend them in the shop.' : ''}</span></div>`;
@@ -204,7 +204,7 @@ window.HUD = (() => {
         <div><dt>${x.id === 'well' ? x.name : x.name + ', top'}</dt><dd class="${Math.abs(x.err) <= 0.5 ? 'g' : Math.abs(x.err) <= 1.5 ? 'a' : 'r'}">${dep(x.got)} (drawing: ${dep(x.target)})</dd></div>`).join('');
     const wear = Object.entries(s.dmg).filter(([, v]) => v > 0.005).map(([k, v]) => `${({ head: 'Sonic head', pump: 'Pump', bit: 'Bit', hyd: 'Hydraulics', clamp: 'Clamps', threads: 'Threads' })[k]} ${pct(v)}`).join(', ') || 'None';
     box.innerHTML = `${verdict}
-      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole ${st.well} cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}</div></div>
+      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole ${st.well} cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}${r.spt ? `<br><small>Drilling ${r.drill} / 100 · SPT log ${r.spt.score} / 100${r.spt.collapsed ? ' · it fell down' : ''}${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}</div></div>
       <dl class="rp-stats">
         <div><dt>Crew</dt><dd>${s.driller ? s.driller + ' drilling, with ' : ''}${s.crew[0].name} and ${s.crew[1].name}</dd></div>
         <div><dt>Core recovery</dt><dd>${pct(r.recovery)} (${r.rec.toFixed(1)} of ${r.drilled.toFixed(1)} ft)</dd></div>
@@ -235,6 +235,22 @@ ${w.pulls ? `
         <div><dt>Pipe fumbled</dt><dd>${w.fumbles}</dd></div>` : ''}${w.spill > 0.3 ? `
         <div><dt>Bentonite spilled out the top</dt><dd class="a">about ${Math.max(1, Math.round(w.spill / 3))} bag${Math.round(w.spill / 3) > 1 ? 's' : ''}</dd></div>` : ''}
       </dl>` : ''}
+${r.spt ? `
+      <h3>The SPT log</h3>
+      <dl class="rp-stats">
+        <div><dt>Blow counts on the log</dt><dd class="${r.spt.err < 0.05 ? 'g' : r.spt.collapsed ? 'r' : 'a'}">${Math.round(r.spt.err * 100)}% out (${Math.round(SPT.COLLAPSE * 100)}% or more and it falls down)</dd></div>
+        <div><dt>What got built</dt><dd class="${r.spt.collapsed ? 'r' : 'g'}">${r.spt.name.charAt(0).toUpperCase() + r.spt.name.slice(1)}: ${r.spt.collapsed ? 'it fell down' : 'still standing'}</dd></div>${r.spt.drops ? `
+        <div><dt>Rods dropped down the hole</dt><dd class="r">${r.spt.drops}</dd></div>` : ''}
+      </dl>
+      <div class="rp-table"><table><thead><tr><th>Depth (ft)</th><th>Real blows</th><th>Helper said</th><th>On the log</th><th>N</th><th>Notes</th></tr></thead><tbody>${r.spt.tests.map(t => {
+        const same = (a, b) => a.every((v, i) => v === b[i]), right = same(t.rec, t.real), notes = [];
+        if (t.bad) notes.push(`on ${f1(t.slough)} ft of slough: not a good pen`);
+        if (!right && t.agreed) notes.push('you agreed with a wrong count');
+        else if (!right) notes.push(same(t.said, t.real) ? 'the helper was right and you changed it' : 'your correction was off');
+        else if (!t.agreed && !same(t.said, t.real)) notes.push('you caught the helper out');
+        if (t.drops) notes.push(`rods dropped ${t.drops}×`);
+        return `<tr><td>${t.depth}</td><td>${t.real.join(', ')}</td><td>${t.said.join(', ')}</td><td class="${right ? 'g' : 'r'}">${t.rec.join(', ')}</td><td>${t.rec[1] + t.rec[2]}</td><td>${notes.join('; ') || '—'}</td></tr>`;
+      }).join('')}</tbody></table></div>` : ''}
       <h3>Boring log</h3>
       <div class="rp-table"><table><thead><tr><th>Run</th><th>Depth (ft)</th><th>Material</th><th>Cored</th><th>Recovered</th><th>Rec.</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     $('report').hidden = false;

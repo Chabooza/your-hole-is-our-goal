@@ -67,7 +67,8 @@
     S.driller = d.name;
     S.crew[0].name = l.name; S.crew[0].hat = hex(l.look.hat);
     S.crew[1].name = c.name; S.crew[1].hat = hex(c.look.hat);
-    WORLD.setCrew({ driller: SWAG.dress(d.look), lead: l.look, core: c.look });      // the driller wears whatever swag is on (js/swag.js)
+    WORLD.setCrew({ driller: SWAG.dress(d.look), lead: l.look, core: c.look });
+    APP.looks = { lead: l.look, core: c.look };      // the driller wears whatever swag is on (js/swag.js)
     itemKey = null;
     if (!briefSrc) briefSrc = { briefEasy: $('briefEasy').innerHTML, briefFull: $('briefFull').innerHTML };
     for (const id in briefSrc) $(id).innerHTML = SIM.nm(S, briefSrc[id]).replace(/\{well\}/g, S.site.well).replace(/\{depth\}/g, S.site.depth);
@@ -366,6 +367,7 @@
     $('menuHole').textContent = `${at.kind} · Hole ${at.n} of ${SITES.COUNT}: ${at.name} · ${at.depth} ft`;
     $('briefSub').textContent = `07:00 · ${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
     $('briefSite').innerHTML = `<b>Today: ${st.name}.</b> ${st.depth} ft, water at ${st.wt} ft. ${st.blurb}`;
+    $('brief').dataset.job = st.job; $('briefGeo').hidden = st.job !== 'spt';
     $('reportSub').textContent = `${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
   }
   // The hole selection screen. It comes up after every hole (from the report's Continue button) and from the main
@@ -429,11 +431,16 @@
     openPick(() => { newHole(n, type); setPaused(true); if (!APP.briefed) openBrief(true); else leaveMenu(); });
   }
   // the well is built and signed off: keep the grade, open the next hole on a pass, and show the report
-  // A job with nothing to build once the hole is at depth: the drilling grade is the grade. (The well install does
-  // this itself for a job with a well: see finish in js/well.js.)
+  // A job with nothing to build once the hole is at depth: the drilling grade is the grade, with the SPT log on a
+  // geotechnical hole. (The well install does this itself for a job with a well: see finish in js/well.js.)
   function closeOut(S) {
     const R = S.report, A = AARON.settle(S);
     R.drill = R.score;
+    if (S.site.job === 'spt') {                   // geotechnical: the blow counts on the log are part of the grade (js/spt.js)
+      const G = R.spt = SPT.grade(S);
+      R.score = Math.round(R.drill * (1 - SPT.W_SPT) + G.score * SPT.W_SPT);
+      if (G.collapsed) R.score = Math.min(R.score, SPT.FAIL_CAP);
+    }
     if (A) { R.aaron = { limit: A.limit, late: A.late, spare: A.spare, pen: A.pen }; R.score = Math.max(0, R.score - A.pen); }
     R.grade = R.score >= 90 ? 'A' : R.score >= 80 ? 'B' : R.score >= 70 ? 'C' : R.score >= 60 ? 'D' : 'F';
   }
@@ -460,6 +467,7 @@
     MARL.reset();
     AARON.reset();
     GREG.reset();
+    SPT.reset();
     APP.reportShown = false; APP.seenRuns = 0;
     $('report').hidden = true;
     applyCrew();
@@ -688,6 +696,7 @@
     MARL.init(APP);
     AARON.init(APP);
     GREG.init(APP);
+    SPT.init(APP);
     APP.seenRuns = APP.S.runs.length;
     WORLD.setInsets(freeArea);
     $('inspBack').addEventListener('click', leaveInspect);
@@ -727,7 +736,7 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
     const S = APP.S;
-    const running = !S.paused && !S.done && !APP.freeze && !(APP.easy && AUTO.st.qte) && !TOSS.busy && !NAG.busy && !MARL.busy && !AARON.busy;
+    const running = !S.paused && !S.done && !APP.freeze && !(APP.easy && AUTO.st.qte) && !TOSS.busy && !NAG.busy && !MARL.busy && !AARON.busy && !SPT.busy;
     if (running) {
       // thumb-pad mode: the player's own drilling runs at the chosen speed, the crew's pipe work runs faster
       const sdt = dt * (APP.easy ? EASY.speed || APP.speed : APP.speed), n = Math.max(1, Math.ceil(sdt / 0.02));
@@ -747,6 +756,7 @@
     HUD.update(S, dt);
     EASY.update(S, dt);
     WELL.update(S, dt);
+    SPT.update(S, dt);
     TOSS.update(S, dt);
     NAG.update(S, dt);
     MARL.update(S, dt);
@@ -779,6 +789,7 @@
     if (!$('pick').hidden) { if (e.key === 'Escape') { closePick(false); e.preventDefault(); } return; }
     if (!$('brief').hidden || !$('report').hidden) { if (e.key === 'Escape' && !$('brief').hidden) closeBrief(); else if (e.key === 'Enter' && $('brief').hidden) { openHoles(); e.preventDefault(); } return; }
     if (APP.menu || APP.fly) return;
+    if (SPT.busy && !APP.away && SPT.key(e)) { e.preventDefault(); return; }      // the SPT: Space taps, Y and N answer the engineer
     if (WELL.active && !APP.away) {       // building the well: Space pours, Enter calls it, the prompts take A / D or Space
       let hit = WELL.key(e);
       if (!hit) { hit = true; switch (e.code) { case 'KeyB': toggleSmoke(); break; case 'KeyN': berate(); break; case 'Escape': if ($('plan').hidden) setPaused(!APP.S.paused); break; default: hit = false; } }
