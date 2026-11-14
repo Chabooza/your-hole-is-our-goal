@@ -502,6 +502,8 @@ window.WELL = (() => {
     R.drill = R.score;
     R.well = { score: s, engineer: W.name, plan: W.plan, results: W.results, bags: W.bags, fumbles: W.fumbles, spill: W.spill, pulls: W.pulls, clean: W.pullLog.filter(v => v >= -1 && v <= 1).length, wrecks: W.wrecks };
     R.score = Math.round(R.drill * 0.65 + s * 0.35);
+    const A = AARON.settle(S);                   // Aaron's deadline, from hole 3 on: late costs points off the combined grade
+    if (A) { R.aaron = { limit: A.limit, late: A.late, spare: A.spare, pen: A.pen }; R.score = Math.max(0, R.score - A.pen); }
     R.grade = R.score >= 90 ? 'A' : R.score >= 80 ? 'B' : R.score >= 70 ? 'C' : R.score >= 60 ? 'D' : 'F';
     W.say = s >= 90 ? 'Textbook. I will sign that one off.' : s >= 75 ? 'Good enough for me. Nice work.' : s >= 55 ? 'Hmm. It will do, I suppose.' : 'We may be drilling this one again.';
     W.sayT = 3.2; W.phase = 'verdict'; W.pt = 0; W.msg = '';

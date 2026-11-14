@@ -310,6 +310,7 @@
     TOSS.reset();
     NAG.reset();
     MARL.reset();
+    AARON.reset();
     APP.reportShown = false; APP.seenRuns = 0;
     $('report').hidden = true;
     applyCrew();
@@ -530,6 +531,7 @@
     TOSS.init(APP);
     NAG.init(APP);
     MARL.init(APP);
+    AARON.init(APP);
     APP.seenRuns = APP.S.runs.length;
     WORLD.setInsets(freeArea);
     $('inspBack').addEventListener('click', leaveInspect);
@@ -569,7 +571,7 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
     const S = APP.S;
-    const running = !S.paused && !S.done && !APP.freeze && !(APP.easy && AUTO.st.qte) && !TOSS.busy && !NAG.busy && !MARL.busy;
+    const running = !S.paused && !S.done && !APP.freeze && !(APP.easy && AUTO.st.qte) && !TOSS.busy && !NAG.busy && !MARL.busy && !AARON.busy;
     if (running) {
       // thumb-pad mode: the player's own drilling runs at the chosen speed, the crew's pipe work runs faster
       const sdt = dt * (APP.easy ? EASY.speed || APP.speed : APP.speed), n = Math.max(1, Math.ceil(sdt / 0.02));
@@ -592,6 +594,7 @@
     TOSS.update(S, dt);
     NAG.update(S, dt);
     MARL.update(S, dt);
+    AARON.update(S, dt);
     syncSmoke();
     if (AUDIO.ready()) AUDIO.update(S, dt); else S.sfx.length = 0;
     if (S.runs.length > APP.seenRuns && !APP.away && !APP.menu) { APP.seenRuns = S.runs.length; goInspect(S.runs.length - 1, true); }
@@ -622,6 +625,7 @@
     }
     if (e.target.closest && e.target.closest('input,textarea,select')) return;
     if (APP.away) { if (e.key === 'Escape' || e.key === 'Enter') { leaveInspect(); e.preventDefault(); } return; }
+    if (AARON.key(e)) { e.preventDefault(); return; }          // the phone is ringing: Enter answers it
     if (MARL.key(e)) { e.preventDefault(); return; }           // something has quit: M to investigate, M again to fix it
     if (TOSS.key(e)) { e.preventDefault(); return; }           // throwing a sonic: Z to throw, Space to let go
     const S = APP.S, c = S.ctl;

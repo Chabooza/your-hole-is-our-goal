@@ -364,6 +364,38 @@ body.at-menu .topbar, body.at-menu .hud, body.at-menu .logbox, body.at-menu .vie
 .menu-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 16px; }
 .menu-btns .btn-big { font-size: clamp(18px, 3.4vh, 26px); padding: 0.5em 1.5em; min-width: 7.5em; }
 
+/* Aaron's call: the phone, what he says, the countdown and his texts */
+.aaron { position: fixed; inset: 0; z-index: 30; background: #060807a6; display: grid; place-items: center; touch-action: manipulation; }
+.ar-phone { width: min(190px, 42vh); aspect-ratio: 9 / 17; background: #17171a; border: 4px solid #000; border-radius: 26px; padding: 9px; box-shadow: 0 10px 0 #0008; transition: transform 0.45s cubic-bezier(.2,.9,.3,1.2); }
+.ar-screen { height: 100%; border-radius: 17px; background: linear-gradient(#27405e, #101a26); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #fff; text-align: center; }
+.ar-face { width: 52%; aspect-ratio: 8 / 9; border-radius: 14px; border: 3px solid #000; background: #bfe3f5 center / cover no-repeat; display: grid; place-items: center; font-family: var(--f-display); font-size: 42px; color: #1b1710; }
+.ar-screen b { font-family: var(--f-display); font-weight: 400; font-size: clamp(20px, 4.4vh, 28px); letter-spacing: 0.04em; }
+.ar-screen span { font-size: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #b9d4f0; }
+.ar-answer { margin-top: 6px; background: #37c04a; color: #06200a; border: 3px solid #000; border-radius: 999px; padding: 8px 22px; font: inherit; font-size: 17px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 0 #000; }
+.ar-answer:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
+.aaron[data-state="ring"] .ar-phone { animation: ar-ring 0.5s linear infinite; }
+.aaron[data-state="talk"] .ar-phone { transform: translate(min(34vw, 300px), 4vh) rotate(11deg) scale(0.82); }
+.aaron[data-state="talk"] .ar-answer { visibility: hidden; }
+@keyframes ar-ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-5deg) translateX(-3px); } 30% { transform: rotate(5deg) translateX(3px); } 45% { transform: rotate(-4deg) translateX(-2px); } 60% { transform: rotate(4deg) translateX(2px); } 75% { transform: rotate(0); } }
+.ar-bubble { position: absolute; left: 50%; top: 50%; transform: translate(calc(-50% - min(8vw, 70px)), -50%); width: min(430px, 58vw); background: #fffdf4; color: #2a2320; border: 3px solid #1b1710; border-radius: 16px; padding: 14px 18px 10px; box-shadow: 0 6px 0 #0007; }
+.ar-bubble::after { content: ''; position: absolute; right: -15px; top: 50%; margin-top: -11px; border: 11px solid transparent; border-left-color: #1b1710; border-right: 0; }
+.ar-bubble span { display: block; font-size: clamp(18px, 3.8vh, 24px); font-weight: 800; line-height: 1.25; }
+.ar-bubble small { display: block; margin-top: 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #8a4b0c; }
+.ar-timer { position: fixed; z-index: 6; left: 50%; top: calc(var(--hud-top, 56px) + 2px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; background: #121c0e; border: 3px solid #050805; border-radius: 10px; padding: 2px 14px 3px; box-shadow: 0 3px 0 #0007; }
+.ar-timer small { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #9fb08c; }
+.ar-timer b { font-family: var(--f-mono); font-size: 24px; line-height: 1.05; color: var(--lcd); letter-spacing: 0.06em; }
+.ar-timer[data-lvl="warn"] b { color: #ffc93a; }
+.ar-timer[data-lvl="low"] { border-color: #c8302a; } .ar-timer[data-lvl="low"] b { color: #ff7a66; animation: ar-blink 1s steps(2) infinite; }
+.ar-timer[data-lvl="late"] { background: #3a0d0a; border-color: #ff5a48; } .ar-timer[data-lvl="late"] b, .ar-timer[data-lvl="late"] small { color: #ffb3a8; }
+.ar-timer.pop { animation: ar-pop 1.6s cubic-bezier(.2,.9,.3,1.1); }
+@keyframes ar-blink { 50% { opacity: 0.45; } }
+@keyframes ar-pop { 0% { transform: translateX(-50%) translateY(28vh) scale(3); } 55% { transform: translateX(-50%) translateY(28vh) scale(3); } 100% { transform: translateX(-50%) scale(1); } }
+.ar-text { position: fixed; z-index: 6; left: 50%; top: calc(var(--hud-top, 56px) + 62px); transform: translateX(-50%); max-width: min(86vw, 420px); display: flex; gap: 8px; align-items: baseline; pointer-events: none; background: #fffdf4; color: #2a2320; border: 3px solid #1b1710; border-radius: 12px; padding: 6px 12px; font-size: 15px; font-weight: 700; box-shadow: 0 4px 0 #0007; }
+.ar-text b { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #1b6fd1; }
+body.tossing .ar-timer, body.inspecting .ar-timer, body.at-menu .ar-timer, body.at-menu .ar-text, body.inspecting .ar-text { display: none; }
+body.phone .ar-timer b { font-size: 19px; } body.phone .ar-timer { padding: 1px 10px 2px; } body.phone .ar-text { top: calc(var(--hud-top, 44px) + 50px); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .aaron[data-state="ring"] .ar-phone, .ar-timer.pop, .ar-timer[data-lvl="low"] b { animation: none; } }
+
 /* the ten holes */
 #holes { z-index: 60; }
 .menu-hole { margin-top: 0.6vh; color: var(--amber); letter-spacing: 0.1em; }
@@ -731,6 +763,20 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
   </section>
 </div>
 
+<div class="aaron" id="aaron" data-state="ring" hidden>
+  <div class="ar-phone">
+    <div class="ar-screen">
+      <div class="ar-face" id="arFace">A</div>
+      <b>Aaron</b>
+      <span id="arStatus">calling…</span>
+      <button type="button" class="ar-answer" id="arAnswer">Answer</button>
+    </div>
+  </div>
+  <div class="ar-bubble" id="arBubble" hidden><span id="arSay"></span><small>tap to carry on</small></div>
+</div>
+<div class="ar-timer" id="arTimer" data-lvl="ok" role="timer" hidden><small id="arLabel">Aaron's deadline</small><b id="arTime">0:00</b></div>
+<div class="ar-text" id="arText" role="status" hidden><b>Aaron</b><span id="arTextSay"></span></div>
+
 <div class="menu" id="menu">
   <div>
     <h1 class="menu-title">Your hole<br>is <span>our goal!</span></h1>
@@ -848,7 +894,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <h2 id="briefTitle">Tailgate meeting</h2>
     <p class="sub" id="briefSub">07:00</p>
     <p class="safety brief-site" id="briefSite"></p>
-    <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole.</p>
+    <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole. From hole 3 on, expect a call from Aaron: he has another job waiting and gives you a deadline. Finish late and it costs you points.</p>
     <div id="briefEasy">
       <p>You are the driller on a three-person sonic crew. The job: core borehole {well} to <b>{depth} ft</b>, 10 ft at a time, and leave it cased. Dale, Tess and the rig handle all the pipe. You do the drilling, with two thumb pads, and you watch the rig while you do it.</p>
       <div class="cols">
@@ -981,6 +1027,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <script src="js/toss.js" charset="utf-8"></script>
 <script src="js/nag.js" charset="utf-8"></script>
 <script src="js/marl.js" charset="utf-8"></script>
+<script src="js/aaron.js" charset="utf-8"></script>
 <script src="js/main.js" charset="utf-8"></script>
 <script>
 // On its own web address the game can be installed as an app and started with no signal (see sw.js).

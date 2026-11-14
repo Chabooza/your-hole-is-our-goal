@@ -197,19 +197,20 @@ window.HUD = (() => {
         : res.opened ? `Hole ${nxt.n}, ${nxt.name}, is now open.` : `Hole ${nxt.n}, ${nxt.name}, is open.`;
       verdict = `<div class="rp-pass ${res.passed ? 'ok' : 'no'}"><b>${res.passed ? 'Passed' : 'Not passed'}</b><span>Hole ${st.n} of ${SITES.COUNT} · ${st.name} · pass mark ${SITES.PASS}. ${tail}${res.record ? ' A new best for this hole.' : res.best > r.score ? ` Your best here is ${res.best}.` : ''}</span></div>`;
     }
-    const pct = v => `${Math.round(v * 100)}%`;
+    const pct = v => `${Math.round(v * 100)}%`, ms = v => { v = Math.max(0, Math.round(v)); return Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0'); };
     const rows = s.runs.map(x => `<tr><td>${x.n}</td><td>${x.from.toFixed(1)}–${x.to.toFixed(1)}</td><td>${x.segs.filter(g => !g.slough).map(g => SIM.LAYERS.find(L => L.id === g.layer).short).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'slough'}</td><td>${x.drilled.toFixed(1)}</td><td>${x.recNet.toFixed(1)}</td><td class="${x.recovery >= 0.9 ? 'g' : x.recovery >= 0.7 ? 'a' : 'r'}">${pct(x.recovery)}</td><td>${SIM.noteKeys(x).map(k => SIM.NOTE_TEXT[k]).join('; ') || '—'}${x.slough > 0.05 ? `; ${x.slough.toFixed(1)} ft slough` : ''}</td></tr>`).join('');
     const w = r.well, f1 = v => (Math.round(v * 10) / 10).toFixed(1), dep = d => (d < -0.05 ? `${f1(-d)} ft above ground` : `${f1(Math.max(0, d))} ft`);
     const wellRows = !w ? '' : w.results.map(x => `
         <div><dt>${x.id === 'well' ? x.name : x.name + ', top'}</dt><dd class="${Math.abs(x.err) <= 0.5 ? 'g' : Math.abs(x.err) <= 1.5 ? 'a' : 'r'}">${dep(x.got)} (drawing: ${dep(x.target)})</dd></div>`).join('');
     const wear = Object.entries(s.dmg).filter(([, v]) => v > 0.005).map(([k, v]) => `${({ head: 'Sonic head', pump: 'Pump', bit: 'Bit', hyd: 'Hydraulics', clamp: 'Clamps', threads: 'Threads' })[k]} ${pct(v)}`).join(', ') || 'None';
     box.innerHTML = `${verdict}
-      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole ${st.well} cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100</small>` : ''}</div></div>
+      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole ${st.well} cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}</div></div>
       <dl class="rp-stats">
         <div><dt>Crew</dt><dd>${s.driller ? s.driller + ' drilling, with ' : ''}${s.crew[0].name} and ${s.crew[1].name}</dd></div>
         <div><dt>Core recovery</dt><dd>${pct(r.recovery)} (${r.rec.toFixed(1)} of ${r.drilled.toFixed(1)} ft)</dd></div>
         <div><dt>Casing set to</dt><dd>${r.casing.toFixed(1)} ft</dd></div>
-        <div><dt>Shift time</dt><dd>${Math.floor(r.shiftMin / 60)} h ${Math.round(r.shiftMin % 60)} min</dd></div>
+${r.aaron ? `<div><dt>Aaron's deadline</dt><dd class="${r.aaron.pen ? 'r' : 'g'}">${r.aaron.pen ? `${ms(r.aaron.late)} late, ${r.aaron.pen} points off` : `made it with ${ms(r.aaron.spare)} to spare`} (he gave you ${Math.round(r.aaron.limit / 60)} min)</dd></div>
+        ` : ''}<div><dt>Shift time</dt><dd>${Math.floor(r.shiftMin / 60)} h ${Math.round(r.shiftMin % 60)} min</dd></div>
         <div><dt>Water used</dt><dd>${Math.round(r.waterUsed)} gal (${Math.round(r.spilled)} gal came back up the casing)</dd></div>
         <div><dt>Heave</dt><dd>${r.heave.toFixed(1)} ft of sand into the casing</dd></div>
         <div><dt>Near misses and drops</dt><dd>${r.incidents}${r.drops ? ` (${r.drops} dropped pipe)` : ''}</dd></div>
