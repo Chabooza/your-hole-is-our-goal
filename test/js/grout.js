@@ -1,6 +1,8 @@
 'use strict';
 /* Grouting a geotechnical hole. It comes after the last SPT and before the building goes up (js/spt.js starts it and
-   is told when it is done). It is drawn on the same screen as the SPT, and uses the same boxes for its words.
+   is told when it is done). It happens beside the rig, in the 3D scene, watched from outside so the driller can be
+   seen (js/world.js, setJob draws the drum, the pump, the hoses, the bag and whoever is up the tower from what this
+   says). It uses the SPT's boxes for its words, and the same small drawing of the hole on the left.
 
      1. 1 in. PVC goes down the hole in 10 ft lengths until it sits on bottom with 5 ft of stick-up. A fitting goes on
         top: tap in the green.
@@ -35,7 +37,6 @@ window.GROUT = (() => {
   const PUMP_MAX = 12;           // the most a bad stop on the grout pump can cost (spilled over the top, or left short)
   const BATCH_FT = 60;           // ft of hole one drum of grout fills
   const STICK = 5;               // ft of PVC left above the ground
-  const TOWER = 13.5;            // how high the helper is winched, ft
   const POUR = 0.25;             // a bag tipped right over empties in 1 / POUR seconds
   const CLUMP_IN = { cement: 6, gel: 9 };      // how fast each one builds toward a clump: the gel is the touchy one
   const SAFE = 0.4;              // the share of a full pour the pump can keep mixing for ever, on hole 1
@@ -46,9 +47,7 @@ window.GROUT = (() => {
   const DOWN = ['Job is done. Lower away.', 'Alright. You can come down now.', 'Grout is in. Let them down.'];
 
   let APP, E = null, S = null, G = null, g = null, cw = 0, ch = 0, hold = false, onDone = null;
-  let ppf = 20, ox = 0, oy = 0;
   const faces = new Map(), last = {};
-  const X = ft => ox + ft * ppf, Y = ft => oy - ft * ppf;
 
   function log(msg, lvl) { S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg, lvl: lvl || 'info' }); if (S.log.length > 80) S.log.pop(); }
   function init(app) {
@@ -80,7 +79,7 @@ window.GROUT = (() => {
     G = { phase: 'pvc', t: 0, k, D, T: 0, who: people(), pvc: 0, fit: false, q: null, fumbles: 0,
       water: 0, fillRate: lerp(1 / 6.5, 1 / 4.2, k), lag: 0, called: false, over: false, hose: '', jet: false,
       A: 0, U: 0, rate: 0, pourer: 'helper', clumps: 0, mixed: 0, mixRate: POUR * SAFE * lerp(1, 0.75, k), ramp: lerp(1.3, 2.1, k),
-      cut: null, up: 0, drX: -2.6, level: D, pumping: false, spilled: 0, short: 0, cap: 0, sayT: 0, cry: '', cryT: 0.5, splash: 0 };
+      cut: null, up: 0, meK: 0, level: D, pumping: false, spilled: 0, short: 0, cap: 0, sayT: 0, cry: '', cryT: 0.5, splash: 0 };
     hold = false;
     for (const key in last) delete last[key];
     document.body.classList.add('spt-job');
@@ -152,13 +151,13 @@ window.GROUT = (() => {
   function updateCut(dt) {
     const c = G.cut; c.t += dt;
     if (c.kind === 'hoist') {
-      G.drX += clamp(3.3 - G.drX, -dt * 5, dt * 5);
+      G.meK = clamp(c.t / 1.4, 0, 1);               // the driller walks round to the drum
       if (c.t > 1.5) G.up = clamp((c.t - 1.5) / 2.2, 0, 1);
       if (c.t > 1.5 && c.t - dt <= 1.5) S.sfx.push('clank');
       if (c.t > 4.4) { G.cut = null; G.pourer = 'driller'; G.jet = true; say(G.who.driller.name, 'Give me that bag. This is how it is done.', 2.6); }
     } else if (c.kind === 'lower') {
       if (c.t > 1.4) G.up = clamp(1 - (c.t - 1.4) / 2.0, 0, 1);
-      if (c.t > 2.6) G.drX += clamp(-2.6 - G.drX, -dt * 5, dt * 5);
+      if (c.t > 2.5) G.meK = clamp(1 - (c.t - 2.5) / 1.5, 0, 1);      // ...and back to the console
       if (c.t > 4.2) { G.cut = null; G.pourer = 'helper'; G.jet = true; G.up = 0; say(G.who.helper.name, pick(BACK), 2.6); }
     } else if (c.kind === 'down') {
       if (c.t > 0.8) G.up = clamp(1 - (c.t - 0.8) / 2.0, 0, 1);
@@ -238,6 +237,7 @@ window.GROUT = (() => {
     log(`${S.site.well} is grouted to surface and topped off with bentonite.`, 'good');
     const cb = onDone;
     G = null; onDone = null; hold = false;
+    E.chat.hidden = true; WORLD.setJob(null);
     E.go.textContent = 'Start the hammer'; E.go.hidden = true; E.q.hidden = true; E.talk.hidden = true;
     if (cb) cb();
   }
@@ -301,8 +301,10 @@ window.GROUT = (() => {
       E.face.hidden = !src; if (src) E.face.src = src;
       E.who.textContent = G.sayWho; E.say.textContent = G.sayText;
     });
+    set('chat', G.cry || '', v => { E.chat.hidden = !v; if (v) E.chat.textContent = `${G.who.helper.name}, up the tower: "${v}"`; });
     const btn = G.cut ? '' : G.phase === 'fill' && G.t > 0.8 && !G.called ? 'That is full' : G.phase === 'pump' && G.pumping && !G.called ? 'Stop the pump' : '';
     set('go', btn, v => { E.go.hidden = !v; if (v) E.go.textContent = v; });
+    scene3d();
     draw();
   }
   function size() {
@@ -315,45 +317,17 @@ window.GROUT = (() => {
   }
   function box(x, y, w, h, fill, lw) { g.fillStyle = fill; g.fillRect(x, y, w, h); g.lineWidth = lw || 3; g.strokeStyle = INK; g.strokeRect(x, y, w, h); }
   function label(t, x, y, px, col, align, weight) { g.font = `${weight || 700} ${px}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; g.fillStyle = col || INK; g.textAlign = align || 'left'; g.textBaseline = 'middle'; g.fillText(t, x, y); }
-  function hoseLine(pts, w, col) {
-    for (const [lw, c] of [[w + 3, INK], [w, col]]) {
-      g.strokeStyle = c; g.lineWidth = lw; g.lineCap = 'round'; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; g.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); }
-      g.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]); g.stroke();
-    }
-    g.lineCap = 'butt';
-  }
-  // A person from the side. x, y: where the feet are (ft). Angles are from straight down, forward is positive.
-  function limb(x1, y1, x2, y2, w, col) {
-    g.lineCap = 'round';
-    g.strokeStyle = INK; g.lineWidth = w + 0.16; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
-    g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
-  }
-  function guy(x, y, p, o) {
-    o = o || {};
-    const hip = -2.5, sh = -4.3, hd = -5.2, aL = o.armL || 0, aR = o.armR == null ? aL : o.armR, lL = o.legL || 0, lR = o.legR || 0;
-    g.save(); g.translate(X(x), Y(y)); g.scale(ppf * (o.flip ? -1 : 1), ppf);
-    if (o.rot) { g.translate(0, sh); g.rotate(o.rot); g.translate(0, -sh); }
-    limb(-0.2, hip, -0.2 + Math.sin(lL) * 2.4, hip + Math.cos(lL) * 2.4, 0.5, p.suit);
-    limb(0.2, hip, 0.2 + Math.sin(lR) * 2.4, hip + Math.cos(lR) * 2.4, 0.5, p.suit);
-    g.fillStyle = INK; for (const a of [lL, lR]) { g.beginPath(); g.ellipse(Math.sin(a) * 2.4 + 0.12, hip + Math.cos(a) * 2.4, 0.42, 0.24, 0, 0, 7); g.fill(); }
-    limb(0, sh + 0.25, Math.sin(aL) * 1.9, sh + 0.25 + Math.cos(aL) * 1.9, 0.4, p.suit);
-    g.lineCap = 'butt'; g.fillStyle = p.suit; g.strokeStyle = INK; g.lineWidth = 0.13;
-    g.beginPath(); g.rect(-0.62, sh - 0.12, 1.24, hip - sh + 0.45); g.fill(); g.stroke();
-    g.fillStyle = '#d7ff3a'; g.fillRect(-0.56, sh + 0.75, 1.12, 0.2); g.fillRect(-0.56, sh + 1.25, 1.12, 0.2);
-    limb(0, sh + 0.25, Math.sin(aR) * 1.9, sh + 0.25 + Math.cos(aR) * 1.9, 0.4, p.suit);
-    g.fillStyle = p.skin; g.strokeStyle = INK; g.lineWidth = 0.1;
-    for (const a of [aL, aR]) { g.beginPath(); g.arc(Math.sin(a) * 1.9, sh + 0.25 + Math.cos(a) * 1.9, 0.2, 0, 7); g.fill(); g.stroke(); }
-    g.beginPath(); g.arc(0, hd, 0.5, 0, 7); g.fill(); g.stroke();
-    g.fillStyle = p.hat; g.beginPath(); g.arc(0, hd - 0.1, 0.56, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
-    g.beginPath(); g.rect(-0.6, hd - 0.16, 1.45, 0.14); g.fill(); g.stroke();
-    g.fillStyle = INK; g.beginPath(); g.arc(0.2, hd + 0.04, 0.06, 0, 7); g.fill();
-    if (o.cry) {
-      g.beginPath(); g.ellipse(0.2, hd + 0.3, 0.13, 0.17, 0, 0, 7); g.fill();
-      g.fillStyle = '#4ab0f0';
-      for (let i = 0; i < 4; i++) { const u = (G.T * 1.7 + i * 0.25) % 1; g.beginPath(); g.ellipse(0.34 + u * 0.9 + (i % 2) * 0.1, hd + 0.08 + u * u * 2.2, 0.07, 0.12, 0, 0, 7); g.fill(); }
-    } else { g.strokeStyle = INK; g.lineWidth = 0.07; g.beginPath(); g.arc(0.2, hd + 0.2, 0.14, 0.2, 2.2); g.stroke(); }
-    g.restore();
+  // tell the 3D scene what there is to see (js/world.js, setJob)
+  function scene3d() {
+    const c = G.cut, ph = G.phase, pourPh = ph === 'cement' || ph === 'gel';
+    const station = ph === 'hose' || ph === 'fill' || ph === 'swap' || pourPh || ph === 'mixed';
+    const topFt = G.pvc > 0.05 ? (ph === 'pvc' || ph === 'pull' ? STICK + (1 - G.pvc / G.D) * 9 : STICK) : -99;
+    const drained = ph === 'pump' || ph === 'pull' || ph === 'top' || ph === 'done' ? clamp((G.D - G.level) / BATCH_FT, 0, 1) : 0;
+    WORLD.setJob({ kind: 'grout', cine: true, far: G.up > 0.02 || (!!c && c.kind === 'hoist' && c.t > 1.0), station,
+      pvcTop: topFt, fit: G.fit, water: G.water + 0.08 * G.mixed, mixed: G.mixed, drained, hose: G.hose, jet: G.jet && G.hose === 'drum', splash: G.splash > 0 && station,
+      pour: pourPh && !c ? ph : '', rate: G.rate, pourer: G.pourer, up: G.up, meK: G.meK, meArm: !!c && (c.kind === 'hoist' ? c.t > 1.3 && c.t < 3.9 : c.t > 0.3 && c.t < 3.2),
+      cap: G.cap > 0, spill: ph === 'done' ? 0 : G.spilled, hold: ph === 'pvc' || ph === 'fit' || ph === 'pull' || ph === 'top', work: !!G.q && G.q.state === 'go',
+      talk: G.sayT > 0 ? (G.sayWho === G.who.driller.name ? 'me' : G.sayWho === G.who.helper.name ? 'lead' : 'core') : '' });
   }
 
   // the hole from the side: the ground, the PVC, the grout coming up from the bottom, the bentonite on top
@@ -378,87 +352,10 @@ window.GROUT = (() => {
     label('THE HOLE', x0 + 6, top + 12, 12, INK, 'left', 800);
   }
 
-  function drawScene(x0) {
-    const w = cw - x0;
-    ppf = Math.min(ch / 24.5, w / 30); ox = x0 + w * 0.33; oy = ch - 1.8 * ppf;
-    const sky = g.createLinearGradient(0, 0, 0, oy); sky.addColorStop(0, '#bfe3f5'); sky.addColorStop(1, '#e8f4ee');
-    g.fillStyle = sky; g.fillRect(x0, 0, w, ch);
-    g.fillStyle = '#8a6a45'; g.fillRect(x0, oy, w, ch - oy);
-    g.fillStyle = '#5a8a3a'; g.fillRect(x0, oy - 3, w, 7);
-    // the tower, with the winch line off the crown
-    for (const sx of [-1.1, 0.7]) box(X(sx), Y(21), 0.4 * ppf, 21 * ppf, '#2f6b3f');
-    box(X(-1.4), Y(21.6), 2.8 * ppf, 0.7 * ppf, '#24543a');
-    box(X(-1.9), Y(2), 3.8 * ppf, 2 * ppf, '#3d4a44');
-    const P = G.who, hang = G.up > 0, hy = G.up * TOWER;
-    g.strokeStyle = INK; g.lineWidth = 2.5; g.beginPath(); g.moveTo(X(-0.3), Y(21)); g.lineTo(X(hang ? 2.7 + (1 - ease(G.up)) * 1.2 - 3.0 * ease(G.up) : -0.3), Y(hang ? hy + 4.4 : 19.5)); g.stroke();
-    // the PVC standing in the hole, with its fitting
-    if (G.pvc > 0.05) {
-      const topFt = G.phase === 'pvc' || G.phase === 'pull' ? STICK + (1 - G.pvc / G.D) * 9 : STICK;
-      box(X(0) - 0.07 * ppf, Y(topFt), 0.14 * ppf, (topFt + 1.9) * ppf, '#f4f4ee', 2);
-      if (G.fit) box(X(-0.2), Y(STICK + 0.35), 0.4 * ppf, 0.35 * ppf, '#3b6fd1', 2);
-    }
-    if (G.cap > 0) box(X(-0.5), Y(0.25), 1.0 * ppf, 0.25 * ppf, '#c9b79a', 2);
-    if (G.spilled > 0.05 && G.phase !== 'done') { g.fillStyle = '#9a9c94'; g.beginPath(); g.ellipse(X(0), Y(0.05), (1 + G.spilled * 2) * ppf, 0.3 * ppf, 0, 0, 7); g.fill(); g.strokeStyle = INK; g.lineWidth = 2; g.stroke(); }
-    // the drum, cut away so the level shows
-    const dx = 5.4, dw = 2.1, dh = 3.1, liq = G.water + (G.mixed > 0 ? 0.08 * G.mixed : 0), lvl = clamp(liq, 0, 1) * (dh - 0.2);
-    const drained = G.phase === 'pump' || G.phase === 'pull' || G.phase === 'top' || G.phase === 'done' ? clamp((G.D - G.level) / BATCH_FT, 0, 1) : 0;
-    box(X(dx), Y(dh), dw * ppf, dh * ppf, '#2b6fd1');
-    for (const ry of [0.9, 2.0]) { g.strokeStyle = '#1a4fa0'; g.lineWidth = 3; g.beginPath(); g.moveTo(X(dx), Y(ry)); g.lineTo(X(dx + dw), Y(ry)); g.stroke(); }
-    g.fillStyle = '#eef6fb'; g.fillRect(X(dx + 0.3), Y(dh - 0.1), (dw - 0.6) * ppf, (dh - 0.2) * ppf);
-    const mixCol = G.mixed > 0 ? `rgb(${Math.round(lerp(120, 154, G.mixed))}, ${Math.round(lerp(190, 156, G.mixed))}, ${Math.round(lerp(232, 148, G.mixed))})` : '#78bee8';
-    const lh = Math.max(0, lvl * (1 - drained));
-    g.fillStyle = mixCol; g.fillRect(X(dx + 0.3), Y(0.1 + lh), (dw - 0.6) * ppf, lh * ppf);
-    g.strokeStyle = INK; g.lineWidth = 2; g.strokeRect(X(dx + 0.3), Y(dh - 0.1), (dw - 0.6) * ppf, (dh - 0.2) * ppf);
-    for (const q of [0.25, 0.5, 0.75]) { g.beginPath(); g.moveTo(X(dx + 0.3), Y(0.1 + q * (dh - 0.2))); g.lineTo(X(dx + 0.55), Y(0.1 + q * (dh - 0.2))); g.stroke(); }
-    if (G.splash > 0) { g.fillStyle = mixCol; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(X(dx - 0.2 + i * 0.6), Y(dh + 0.2 + Math.abs(Math.sin(G.T * 9 + i)) * 0.5), 0.12 * ppf, 0, 7); g.fill(); } }
-    // the pump, and where its hoses go
-    const px = 9.8;
-    box(X(px), Y(1.5), 1.9 * ppf, 1.3 * ppf, '#c8201a');
-    box(X(px + 0.3), Y(2.0), 0.9 * ppf, 0.5 * ppf, '#39424a', 2);
-    box(X(px - 0.1), Y(0.25), 2.1 * ppf, 0.25 * ppf, '#39424a', 2);
-    if (G.hose === 'truck') { hoseLine([[X(px + 1.9), Y(0.9)], [X(px + 3.4), Y(0.2)], [X(px + 5.5), Y(0.4)], [cw + 20, Y(1.2)]], 6, '#2a2f33'); hoseLine([[X(px), Y(1.1)], [X(8.4), Y(4.2)], [X(dx + dw - 0.5), Y(dh + 0.9)], [X(dx + dw - 0.6), Y(dh - 0.2)]], 6, '#2a2f33'); }
-    else if (G.hose === 'drum' || G.hose === 'pvc') {
-      hoseLine([[X(px + 0.4), Y(1.5)], [X(px - 0.2), Y(4.6)], [X(dx + dw - 0.3), Y(dh + 1.0)], [X(dx + dw - 0.45), Y(0.5)]], 6, '#2a2f33');        // 2 in. suction, down into the drum
-      if (G.hose === 'drum') hoseLine([[X(px + 1.9), Y(1.0)], [X(px + 3.2), Y(0.3)], [X(px + 1.0), Y(-0.6)], [X(8.3), Y(3.2)], [X(7.75), Y(3.9)]], 3.5, '#e0a020');
-      else hoseLine([[X(px + 1.9), Y(1.0)], [X(px + 3.0), Y(-0.9)], [X(3.0), Y(-0.9)], [X(1.2), Y(3.0)], [X(0.25), Y(STICK + 0.2)]], 3.5, '#e0a020');
-    }
-    // the helper on the nozzle
-    const jet = G.jet && G.hose === 'drum';
-    guy(8.6, 0, P.nozzle, { flip: true, armL: jet ? 1.15 : 0.15, armR: jet ? 1.35 : 0.1 });
-    if (jet) { g.strokeStyle = '#eaf6ff'; g.lineWidth = 3; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(X(7.7), Y(3.9)); g.lineTo(X(6.6 + i * 0.25 + Math.sin(G.T * 20 + i) * 0.1), Y(0.3 + lh * 0.9)); g.stroke(); } }
-    // whoever is pouring, and the bag
-    const pouring = (G.phase === 'cement' || G.phase === 'gel') && !G.cut, tilt = G.rate, gel = G.phase === 'gel';
-    const bag = (bx, by) => {
-      g.save(); g.translate(X(bx), Y(by)); g.rotate(0.3 + tilt * 1.2);
-      g.fillStyle = gel ? '#e9d6a6' : '#b9bcb6'; g.strokeStyle = INK; g.lineWidth = 2.5; g.beginPath(); g.rect(-0.55 * ppf, -0.9 * ppf, 1.1 * ppf, 1.5 * ppf); g.fill(); g.stroke();
-      g.fillStyle = INK; g.font = `800 ${Math.max(8, ppf * 0.3)}px 'Barlow Condensed', sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(gel ? 'GEL' : 'CEMENT', 0, -0.15 * ppf);
-      g.restore();
-      if (tilt > 0.03) { g.strokeStyle = gel ? '#d9c38a' : '#8f918b'; g.lineWidth = 2 + tilt * 7; g.beginPath(); g.moveTo(X(bx + 0.55), Y(by - 0.4)); g.quadraticCurveTo(X(bx + 0.9), Y(by - 1.2), X(dx + 0.75), Y(0.3 + lh)); g.stroke(); }
-    };
-    const pourerOnGround = who => { const here = G.pourer === who && (pouring || G.phase === 'mixed' || G.phase === 'swap'); guy(who === 'helper' ? 4.0 : G.drX, 0, P[who], { armL: here ? 1.7 : 0.1, armR: here ? 2.0 : -0.1, legL: 0.12, legR: -0.12 }); if (G.pourer === who && pouring) bag(who === 'helper' ? 5.1 : G.drX + 1.1, 4.7); };
-    if (!hang) pourerOnGround('helper');
-    guy(G.pourer === 'driller' && !G.cut ? 4.0 : G.drX, 0, P.driller, G.pourer === 'driller' && pouring ? { armL: 1.7, armR: 2.0, legL: 0.12, legR: -0.12 } : { armL: G.cut ? 1.4 : 0.1, armR: G.cut ? 2.4 : -0.1, legL: 0.1, legR: -0.1 });
-    if (G.pourer === 'driller' && pouring) bag(5.1, 4.7);
-    // up the tower: crying, arms and legs going
-    if (hang) {
-      const f = G.T * 11, hx = 2.7 + (1 - ease(G.up)) * 1.2 - 3.0 * ease(G.up);
-      guy(hx, hy, P.helper, { cry: true, rot: Math.sin(G.T * 3.1) * 0.22, armL: 2.4 + Math.sin(f) * 0.9, armR: -2.2 + Math.cos(f * 1.13) * 0.9, legL: Math.sin(f * 0.9 + 1) * 0.95, legR: Math.cos(f * 1.07) * 0.95 });
-      if (G.cry) {
-        const bx = X(hx + 1.4), by = Y(hy + 5.6), px2 = clamp(ppf * 0.62, 13, 22);
-        g.font = `800 ${px2}px 'Barlow Condensed', 'Arial Narrow', sans-serif`;
-        const tw = g.measureText(G.cry).width + 16;
-        g.fillStyle = '#fffdf4'; g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.rect(bx, by - px2 * 0.8, tw, px2 * 1.6); g.fill(); g.stroke();
-        label(G.cry, bx + 8, by, px2, '#c8201a', 'left', 800);
-      }
-    }
-    if (G.phase === 'swap') label(`${Math.round(G.water * 100)}% full`, X(dx + dw / 2), Y(dh + 0.6), clamp(ppf * 0.7, 13, 22), INK, 'center', 800);      // only told once it is called
-  }
   function draw() {
     if (!size()) return;
     g.clearRect(0, 0, cw, ch);
-    const sw = clamp(cw * 0.2, 118, 230), sx = Math.max(10, cw * 0.012);
-    drawScene(0);
-    drawStrip(sx, sw);
+    drawStrip(Math.max(10, cw * 0.012), clamp(cw * 0.2, 118, 230));
     if (S.paused) { g.fillStyle = '#0b0f0d99'; g.fillRect(0, 0, cw, ch); label('PAUSED', cw / 2, ch / 2, 44, '#fffdf4', 'center', 800); }
   }
 

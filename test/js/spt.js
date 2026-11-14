@@ -1,6 +1,8 @@
 'use strict';
 /* The SPT (the hammer test) on a geotechnical hole. Every 5 ft, once the core barrel is out, the drilling model stops
-   in the phase 'SPT' (js/sim.js) and this takes over the screen with a drawing of the hole and the rig table:
+   in the phase 'SPT' (js/sim.js) and this runs the test. It happens on the rig, in the 3D scene (js/world.js, setJob
+   draws the rods, the anvil, the hammer and the chalk marks from what this says). On top of that are the words down
+   the right of the screen and, on the left, a small drawing of the hole from the side:
 
      1. AW rods go down the hole in 5 ft lengths with the sampler (the "pen") on the bottom, leaving 5 ft of stick-up.
         Each joint is a prompt: tap when the marker is in the green. Miss, and the rods drop down the hole, the crew
@@ -115,7 +117,8 @@ window.SPT = (() => {
   function reset() {
     P = null; F = null; camK = 0;
     GROUT.reset();
-    document.body.classList.remove('spt-job');
+    if (window.WORLD && WORLD.setJob) WORLD.setJob(null);
+    document.body.classList.remove('spt-job', 'spt-fin');
     if (E) E.root.hidden = true;
   }
   function faceOf(look, key) {
@@ -224,8 +227,9 @@ window.SPT = (() => {
     SIM.sptDone(S);
   }
   function close() {
-    document.body.classList.remove('spt-job');
+    document.body.classList.remove('spt-job', 'spt-fin');
     E.root.hidden = true;
+    WORLD.setJob(null); WORLD.preset('work');
     if (!APP.away && !APP.menu) PANEL.setHands(true);
   }
 
@@ -330,6 +334,8 @@ window.SPT = (() => {
     for (const k in last) delete last[k];
     F = { t: 0, G, kind, falls: G.collapsed, fallT: 3.6, capT: G.collapsed ? 4.9 : 3.2, parts: BUILDS[kind].map((p, i) => ({ s: p[0], x: p[1], y: p[2], w: p[3], h: p[4], c: p[5], i, dx: 0, dy: 0, a: 0, vx: 0, vy: 0, va: 0, loose: false, rest: false,
       t0: 0.15 + Math.random() * 0.75 })), dust: [], bits: [], said: false };
+    WORLD.setJob(null);
+    document.body.classList.add('spt-job', 'spt-fin');
     E.root.hidden = false; E.root.dataset.fin = '1';
     E.q.hidden = true; E.talk.hidden = true; E.ask.hidden = true; E.go.hidden = true; E.chat.hidden = true;
     E.title.textContent = `Six months later, at ${S.site.name}`;
@@ -456,6 +462,7 @@ window.SPT = (() => {
     set('sub', P.phase === 'report' ? P.sub : '', v => { E.root.dataset.sub = v; });
     set('chat', P.chat || '', v => { E.chat.hidden = !v; if (v) E.chat.textContent = `${P.other}: "${v}"`; });
     set('cap', 'off', () => { E.cap.hidden = true; });
+    scene3d();
     draw();
   }
   function size() {
@@ -504,72 +511,23 @@ window.SPT = (() => {
     label('THE HOLE', x0 + 6, top + 12, 12, INK, 'left', 800);
   }
 
-  // the rig table from the side: the rod through the clamps, the chalk marks, the anvil and the hammer
-  function drawScene(x0) {
-    const w = cw - x0, cx = x0 + w * 0.43, k = ease(camK);
-    const ppf = lerp(ch / 13.8, ch / 5.6, k), oy = lerp(ch * 0.86, ch * 0.83 + CLAMP_Y * (ch / 5.6), k);
-    const Y = ft => oy - ft * ppf, X = ft => cx + ft * ppf;
-    const sky = g.createLinearGradient(0, 0, 0, Y(0)); sky.addColorStop(0, '#bfe3f5'); sky.addColorStop(1, '#e8f4ee');
-    g.fillStyle = sky; g.fillRect(x0, 0, w, ch);
-    g.fillStyle = '#8a6a45'; g.fillRect(x0, Y(0), w, ch - Y(0));
-    g.fillStyle = '#5a8a3a'; g.fillRect(x0, Y(0) - 3, w, 7);
-    // the mast behind
-    g.fillStyle = '#2f6b3f'; for (const sx of [-1.9, 1.5]) g.fillRect(X(sx), -4, 0.4 * ppf, Y(0) + 4);
-    g.strokeStyle = INK; g.lineWidth = 3; for (const sx of [-1.9, 1.5]) g.strokeRect(X(sx), -4, 0.4 * ppf, Y(0) + 4);
-    // the table
-    box(X(-2.6), Y(2.0), 5.2 * ppf, 2.0 * ppf, '#3d4a44');
-    box(X(-2.8), Y(2.0) - 0.16 * ppf, 5.6 * ppf, 0.18 * ppf, '#59665f');
-    // the string
-    const sink = P.pen / 12, top = STICK - sink + Math.max(0, P.up), dropK = P.phase === 'drop' ? clamp(P.t / 0.5, 0, 1) : 0;
-    const rw = 0.2 * ppf, rt = top - dropK * 9;
-    if (rt > -2) {
-      box(X(0) - rw / 2, Y(rt), rw, (rt + 3) * ppf, '#dfe5e8', 2.5);
-      for (let j = rt - 5; j > -2; j -= 5) box(X(0) - rw * 0.75, Y(j) - 0.09 * ppf, rw * 1.5, 0.18 * ppf, '#aab3ba', 2);
-    }
-    // the next length, held over the string
-    if (P.piece && P.phase === 'in' && P.up <= 0) {
-      const q = P.q, gap = q && q.state === 'done' ? 0 : 0.5 + 0.08 * Math.sin(P.t * 5), b = top + gap;
-      box(X(0) - rw / 2, Y(b + 5), rw, 5 * ppf, '#dfe5e8', 2.5);
-      box(X(0) - rw * 0.75, Y(b) - 0.18 * ppf, rw * 1.5, 0.18 * ppf, '#aab3ba', 2);
-    }
-    // chalk marks, measured up from the top clamp
-    for (let i = 0; i < P.marks; i++) {
-      const ft = CLAMP_Y + 0.5 * (i + 1) - sink;
-      if (ft < CLAMP_Y - 0.02) continue;
-      g.strokeStyle = '#fffdf4'; g.lineWidth = Math.max(3, 0.05 * ppf); g.beginPath(); g.moveTo(X(0) - rw * 0.62, Y(ft)); g.lineTo(X(0) + rw * 0.62, Y(ft)); g.stroke();
-      if (ft > CLAMP_Y + 0.12) { g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(-0.2), Y(ft)); g.lineTo(X(-0.55), Y(ft)); g.stroke(); }
-      if (ft > CLAMP_Y + 0.12) label(`${6 * (i + 1)} in.`, X(-0.62), Y(ft), clamp(ppf * 0.19, 12, 22), INK, 'right', 800);
-    }
-    // the clamps: the bottom one, and the top one the marks are read against
-    for (const sx of [-1, 1]) {
-      box(X(0) + sx * rw / 2 + (sx < 0 ? -0.75 * ppf : 0), Y(2.0) - 0.55 * ppf, 0.75 * ppf, 0.5 * ppf, '#f2b630');
-      box(X(0) + sx * rw / 2 + (sx < 0 ? -0.9 * ppf : 0), Y(CLAMP_Y), 0.9 * ppf, 0.62 * ppf, '#e0362b');
-    }
-    const flash = Math.max(P.flash[0], P.flash[1], P.flash[2]);
-    g.strokeStyle = flash > 0 ? '#37c04a' : INK; g.lineWidth = flash > 0 ? 5 : 2; g.setLineDash(flash > 0 ? [] : [7, 5]);
-    g.beginPath(); g.moveTo(X(-1.5), Y(CLAMP_Y)); g.lineTo(X(2.1), Y(CLAMP_Y)); g.stroke(); g.setLineDash([]);
-    if (camK > 0.5) label(flash > 0 ? '6 in. driven' : 'top of clamp', X(0.28), Y(CLAMP_Y) - clamp(ppf * 0.17, 12, 19) * 0.85, clamp(ppf * 0.17, 12, 19), flash > 0 ? '#1f7a2c' : INK, 'left', 800);
-    // the anvil and the hammer
-    if (P.anvil || (P.phase === 'anvil')) {
-      const hov = P.anvil ? 0 : 0.35 + 0.06 * Math.sin(P.t * 9) - (P.q ? P.q.prog * 0.3 : 0);
-      box(X(-0.34), Y(top + 0.4 + hov), 0.68 * ppf, 0.4 * ppf, '#5f6a72');
-    }
-    if (P.hamK > 0) {
-      const bot = top + 0.4 + (1 - ease(P.hamK)) * 9 + P.lift * 0.55, hh = 2.7;
-      g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.moveTo(X(0), Y(bot + hh)); g.lineTo(X(0), -4); g.stroke();
-      box(X(-0.46), Y(bot + hh), 0.92 * ppf, hh * ppf, '#f2a61c');
-      g.fillStyle = INK; for (let i = 0; i < 3; i++) g.fillRect(X(-0.46), Y(bot + 0.5 + i * 0.75), 0.92 * ppf, 0.12 * ppf);
-      box(X(-0.3), Y(bot + 0.12), 0.6 * ppf, 0.12 * ppf, '#39424a', 2);
-      if (P.hit > 0) { g.fillStyle = '#fff3a8'; g.strokeStyle = INK; g.lineWidth = 2; g.beginPath(); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, r = (i % 2 ? 0.28 : 0.6) * ppf; g.lineTo(X(0.62) + Math.cos(a) * r, Y(bot) + Math.sin(a) * r * 0.7); } g.closePath(); g.fill(); g.stroke(); }
-    }
-    if (P.phase === 'drop') { label('DROPPED!', cx, ch * 0.36, clamp(ch * 0.1, 30, 64), '#c8201a', 'center', 800); }
+  // tell the 3D scene what there is to see (js/world.js, setJob), and point the driller's eyes at it
+  function scene3d() {
+    const q = P.q, top = STICK - P.pen / 12 + Math.max(0, P.up) - (P.phase === 'drop' ? clamp(P.t / 0.5, 0, 1) * 9 : 0);
+    WORLD.setJob({ kind: 'spt', rodTop: top, piece: P.piece && P.phase === 'in' && P.up <= 0 ? { bot: top + (q && q.state === 'done' ? 0 : 0.5 + 0.08 * Math.sin(P.t * 5)), len: 5 } : null,
+      anvil: P.anvil ? 1 : P.phase === 'anvil' ? 'hover' : 0, hamK: P.hamK, lift: P.lift, hits: P.bi, marks: P.marks, sink: P.pen / 12, flash: Math.max(P.flash[0], P.flash[1], P.flash[2]),
+      hold: P.phase === 'in' || P.phase === 'landed' || P.phase === 'anvil' || P.phase === 'rig' || P.phase === 'out', work: !!q && q.state === 'go', back: P.phase === 'ready' || P.phase === 'count' || P.phase === 'counted' || P.phase === 'report', eng: P.engLook, talk: P.sayT > 0 ? P.sayFace : '' });
+    if (P.phase === 'ready' || P.phase === 'count' || P.phase === 'counted') WORLD.aim(0, 1.26, 0, 26);       // in close on the marks
+    else if (P.phase === 'report') WORLD.aim(-1.0, 1.5, 0.6, 50);       // the helper and the engineer
+    else WORLD.aim(0, 1.5, 0, 62);
   }
   function draw() {
     if (!size()) return;
     g.clearRect(0, 0, cw, ch);
-    const sw = clamp(cw * 0.2, 118, 230), sx = Math.max(10, cw * 0.012);
-    drawScene(0);
-    drawStrip(sx, sw);
+    drawStrip(Math.max(10, cw * 0.012), clamp(cw * 0.2, 118, 230));
+    const big = (text, col) => { const px = clamp(ch * 0.085, 26, 58); g.font = `800 ${px}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 7; g.strokeStyle = INK; g.strokeText(text, cw * 0.44, ch * 0.2); g.fillStyle = col; g.fillText(text, cw * 0.44, ch * 0.2); };
+    if (P.phase === 'drop') big('DROPPED!', '#ff6a55');
+    else if (Math.max(P.flash[0], P.flash[1], P.flash[2]) > 0) big('6 in. driven', '#6fe07f');
     if (S.paused) { g.fillStyle = '#0b0f0d99'; g.fillRect(0, 0, cw, ch); label('PAUSED', cw / 2, ch / 2, 44, '#fffdf4', 'center', 800); }
   }
   function drawFinale() {

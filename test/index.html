@@ -427,8 +427,9 @@ body.at-menu .shades { display: none; }
 body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 @keyframes jit { 50% { transform: translate(1.5px, -1px); } }
 #well[data-tape="1"] .wl-tape { color: #ffd84d !important; border-color: #a8860f; }
-/* The SPT on a geotechnical hole (js/spt.js): a drawing of the hole and the rig table, with the words down the right */
-.spt { position: fixed; left: 0; right: 0; bottom: 0; top: var(--hud-top, 56px); z-index: 26; background: #8a6a45; touch-action: manipulation; user-select: none; -webkit-user-select: none; overflow: hidden; cursor: pointer; }
+/* The SPT and the grouting on a geotechnical hole (js/spt.js, js/grout.js). They happen in the 3D scene: this lays the
+   words down the right and a small drawing of the hole on the left. Only the building at the end fills the screen */
+.spt { position: fixed; left: 0; right: 0; bottom: 0; top: var(--hud-top, 56px); z-index: 26; background: transparent; touch-action: manipulation; user-select: none; -webkit-user-select: none; overflow: hidden; cursor: pointer; }
 .spt canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .spt-side { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: 10px; bottom: 10px; width: min(370px, 37vw); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .spt-side > * { pointer-events: auto; }
@@ -470,8 +471,11 @@ body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 .spt-cap b { display: block; font-family: var(--f-display); font-weight: 400; font-size: clamp(22px, 5vh, 34px); letter-spacing: 0.04em; }
 .spt-cap span { display: block; font-size: clamp(15px, 3vh, 19px); font-weight: 700; line-height: 1.2; }
 .spt-cap small { display: block; margin-top: 5px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+.spt[data-fin="1"] { background: #9fd3f0; }
+body.spt-job .hud-left, body.spt-job .hud-right, body.spt-job .views, body.spt-job .logbox, body.spt-job .hint-strip, body.spt-job .ez, body.spt-job .speed { display: none !important; }
 .spt[data-fin="1"] .spt-side { left: 50%; right: auto; transform: translateX(-50%); width: min(560px, 82vw); text-align: center; }
 body.spt-job .ar-timer, body.spt-job .ar-text { z-index: 27; }
+body.spt-fin .ar-timer, body.spt-fin .ar-text { display: none; }
 body.phone .spt-side { width: min(300px, 38vw); gap: 5px; top: 6px; bottom: 6px; }
 body.phone .spt-talk img { width: 40px; height: 44px; }
 body.phone .spt-head { padding: 3px 9px 5px; }
