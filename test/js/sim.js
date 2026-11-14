@@ -55,7 +55,7 @@ window.SIM = (() => {
     let top = 0;
     LAYERS = st.layers.map(([id, bot, ch]) => { const L = Object.assign({}, MAT[id], ch || {}, { top, bot }); top = bot; return L; });
     TARGET = st.depth; WT = st.wt;
-    return { n: st.n, name: st.name, well: st.well, depth: st.depth, wt: st.wt, hard: st.hard, tune: st.tune, blurb: st.blurb };
+    return { n: st.n, type: st.type, kind: st.kind, job: st.job, of: st.of, name: st.name, well: st.well, depth: st.depth, wt: st.wt, hard: st.hard, tune: st.tune, blurb: st.blurb };
   }
   const layerAt = d => LAYERS.find(L => d < L.bot) || LAYERS[LAYERS.length - 1];
 
@@ -76,7 +76,7 @@ window.SIM = (() => {
       tel: { n: 0, res: 0, push: 0, rpm: 0 } };   // how it was drilled, weighted by footage: resonance, feed, rotation
   }
 
-  // site: which of the career's holes this is (1 to 10). It decides the depth, the water table and the ground.
+  // site: which hole of the current mission type this is (1 to 10). It decides the depth, the water table and the ground.
   function newGame(seed, site) {
     seed = seed || (Date.now() % 1e9);
     const st = useSite(site || 1);

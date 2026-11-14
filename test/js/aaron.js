@@ -64,7 +64,7 @@ window.AARON = (() => {
       drill += (f === from ? 0 : 5) + coreT(S, a, f + R) + casT(f, f + R);
       crew += crewT(f, f + R >= D);
     }
-    return { drill, crew, well: wellT(S) };
+    return { drill, crew, well: S.site.job === 'well' ? wellT(S) : 0 };          // no well to build on a job that has none
   }
   function allow(S) {
     const p = par(S), k = clamp((S.site.n - FIRST) / Math.max(1, SITES.COUNT - FIRST), 0, 1), s = lerp(SLACK[0], SLACK[1], k);
@@ -137,7 +137,7 @@ window.AARON = (() => {
     E.me.querySelector('span').textContent = pick(REPLY); E.me.hidden = false;
     clearTimeout(meTimer); meTimer = setTimeout(() => { E.me.hidden = true; }, 2200);
     lastT = S.t;
-    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: `Aaron: another job is waiting. ${minutes(A.limit)} to finish this hole, well and all.`, lvl: 'warn' });
+    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: `Aaron: another job is waiting. ${minutes(A.limit)} to finish this hole${S.site.job === 'well' ? ', well and all' : ''}.`, lvl: 'warn' });
     S.sfx.push('switch');
     E.timer.classList.remove('pop'); void E.timer.offsetWidth; E.timer.classList.add('pop');
   }

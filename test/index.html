@@ -478,6 +478,19 @@ body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 #holes { z-index: 60; }
 .menu-hole { margin-top: 0.6vh; color: var(--amber); letter-spacing: 0.1em; }
 .hole-chip { color: #ffd98a; }
+/* the mission types, across the top of the hole selection screen */
+.mtypes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.mtype { display: grid; gap: 2px; align-content: start; text-align: left; background: #e6dcc0; color: #4a4232; border: 3px solid #1b1710; border-radius: 12px; padding: 8px 12px; cursor: pointer; box-shadow: 0 3px 0 #1b1710; font: inherit; }
+.mtype:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b1710; }
+.mtype b { font-family: var(--f-display); font-weight: 400; font-size: clamp(16px, 2.6vw, 21px); letter-spacing: 0.04em; text-transform: uppercase; color: #2a2418; }
+.mtype span { font-size: 13.5px; font-weight: 500; line-height: 1.25; }
+.mtype small { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8a4b0c; margin-top: 2px; }
+.mtype[aria-pressed="true"] { background: var(--amber); color: #2a2418; outline: 4px solid #1b6fd1; outline-offset: 1px; }
+.mtype[data-soon="1"] small { color: #5d5240; }
+.holes-soon { grid-column: 1 / -1; display: grid; gap: 4px; justify-items: center; text-align: center; background: #1d1b18; color: #b8b0a0; border: 3px solid #000; border-radius: 12px; padding: 26px 16px; }
+.holes-soon b { font-family: var(--f-display); font-weight: 400; font-size: 26px; letter-spacing: 0.08em; text-transform: uppercase; color: #e6dcc0; }
+.holes-soon span { font-size: 15px; font-weight: 500; }
+body.phone .mtype span { display: none; }
 .holes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
 .hole { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; align-items: center; text-align: left; background: #fffdf4; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; padding: 8px 10px; cursor: pointer; box-shadow: 0 3px 0 #1b1710; font: inherit; }
 .hole:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b1710; }
@@ -877,6 +890,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
   <div class="sheet">
     <h2 id="holesTitle">Pick a hole</h2>
     <p class="sub" id="holesSub"></p>
+    <div class="mtypes" id="holesTypes"></div>
     <div class="holes-grid" id="holesGrid"></div>
     <div class="go"><button type="button" class="btn-big alt" id="holesBack">Back</button><button type="button" class="btn-big alt" id="holesShop">Shop</button><span class="holes-item" id="holesItem"></span></div>
   </div>

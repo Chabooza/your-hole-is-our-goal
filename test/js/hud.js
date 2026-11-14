@@ -192,7 +192,7 @@ window.HUD = (() => {
     let verdict = '';
     if (res) {
       const nxt = st.n < SITES.COUNT ? SITES.get(st.n + 1) : null;
-      const tail = !res.passed ? `You need ${SITES.PASS} or better, drilling and well together, to open the next hole.`
+      const tail = !res.passed ? `You need ${SITES.PASS} or better${st.job === 'well' ? ', drilling and well together,' : ''} to open the next hole.`
         : res.last ? 'That was the last hole. You have drilled the lot.'
         : res.opened ? `Hole ${nxt.n}, ${nxt.name}, is now open.` : `Hole ${nxt.n}, ${nxt.name}, is open.`;
       verdict = `<div class="rp-pass ${res.passed ? 'ok' : 'no'}"><b>${res.passed ? 'Passed' : 'Not passed'}</b><span>Hole ${st.n} of ${SITES.COUNT} · ${st.name} · pass mark ${SITES.PASS}. ${tail}${res.record ? ' A new best for this hole.' : res.best > r.score ? ` Your best here is ${res.best}.` : ''}${res.tokens ? ` <b class="rp-buck tok">+${res.tokens} Swag Token</b> for scoring ${SWAG.NEED} or better.` : ''}${res.bucks ? ` <b class="rp-buck">+${res.bucks} Safety Buck</b> for scoring ${SHOP.NEED} or better.` : ''}${res.tokens || res.bucks ? ' Spend them in the shop.' : ''}</span></div>`;

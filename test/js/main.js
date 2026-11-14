@@ -355,29 +355,51 @@
     if (!$('holes').hidden) openHoles();
   }
 
-  // ---------- the career: ten holes, each harder than the last (js/sites.js) ----------
+  // ---------- the career: mission types, each with its own holes, every hole harder than the last (js/sites.js) ----------
   // the bits of the screen that name the hole
   function showSite() {
     const st = APP.S.site, at = APP.S.done && APP.menu ? SITES.get(APP.nextHole) : st;
-    $('jobTag').textContent = `Hole ${st.n} of ${SITES.COUNT} · ${st.name} · ${st.depth} ft · pass mark ${SITES.PASS}`;
+    $('jobTag').textContent = `${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · ${st.depth} ft · pass mark ${SITES.PASS}`;
     $('holeChip').textContent = `${st.n}/${SITES.COUNT}`;
-    $('holeChip').title = `Hole ${st.n} of ${SITES.COUNT}: ${st.name}`;
+    $('holeChip').title = `${st.kind} drilling, hole ${st.n} of ${SITES.COUNT}: ${st.name}`;
     $('bhTitle').textContent = `Borehole ${st.well} `;
-    $('menuHole').textContent = `Hole ${at.n} of ${SITES.COUNT}: ${at.name} · ${at.depth} ft`;
-    $('briefSub').textContent = `07:00 · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
+    $('menuHole').textContent = `${at.kind} · Hole ${at.n} of ${SITES.COUNT}: ${at.name} · ${at.depth} ft`;
+    $('briefSub').textContent = `07:00 · ${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
     $('briefSite').innerHTML = `<b>Today: ${st.name}.</b> ${st.depth} ft, water at ${st.wt} ft. ${st.blurb}`;
-    $('reportSub').textContent = `Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
+    $('reportSub').textContent = `${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
   }
   // The hole selection screen. It comes up after every hole (from the report's Continue button) and from the main
   // menu. Every hole is on it: the ones passed with their top score, the one to drill next, and the locked ones,
   // blacked out until the hole before them has been passed. Tap an open one to drill it.
+  // Across the top are the mission types (environmental, geotechnical): each has its own holes and its own progress.
+  // Tapping a type only shows its holes. The type being played changes when one of its holes is started.
   const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/></svg>';
-  function openHoles() {
-    const grid = $('holesGrid'), C = SITES.career, S = APP.S, after = S.done && !APP.menu;
-    const next = S.done ? APP.nextHole : S.site.n;
+  let holesType = '';            // the mission type the hole selection screen is showing
+  function openHoles(type) {
+    const grid = $('holesGrid'), S = APP.S, after = S.done && !APP.menu;
+    if (typeof type === 'string') holesType = type; else if ($('holes').hidden || !holesType) holesType = S.site.type;
+    const T = SITES.typeOf(holesType), C = T.career, same = T.id === S.site.type, total = SITES.count(T);
+    const next = !same ? C.last : S.done ? APP.nextHole : S.site.n;
+    const tabs = $('holesTypes'); tabs.innerHTML = '';
+    for (const X of SITES.TYPES) {
+      const of = SITES.count(X), got = Object.keys(X.career.best).filter(k => X.career.best[k] >= SITES.PASS).length;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'mtype';
+      b.setAttribute('aria-pressed', String(X.id === T.id)); if (!of) b.dataset.soon = '1';
+      b.innerHTML = '<b></b><span></span><small></small>';
+      b.querySelector('b').textContent = X.name; b.querySelector('span').textContent = X.blurb;
+      b.querySelector('small').textContent = of ? `${got} of ${of} holes completed${X.id === S.site.type ? ' · on now' : ''}` : 'Coming soon';
+      b.addEventListener('click', () => openHoles(X.id));
+      tabs.append(b);
+    }
     grid.innerHTML = '';
-    for (let n = 1; n <= SITES.COUNT; n++) {
-      const st = SITES.get(n), open = SITES.isOpen(n), best = C.best[n], passed = best >= SITES.PASS;
+    if (!total) {
+      const d = document.createElement('div'); d.className = 'holes-soon';
+      d.innerHTML = '<b>Coming soon</b><span></span>';
+      d.querySelector('span').textContent = `${T.name} is not ready yet. Its holes will show up here when it is.`;
+      grid.append(d);
+    }
+    for (let n = 1; n <= total; n++) {
+      const st = SITES.get(n, T), open = SITES.isOpen(n, T), best = C.best[n], passed = best >= SITES.PASS;
       const b = document.createElement('button'); b.type = 'button';
       b.className = 'hole' + (open ? '' : ' locked') + (passed ? ' passed' : '') + (open && n === next ? ' cur' : '');
       b.disabled = !open;
@@ -386,16 +408,16 @@
         b.setAttribute('aria-label', `Hole ${n}: locked. Complete hole ${n - 1} first.`);
       } else {
         const status = passed ? `Completed · top score ${best}` : best != null ? `Top score ${best} · ${SITES.PASS} to pass` : 'Not drilled yet';
-        b.innerHTML = `<i>${n}</i><b></b><span class="h-depth">${st.depth} ft · water at ${st.wt} ft</span><span class="h-blurb"></span><span class="h-best">${status}</span>${n === next ? `<em>${after && passed ? 'Play again' : 'Up next'}</em>` : ''}`;
+        b.innerHTML = `<i>${n}</i><b></b><span class="h-depth">${st.depth} ft · water at ${st.wt} ft</span><span class="h-blurb"></span><span class="h-best">${status}</span>${n === next ? `<em>${after && same && passed ? 'Play again' : 'Up next'}</em>` : ''}`;
         b.querySelector('b').textContent = st.name;
         b.querySelector('.h-blurb').textContent = st.blurb;
-        b.addEventListener('click', () => { $('holes').hidden = true; if (APP.menu) holeFromMenu(n); else newHole(n); });
+        b.addEventListener('click', () => { $('holes').hidden = true; if (APP.menu) holeFromMenu(n, T.id); else newHole(n, T.id); });
       }
       grid.append(b);
     }
     const done = Object.keys(C.best).filter(k => C.best[k] >= SITES.PASS).length;
     $('holesTitle').textContent = after ? 'Pick your next hole' : 'Pick a hole';
-    $('holesSub').textContent = `${done} of ${SITES.COUNT} completed · score ${SITES.PASS} or better to complete a hole and unlock the next`;
+    $('holesSub').textContent = total ? `${T.name} · ${done} of ${total} completed · score ${SITES.PASS} or better to complete a hole and unlock the next` : `${T.name} · coming soon`;
     const eq = SHOP.get(SHOP.take());
     $('holesItem').textContent = `${SHOP.state.bucks} Safety Buck${SHOP.state.bucks === 1 ? '' : 's'} · ${SWAG.state.tokens} Swag Token${SWAG.state.tokens === 1 ? '' : 's'} · bringing: ${eq ? eq.icon + ' ' + eq.name : 'nothing'}`;
     $('holesBack').textContent = after ? 'Back to the report' : 'Back';
@@ -403,10 +425,18 @@
     const cur = grid.querySelector('.cur'); if (cur) { cur.scrollIntoView({ block: 'nearest' }); cur.focus({ preventScroll: true }); }
   }
   // from the main menu: pick the crew, read the briefing the first time, then fly down to a fresh hole
-  function holeFromMenu(n) {
-    openPick(() => { newHole(n); setPaused(true); if (!APP.briefed) openBrief(true); else leaveMenu(); });
+  function holeFromMenu(n, type) {
+    openPick(() => { newHole(n, type); setPaused(true); if (!APP.briefed) openBrief(true); else leaveMenu(); });
   }
   // the well is built and signed off: keep the grade, open the next hole on a pass, and show the report
+  // A job with nothing to build once the hole is at depth: the drilling grade is the grade. (The well install does
+  // this itself for a job with a well: see finish in js/well.js.)
+  function closeOut(S) {
+    const R = S.report, A = AARON.settle(S);
+    R.drill = R.score;
+    if (A) { R.aaron = { limit: A.limit, late: A.late, spare: A.spare, pen: A.pen }; R.score = Math.max(0, R.score - A.pen); }
+    R.grade = R.score >= 90 ? 'A' : R.score >= 80 ? 'B' : R.score >= 70 ? 'C' : R.score >= 60 ? 'D' : 'F';
+  }
   function endHole(S) {
     const n = S.site.n, res = SITES.record(n, S.report.score), more = n < SITES.COUNT && SITES.isOpen(n + 1);
     res.bucks = SHOP.earn(S.report.score);        // 95 or better earns a Safety Buck for the shop
@@ -417,7 +447,9 @@
     S.sfx.push(res.passed ? 'done' : 'stub');
     GREG.grade(S.report.score);                   // a pass under 90: old Greg phones to say how they did it in his day
   }
-  function newHole(n) {
+  // type: the mission type to switch to (js/sites.js). Left out, the hole is one of the type already being played
+  function newHole(n, type) {
+    if (type) SITES.setType(type);
     if (n) APP.hole = n;
     APP.nextHole = APP.hole; SITES.setLast(APP.hole);
     APP.S = SIM.newGame(undefined, APP.hole);
@@ -724,10 +756,13 @@
     if (AUDIO.ready()) AUDIO.update(S, dt); else S.sfx.length = 0;
     if (S.runs.length > APP.seenRuns && !APP.away && !APP.menu) { APP.seenRuns = S.runs.length; goInspect(S.runs.length - 1, true); }
     $('btnCore').disabled = !S.runs.length || APP.away;
-    // the hole is finished: the engineer walks over and the crew builds the well. The shift report comes after that
+    // the hole is finished. On a job with a well, the engineer walks over and the crew builds it, and the shift report
+    // comes after that. On a job with nothing to build, the report comes straight away
     if (S.done && !APP.away && !APP.menu && !APP.fly) {
-      if (!S.well) WELL.start(S);
-      else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => endHole(S), 700); }
+      if (S.site.job === 'well') {
+        if (!S.well) WELL.start(S);
+        else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => endHole(S), 700); }
+      } else if (!APP.reportShown) { APP.reportShown = true; closeOut(S); setTimeout(() => endHole(S), 900); }
     }
     requestAnimationFrame(frame);
   }

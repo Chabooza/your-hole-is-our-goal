@@ -183,7 +183,7 @@ window.EASY = (() => {
     // the note card
     let title, text, p = 0, bar = '';
     if (st.failed) { title = 'The crew is stuck'; text = st.failed + ' Open the menu and start a new hole.'; }
-    else if (S.done) { title = 'Hole finished'; text = `${S.site.well} is cored, cased and built.`; p = 1; bar = 'Done'; }
+    else if (S.done) { title = 'Hole finished'; text = S.site.job === 'well' ? `${S.site.well} is cored, cased and built.` : `${S.site.well} is cored and cased.`; p = 1; bar = 'Done'; }
     else if (m === 'core') {
       const tg = SIM.runTarget(S), d0 = tg - SIM.RUN_LEN;
       title = `Run ${S.run.n}: core ${d0.toFixed(0)} to ${tg.toFixed(0)} ft`; text = 'Your turn. PUSH and SPIN the rod down. Keep both needles in the green.';
