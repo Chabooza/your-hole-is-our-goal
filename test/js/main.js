@@ -258,24 +258,37 @@
     $('briefSite').innerHTML = `<b>Today: ${st.name}.</b> ${st.depth} ft, water at ${st.wt} ft. ${st.blurb}`;
     $('reportSub').textContent = `Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
   }
-  // the list of holes: tap an open one to drill it
+  // The hole selection screen. It comes up after every hole (from the report's Continue button) and from the main
+  // menu. Every hole is on it: the ones passed with their top score, the one to drill next, and the locked ones,
+  // blacked out until the hole before them has been passed. Tap an open one to drill it.
+  const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/></svg>';
   function openHoles() {
-    const grid = $('holesGrid'), C = SITES.career, cur = APP.S.site.n;
+    const grid = $('holesGrid'), C = SITES.career, S = APP.S, after = S.done && !APP.menu;
+    const next = S.done ? APP.nextHole : S.site.n;
     grid.innerHTML = '';
     for (let n = 1; n <= SITES.COUNT; n++) {
-      const st = SITES.get(n), open = SITES.isOpen(n), best = C.best[n];
+      const st = SITES.get(n), open = SITES.isOpen(n), best = C.best[n], passed = best >= SITES.PASS;
       const b = document.createElement('button'); b.type = 'button';
-      b.className = 'hole' + (open ? '' : ' locked') + (best >= SITES.PASS ? ' passed' : '') + (n === cur ? ' cur' : '');
+      b.className = 'hole' + (open ? '' : ' locked') + (passed ? ' passed' : '') + (open && n === next ? ' cur' : '');
       b.disabled = !open;
-      b.innerHTML = `<i>${n}</i><b></b><span class="h-depth">${st.depth} ft · water at ${st.wt} ft</span><span class="h-blurb"></span><span class="h-best">${!open ? 'Locked' : best == null ? 'Not drilled yet' : `Best: ${best}${best >= SITES.PASS ? ' · passed' : ''}`}</span>`;
-      b.querySelector('b').textContent = st.name;
-      b.querySelector('.h-blurb').textContent = open ? st.blurb : `Grade ${SITES.PASS} or better on hole ${n - 1} to open it.`;
-      if (open) b.addEventListener('click', () => { $('holes').hidden = true; if (APP.menu) holeFromMenu(n); else newHole(n); });
+      if (!open) {
+        b.innerHTML = `<i>${LOCK}</i><b>Locked</b><span class="h-depth">Hole ${n}</span><span class="h-blurb">Complete hole ${n - 1} first.</span>`;
+        b.setAttribute('aria-label', `Hole ${n}: locked. Complete hole ${n - 1} first.`);
+      } else {
+        const status = passed ? `Completed · top score ${best}` : best != null ? `Top score ${best} · ${SITES.PASS} to pass` : 'Not drilled yet';
+        b.innerHTML = `<i>${n}</i><b></b><span class="h-depth">${st.depth} ft · water at ${st.wt} ft</span><span class="h-blurb"></span><span class="h-best">${status}</span>${n === next ? `<em>${after && passed ? 'Play again' : 'Up next'}</em>` : ''}`;
+        b.querySelector('b').textContent = st.name;
+        b.querySelector('.h-blurb').textContent = st.blurb;
+        b.addEventListener('click', () => { $('holes').hidden = true; if (APP.menu) holeFromMenu(n); else newHole(n); });
+      }
       grid.append(b);
     }
     const done = Object.keys(C.best).filter(k => C.best[k] >= SITES.PASS).length;
-    $('holesSub').textContent = `${done} of ${SITES.COUNT} passed · grade ${SITES.PASS} or better opens the next hole`;
+    $('holesTitle').textContent = after ? 'Pick your next hole' : 'Pick a hole';
+    $('holesSub').textContent = `${done} of ${SITES.COUNT} completed · score ${SITES.PASS} or better to complete a hole and unlock the next`;
+    $('holesBack').textContent = after ? 'Back to the report' : 'Back';
     $('holes').hidden = false;
+    const cur = grid.querySelector('.cur'); if (cur) { cur.scrollIntoView({ block: 'nearest' }); cur.focus({ preventScroll: true }); }
   }
   // from the main menu: pick the crew, read the briefing the first time, then fly down to a fresh hole
   function holeFromMenu(n) {
@@ -287,10 +300,6 @@
     APP.nextHole = res.passed && more ? n + 1 : n;
     SITES.setLast(APP.nextHole);
     HUD.showReport(S, res);
-    $('nextBtn').hidden = !more;
-    if (more) $('nextBtn').textContent = `Next hole: ${SITES.get(n + 1).name}`;
-    $('againBtn').textContent = res.passed ? 'Redo this hole' : 'Try this hole again';
-    $('nextBtn').classList.toggle('alt', !res.passed); $('againBtn').classList.toggle('alt', res.passed && more);
     S.sfx.push(res.passed ? 'done' : 'stub');
   }
   function newHole(n) {
@@ -537,9 +546,7 @@
     });
     $('btnBore').addEventListener('click', () => { $('bhWrap').hidden = !$('bhWrap').hidden; $('btnBore').setAttribute('aria-pressed', String(!$('bhWrap').hidden)); });
     $('briefGo').addEventListener('click', closeBrief);
-    $('againBtn').addEventListener('click', () => newHole());
-    $('nextBtn').addEventListener('click', () => newHole(Math.min(SITES.COUNT, APP.S.site.n + 1)));
-    $('holesBtn').addEventListener('click', openHoles);
+    $('holesBtn').addEventListener('click', openHoles);          // Continue: on to the hole selection screen
     $('reviewBtn').addEventListener('click', () => { $('report').hidden = true; });
     document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
     document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { if (!APP.away) WORLD.preset(b.dataset.view); }));
@@ -605,7 +612,7 @@
     if (!$('settings').hidden) { if (e.key === 'Escape') { closeSettings(); e.preventDefault(); } return; }
     if (!$('holes').hidden) { if (e.key === 'Escape') { $('holes').hidden = true; e.preventDefault(); } return; }
     if (!$('pick').hidden) { if (e.key === 'Escape') { closePick(false); e.preventDefault(); } return; }
-    if (!$('brief').hidden || !$('report').hidden) { if (e.key === 'Escape' && !$('brief').hidden) closeBrief(); return; }
+    if (!$('brief').hidden || !$('report').hidden) { if (e.key === 'Escape' && !$('brief').hidden) closeBrief(); else if (e.key === 'Enter' && $('brief').hidden) { openHoles(); e.preventDefault(); } return; }
     if (APP.menu || APP.fly) return;
     if (WELL.active && !APP.away) {       // building the well: Space pours, Enter calls it, the prompts take A / D or Space
       let hit = WELL.key(e);

@@ -376,10 +376,16 @@ body.at-menu .topbar, body.at-menu .hud, body.at-menu .logbox, body.at-menu .vie
 .hole .h-depth { font-size: 13px; font-weight: 700; color: #6d6247; }
 .hole .h-blurb { grid-column: 1 / -1; font-size: 14px; font-weight: 500; margin-top: 4px; }
 .hole .h-best { grid-column: 1 / -1; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #8a4b0c; margin-top: 3px; }
+.hole em { position: absolute; top: -9px; right: 10px; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: #1b6fd1; color: #fff; border: 2px solid #1b1710; border-radius: 6px; padding: 1px 7px; }
+.hole.passed { background: #eef8e6; }
 .hole.passed i { background: #9bd47f; } .hole.passed .h-best { color: #2c8a22; }
-.hole.cur { outline: 3px solid #1b6fd1; outline-offset: 1px; }
-.hole.locked { background: #e2dcc8; color: #6d6247; cursor: default; box-shadow: none; }
-.hole.locked i { background: #cfc8b2; color: #8b8370; }
+.hole.cur { outline: 4px solid #1b6fd1; outline-offset: 1px; }
+.hole.locked { background: #1d1b18; color: #8f887a; border-color: #000; cursor: not-allowed; box-shadow: none; }
+.hole.locked i { background: #2b2824; color: #8f887a; border-color: #000; }
+.hole.locked i svg { width: 24px; height: 24px; }
+.hole.locked b { font-family: var(--f-display); font-weight: 400; font-size: 19px; letter-spacing: 0.08em; text-transform: uppercase; color: #b8b0a0; }
+.hole.locked .h-depth { color: #8f887a; }
+.hole.locked .h-blurb { color: #b8b0a0; }
 .rp-pass { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; border: 3px solid #1b1710; border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; font-size: 16px; font-weight: 600; }
 .rp-pass b { font-family: var(--f-display); font-weight: 400; font-size: 22px; text-transform: uppercase; }
 .rp-pass.ok { background: #cfeebd; } .rp-pass.ok b { color: #1f6d17; }
@@ -954,9 +960,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <p class="sub" id="reportSub">FS 250 sonic · 4×6 tooling</p>
     <div id="reportBody"></div>
     <div class="go">
-      <button type="button" class="btn-big" id="nextBtn" hidden>Next hole</button>
-      <button type="button" class="btn-big" id="againBtn">Redo this hole</button>
-      <button type="button" class="btn-big alt" id="holesBtn">Pick a hole</button>
+      <button type="button" class="btn-big" id="holesBtn">Continue</button>
       <button type="button" class="btn-big alt" id="reviewBtn">Look at the rig</button>
     </div>
   </div>
