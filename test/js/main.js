@@ -273,7 +273,7 @@
     if (it) { chip.textContent = it.icon; chip.title = it.name + (gone ? ' (used)' : live ? ' (burning)' : ''); chip.classList.toggle('spent', gone); chip.classList.toggle('live', live); }
     PANEL.setItem(it ? it.icon : '', it ? it.name : '', gone);
     const hd = SWAG.hands();                      // swag gloves win over the grippy gloves; the sleeve is the outfit's
-    PANEL.setGloves(hd.gloves || (S.item === 'gloves' ? { palm: 0xff7a1a, cuff: 0x23272b } : null), hd.sleeve);
+    PANEL.setGloves(hd.gloves || (S.item === 'gloves' ? { palm: 0xff7a1a, cuff: 0x23272b } : null), hd.sleeve === 'skin' ? person(settings.crew.driller).look.skin : hd.sleeve);
     document.body.classList.toggle('wear-shades', S.item === 'shades');
     document.body.classList.toggle('jitters', S.item === 'energy');
   }
@@ -313,7 +313,8 @@
     $('swagMirror').src = swagPic('mirror|' + SWAG.SLOTS.map(([slot]) => st.wear[slot]).join(','), SWAG.dress(base), true);
     document.querySelectorAll('[data-swag-slot]').forEach(b => { const on = b.dataset.swagSlot === swagSlot; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     const box = $('swagGrid'); box.innerHTML = '';
-    const items = SWAG.ITEMS.filter(i => i.slot === swagSlot), full = swagSlot === 'outfit', pk = id => settings.crew.driller + '|' + id;
+    const more = swagSlot === 'outfit2', slot = more ? 'outfit' : swagSlot;       // outfits fill two tabs
+    const items = SWAG.ITEMS.filter(i => i.slot === slot && (slot !== 'outfit' || (i.page || 1) === (more ? 2 : 1))), full = slot === 'outfit', pk = id => settings.crew.driller + '|' + id;
     const need = swagSlot === 'gloves' ? [] : items.filter(it => swagPics[pk(it.id)] == null);
     if (need.length) {                            // take every missing picture in one go: one camera set-up for the lot
       let pics = [];

@@ -1,6 +1,6 @@
 'use strict';
-/* Swag: the cosmetics. Fifty things to wear that change nothing but how the driller looks: 10 hard hats, 10 pairs of
-   glasses, 10 pairs of gloves and 20 outfits. Finishing any hole with a grade of NEED or better earns one Swag Token,
+/* Swag: the cosmetics. Seventy things to wear that change nothing but how the driller looks: 10 hard hats, 10 pairs of
+   glasses, 10 pairs of gloves and 40 outfits. Finishing any hole with a grade of NEED or better earns one Swag Token,
    and every item costs one. One item can be worn in each of the four slots at once. What is owned and worn is kept in
    this browser (yhiog-swag).
 
@@ -75,7 +75,49 @@ window.SWAG = (() => {
     { id: 'o-office', slot: 'outfit', name: 'Head office', blurb: 'Never been on a site. Has opinions.', look: { plain: true, torso: 0x5a6470, arms: 0x5a6470, pants: 0x5a6470, suitDark: 0x39424a, boot: 0x17181b, cuff: 0xfdfdf8, lapel: 0x39424a, tie: 0xc0271f, extras: ['bib', 'lapels', 'tie'] } },
     { id: 'o-robe', slot: 'outfit', name: 'Bathrobe', blurb: 'Called in on a day off.', look: { plain: true, torso: 0x9fc4e8, arms: 0x9fc4e8, pants: 0x9fc4e8, suitDark: 0x9fc4e8, boot: 0xf4c9a8, cuff: 0xfdfdf8, lapel: 0xfdfdf8, extras: ['robe'] } },
     { id: 'o-track', slot: 'outfit', name: 'Tracksuit', blurb: 'Three stripes, zero cardio.', look: { plain: true, torso: 0xc0271f, arms: 0xc0271f, pants: 0xc0271f, suitDark: 0x8f1c16, boot: 0xfdfdf8, cuff: 0xfdfdf8, extras: ['sideStripes', 'chain'] } },
+    // ---------- twenty more outfits ----------
+    { id: 'o-baby', slot: 'outfit', name: 'Big baby', blurb: 'Somebody needs a nap. And a change.', wears: { hat: { hatKit: 'babytoque' } },
+      look: { plain: true, torso: 'skin', arms: 'skin', pants: 'skin', suitDark: 0xfdfdf8, boot: 'skin', sole: 'skin', cuff: 'skin', soother: 0x4ab0f0, extras: ['diaper', 'babybib'] } },
+    { id: 'o-cowboy', slot: 'outfit', name: 'Full cowboy', blurb: 'Rides the rig in at dawn.', wears: { hat: { hat: 0x6b4a26, hatTrim: 0x3a2716, hatStyle: 'cowboy', frameBack: 1.32 } },
+      look: { plain: true, torso: 0xd8c39a, arms: 0xd8c39a, pants: 0x2f4a78, suitDark: 0x4a2f1b, boot: 0x4a2f1b, cuff: 0x6b4a26, vest: 0x4a2f1b, vestPlain: true, tie: 0xc0271f, belt: 0x4a2f1b, chaps: 0x9a6a3a, extras: ['chaps', 'bandana', 'belt', 'buckle'] } },
+    { id: 'o-chicken', slot: 'outfit', name: 'Chicken suit', blurb: 'Bawk. Somebody had to say it.', wears: { hat: { hatKit: 'chicken' } },
+      look: { plain: true, torso: 'feathers', arms: 'feathers', pants: 'feathers', shins: 0xf28c1a, suitDark: 0xfdfdf8, boot: 0xf28c1a, sole: 0xd9740f, cuff: 0xfdfdf8, extras: ['tailfeathers', 'bellypanel'] } },
+    { id: 'o-hockey', slot: 'outfit', name: 'Number 97', blurb: 'The captain. Fastest hands on the rig.', wears: { hat: { hatKit: 'hockey' } },
+      look: { plain: true, torso: 'jersey', arms: 'jersey', yoke: 0x0b3d91, pants: 0x0b3d91, shins: 'socks', suitDark: 0x0b3d91, boot: 0x17181b, sole: 0xc9d1d8, cuff: 0xf26a1b, number: '97', extras: ['number'] } },
+    { id: 'o-hotdog', slot: 'outfit', name: 'Hot dog', blurb: 'With mustard. Never ketchup.', wears: { hat: { hatKit: 'wiener' } },
+      look: { plain: true, torso: 'mustard', yoke: 0xb5402a, arms: 0xb5402a, pants: 0xb5402a, suitDark: 0xb5402a, boot: 0x4a2f1b, cuff: 0xb5402a, extras: ['bun'] } },
+    { id: 'o-banana', slot: 'outfit', name: 'Banana', blurb: 'For scale.', wears: { hat: { hatKit: 'banana' } },
+      look: { plain: true, torso: 0xffd92e, arms: 0xffd92e, pants: 0xffd92e, suitDark: 0xe8bf1a, boot: 0x5a3d1a, cuff: 0xffd92e } },
+    { id: 'o-wizard', slot: 'outfit', name: 'Wizard', blurb: 'Turns shale into overtime.', wears: { hat: { hatKit: 'wizard' } },
+      look: { plain: true, torso: 'stars', arms: 'stars', pants: 'stars', suitDark: 0xf2c230, boot: 0x3b2a7a, cuff: 0xf2c230, skirt: 'stars', skirtLen: 0.85, belt: 0xf2c230, extras: ['skirt', 'sash'] } },
+    { id: 'o-knight', slot: 'outfit', name: 'Knight', blurb: 'Sworn to defend the core table.', wears: { hat: { hatKit: 'knight' } },
+      look: { plain: true, torso: 'mail', arms: 'mail', pants: 'mail', suitDark: 0x4a2f1b, boot: 0x5f6a72, cuff: 0x5f6a72, belt: 0x4a2f1b, extras: ['tabard', 'belt'] } },
+    { id: 'o-lucha', slot: 'outfit', name: 'Luchador', blurb: 'El Perforador. Undefeated.', wears: { hat: { hatKit: 'lucha' } },
+      look: { plain: true, torso: 'skin', arms: 'skin', pants: 0x1f8fd6, suitDark: 0xf2c230, boot: 0xc8201a, cuff: 0xf2c230, trunks: 0xc8201a, cape: 0xf2c230, belt: 0xf2c230, extras: ['trunks', 'cape', 'belt', 'buckle'] } },
+    { id: 'o-sumo', slot: 'outfit', name: 'Sumo', blurb: 'Immovable. Like a stuck casing.', wears: { hat: { hatKit: 'topknot' } },
+      look: { plain: true, torso: 'skin', arms: 'skin', pants: 'skin', suitDark: 0x3b2a7a, boot: 'skin', sole: 'skin', cuff: 'skin', belly: true, belt: 0x3b2a7a, extras: ['mawashi'] } },
+    { id: 'o-caveman', slot: 'outfit', name: 'Caveman', blurb: 'Invented drilling. With a stick.', wears: { hat: { hatKit: 'bonehair' } },
+      look: { plain: true, torso: 'leopard', arms: 'skin', pants: 'skin', suitDark: 0x4a2f14, boot: 'skin', sole: 'skin', cuff: 'skin', skirt: 'leopard', skirtLen: 0.34, extras: ['skirt', 'beads'] } },
+    { id: 'o-ninja', slot: 'outfit', name: 'Ninja', blurb: 'You never heard the rods trip out.', wears: { hat: { hatKit: 'ninja' } },
+      look: { plain: true, torso: 0x17181b, arms: 0x17181b, pants: 0x17181b, suitDark: 0xc8201a, boot: 0x17181b, cuff: 0xc8201a, belt: 0xc8201a, extras: ['sash'] } },
+    { id: 'o-bee', slot: 'outfit', name: 'Bumblebee', blurb: 'Busy. Allegedly.', wears: { hat: { hatKit: 'antennae' } },
+      look: { plain: true, torso: 'bee', arms: 0x17181b, pants: 0x17181b, suitDark: 0x17181b, boot: 0x17181b, cuff: 0xffd23f, extras: ['wings', 'stinger'] } },
+    { id: 'o-cow', slot: 'outfit', name: 'Cow suit', blurb: 'Udderly unprofessional.', wears: { hat: { hatKit: 'cow' } },
+      look: { plain: true, torso: 'cow', arms: 'cow', pants: 'cow', suitDark: 0xfdfdf8, boot: 0x17181b, cuff: 0x17181b, extras: ['udder', 'tail'] } },
+    { id: 'o-shark', slot: 'outfit', name: 'Shark', blurb: 'Smells a bad run from a mile off.', wears: { hat: { hatKit: 'shark' } },
+      look: { plain: true, torso: 0x7f8b96, arms: 0x7f8b96, pants: 0x7f8b96, suitDark: 0x6a757f, boot: 0x6a757f, cuff: 0x7f8b96, extras: ['bellypanel', 'fin'] } },
+    { id: 'o-robot', slot: 'outfit', name: 'Robot', blurb: 'Does not take smoke breaks. Yet.', wears: { hat: { hatKit: 'robot' } },
+      look: { plain: true, torso: 0xb9c2ca, arms: 0x8f9aa3, pants: 0x8f9aa3, suitDark: 0x39424a, boot: 0x39424a, cuff: 0xe0362b, extras: ['panel'] } },
+    { id: 'o-fire', slot: 'outfit', name: 'Firefighter', blurb: 'For when the head overheats.', wears: { hat: { hatKit: 'firehat' } },
+      look: { suit: 0xcfa54a, suitDark: 0x8a6a2c, boot: 0x17181b, cuff: 0x17181b, patch: '' } },
+    { id: 'o-leder', slot: 'outfit', name: 'Lederhosen', blurb: 'Prost. After the shift.', wears: { hat: { hatKit: 'alpine' } },
+      look: { plain: true, torso: 0xfdfdf8, arms: 0xfdfdf8, pants: 0x7a4a22, shins: 0xfdfdf8, suitDark: 0x4a2f1b, boot: 0x4a2f1b, cuff: 0xfdfdf8, tie: 0x7a4a22, extras: ['suspenders', 'chestbar'] } },
+    { id: 'o-toga', slot: 'outfit', name: 'Toga', blurb: 'Veni, vidi, drilled it.', wears: { hat: { hatKit: 'laurel' } },
+      look: { plain: true, torso: 0xfdfdf8, arms: 'skin', pants: 'skin', suitDark: 0xf2c230, boot: 0x8a6a45, cuff: 'skin', skirt: 0xfdfdf8, skirtLen: 0.62, extras: ['skirt', 'togaSash'] } },
+    { id: 'o-vegas', slot: 'outfit', name: 'Vegas legend', blurb: 'Thank you. Thank you very much.', wears: { hat: { hatKit: 'pompadour' }, glasses: { glasses: 'round', wire: true, lensClear: false, frame: 0xd9a51c, lens: ['#ffe9a8', '#c98a2a', '#4a2f14'] } },
+      look: { plain: true, torso: 0xfdfdf8, arms: 0xfdfdf8, pants: 0xfdfdf8, suitDark: 0xf2c230, boot: 0xfdfdf8, cuff: 0xfdfdf8, lapel: 0xfdfdf8, bib: 'skin', cape: 0xfdfdf8, belt: 0xf2c230, extras: ['bib', 'collar', 'studs', 'belt', 'buckle', 'cape'] } },
   ];
+  let nOut = 0; ITEMS.forEach(i => { if (i.slot === 'outfit') i.page = ++nOut > 20 ? 2 : 1; });          // the shop shows outfits twenty at a time
   const BY = {}; ITEMS.forEach(i => { BY[i.id] = i; });
   const st = { tokens: 0, own: {}, wear: { hat: '', glasses: '', gloves: '', outfit: '' } };
 
