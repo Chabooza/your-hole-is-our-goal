@@ -2,7 +2,8 @@
 /* Aaron's call. From hole 3 on, at some point while the driller is coring, the cell phone rings. The drilling holds
    still, the driller answers, and Aaron says there is another job coming up: this hole has to be done in so many
    minutes. A countdown then runs until the well is built. Finish in time and nothing is lost. Run over and the grade
-   drops: 5 points at the buzzer, then 1 more for every 30 seconds late, 15 at most.
+   drops on a sliding scale, never all at once: the first minute late costs 1 point, the second 2 more, the third 3
+   more, and so on (1, 3, 6, 10, 15 ... points at 1, 2, 3, 4, 5 ... minutes), 30 at most. See penFor.
 
    The time allowed is worked out from what is left to do (par), times a slack that shrinks every hole: plenty of
    room for trouble on hole 3, next to none on hole 10. The clock counts game time: while the rig is working it runs at
@@ -23,7 +24,9 @@ window.AARON = (() => {
   const FULL_EXTRA = 0.3;        // ...and gets this much more slack on the drilling
   const RING_MAX = 8;            // seconds it rings before the driller picks up anyway
   const LINE = 3.0;              // seconds each thing Aaron says stays up (a tap moves it on)
-  const PEN0 = 5, PEN_EVERY = 30, PEN_MAX = 15;      // late: points off at the buzzer, seconds per further point, the most it can cost
+  const PEN_STEP = 60;           // late: the first PEN_STEP seconds cost 1 point, the next 2 more, the next 3 more, and so on
+  const PEN_MAX = 30;            // ...and the most being late can cost
+  const LATER = 180;             // seconds late at which Aaron texts again
 
   const HELLO = ["Hey, bud, how's it going?", 'Hey, bud. Got a second?', "Hey, bud. How's the hole?", "Bud! It's Aaron."];
   const NEWS = ["Just wanted to let you know you've got another job coming up.", 'So, the next job got moved up on us.', 'The client on the next one is already on site.', "I've booked you another hole after this one. Today."];
@@ -31,9 +34,12 @@ window.AARON = (() => {
   const REPLY = ['Yeah, yeah. On it.', 'No problem, Aaron.', '...Great.', 'Sure. Why not.', 'You got it, boss.'];
   const HALF = ["How's that hole coming, bud?", 'Half your time is gone, bud.', 'Client just called again. No pressure.'];
   const TWO = ['Two minutes, bud. Wrap it up.', 'You packing up yet? Two minutes.'];
-  const LATE = ["You're late, bud. The clock is still running.", "That's time. The client is waiting, bud."];
+  const LATE = ["You're late, bud. Every minute costs you more than the last.", "That's time. The client is waiting, and it only gets worse from here."];
+  const WORSE = ['Three minutes over, bud. This is getting expensive.', 'Still not done? The client is counting every minute.'];
   const MADE = ['Nice work, bud. Get rolling.', 'Good stuff. See you at the next one.'];
-  const MISSED = ["We'll talk about this later.", 'The client is not happy, bud.'];
+  const CLOSE = ["Cutting it close, bud. I'll let that one go.", 'Right on the buzzer. Good enough.'];              // late, but not by enough to cost a point
+  const MISSED = ['A bit late, bud. The client noticed.', 'Late, but done. Get rolling.'];                         // a few points
+  const BADLY = ["We'll talk about this later.", 'The client is not happy, bud.'];                                   // 10 points or more
   const LOOK = { suit: 0x3a4658, suitDark: 0x2a3444, patch: 'Aaron', hat: 0xf6f6f1, hatTrim: 0xd9d9d2, skin: 0xe6b48c, nose: 0xd9a37b, vest: 0xf47a1f, shirt: 0xbcd3ee,
     brow: 0x2b1d14, eye: 0x3a2a1c, glasses: 'none', lensClear: true, wire: false, lens: ['#ffffff', '#ffffff', '#ffffff'], frame: 0x17171a, smile: true,
     build: 1.06, height: 1, hair: 0x2b1d14, stache: 0x2b1d14, stacheStyle: 'medium' };
@@ -80,6 +86,13 @@ window.AARON = (() => {
     const sec = APP.easy ? p.crew + (p.drill + p.well) * s : p.crew * FULL_CREW + p.drill * (s + FULL_EXTRA) + p.well * s;
     return Math.max(5, Math.round(sec / 60)) * 60;          // Aaron deals in whole minutes
   }
+  // points off for finishing `late` seconds after the deadline. Each PEN_STEP of lateness costs one point more than the
+  // one before it, charged evenly through that stretch, so a little late costs a little and a lot late costs a lot
+  function penFor(late) {
+    const m = Math.max(0, late) / PEN_STEP, n = Math.floor(m);
+    return Math.min(PEN_MAX, Math.round(n * (n + 1) / 2 + (m - n) * (n + 1)));
+  }
+  const pts = n => n + (n === 1 ? ' point' : ' points');
   const mmss = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
   const minutes = s => { const m = Math.round(s / 60); return m + (m === 1 ? ' minute' : ' minutes'); };
 
@@ -125,7 +138,7 @@ window.AARON = (() => {
     if (st !== 'ring' || APP.S.paused) return;
     AUDIO.init();
     const S = APP.S, fav = S.item === 'favour' && SHOP.use(S), limit = allow(S) + (fav ? 180 : 0);      // Aaron's favour from the shop: 3 more minutes
-    S.aaron = { limit, left: limit, half: false, two: false, zero: false, done: false, pen: 0 };
+    S.aaron = { limit, left: limit, half: false, two: false, zero: false, worse: false, done: false, pen: 0 };
     lines = [pick(HELLO), pick(NEWS), pick(HURRY).replace('{t}', minutes(limit))]; li = 0;
     if (fav) lines.push('And since I owe you one, that includes three extra minutes.');
     st = 'talk'; t = 0;
@@ -146,7 +159,7 @@ window.AARON = (() => {
     E.me.querySelector('span').textContent = pick(REPLY); E.me.hidden = false;
     clearTimeout(meTimer); meTimer = setTimeout(() => { E.me.hidden = true; }, 2200);
     lastT = S.t;
-    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: `Aaron: another job is waiting. ${minutes(A.limit)} to finish this hole${S.site.job === 'well' ? ', well and all' : ''}.`, lvl: 'warn' });
+    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: `Aaron: another job is waiting. ${minutes(A.limit)} to finish this hole${S.site.job === 'well' ? ', well and all' : ''}. Late costs points: a few at first, more with every minute.`, lvl: 'warn' });
     S.sfx.push('switch');
     E.timer.classList.remove('pop'); void E.timer.offsetWidth; E.timer.classList.add('pop');
   }
@@ -162,10 +175,10 @@ window.AARON = (() => {
     if (!A || A.done) return A || null;
     A.done = true;
     A.late = Math.max(0, -A.left);
-    A.pen = A.late > 0 ? Math.min(PEN_MAX, PEN0 + Math.floor(A.late / PEN_EVERY)) : 0;
+    A.pen = penFor(A.late);
     A.spare = Math.max(0, A.left);
-    text(pick(A.pen ? MISSED : MADE));
-    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: A.pen ? `Aaron's deadline missed by ${mmss(A.late)}. ${A.pen} points off the grade.` : `Aaron's deadline made with ${mmss(A.spare)} to spare.`, lvl: A.pen ? 'crit' : 'good' });
+    text(pick(A.pen >= 10 ? BADLY : A.pen ? MISSED : A.late > 0 ? CLOSE : MADE));
+    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: A.pen ? `Aaron's deadline missed by ${mmss(A.late)}. ${pts(A.pen)} off the grade.` : A.late > 0 ? `Aaron's deadline missed by ${mmss(A.late)}. Close enough: nothing off the grade.` : `Aaron's deadline made with ${mmss(A.spare)} to spare.`, lvl: A.pen >= 10 ? 'crit' : A.pen ? 'warn' : 'good' });
     return A;
   }
 
@@ -197,9 +210,13 @@ window.AARON = (() => {
     if (!A.half && A.left <= A.limit / 2 && A.left > 150) { A.half = true; text(pick(HALF)); }
     if (!A.two && A.left <= 120 && A.left > 0) { A.two = true; text(pick(TWO)); }
     if (!A.zero && A.left <= 0) { A.zero = true; text(pick(LATE)); S.sfx.push('alarm'); }
+    if (!A.worse && A.left <= -LATER) { A.worse = true; text(pick(WORSE)); }
+    A.pen = penFor(-A.left);                      // what it has cost so far: shown on the clock, and settled when the hole is done
     const txt = A.left >= 0 ? mmss(A.left) : '+' + mmss(-A.left), lvl = A.left <= 0 ? 'late' : A.left <= 120 ? 'low' : A.left <= A.limit * 0.25 ? 'warn' : 'ok';
+    const lab = lvl !== 'late' ? "Aaron's deadline" : A.pen ? `Late: ${pts(A.pen)} off` : 'Late for Aaron';
     if (last.txt !== txt) { last.txt = txt; E.time.textContent = txt; }
-    if (last.lvl !== lvl) { last.lvl = lvl; E.timer.dataset.lvl = lvl; E.label.textContent = lvl === 'late' ? 'Late for Aaron' : "Aaron's deadline"; }
+    if (last.lvl !== lvl) { last.lvl = lvl; E.timer.dataset.lvl = lvl; }
+    if (last.lab !== lab) { last.lab = lab; E.label.textContent = lab; }
   }
   // Enter, Space or A answers the phone and moves the talk on. While the phone is up, other keys wait.
   function key(e) {
@@ -209,7 +226,7 @@ window.AARON = (() => {
     return true;
   }
 
-  return { init, reset, update, key, settle, par, allow, get busy() { return st === 'ring' || st === 'talk'; }, get active() { return st !== ''; },
+  return { init, reset, update, key, settle, par, allow, penFor, PEN_MAX, get busy() { return st === 'ring' || st === 'talk'; }, get active() { return st !== ''; },
     call() { at = 0; APP.S.aaronCalled = false; APP.S.aaron = null; },          // for testing: ring on the next moment of drilling
     get state() { return { st, t, at, aaron: APP.S.aaron }; } };
 })();
