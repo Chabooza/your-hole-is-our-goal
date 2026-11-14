@@ -209,7 +209,7 @@ window.HUD = (() => {
         <div><dt>Crew</dt><dd>${s.driller ? s.driller + ' drilling, with ' : ''}${s.crew[0].name} and ${s.crew[1].name}</dd></div>
         <div><dt>Core recovery</dt><dd>${pct(r.recovery)} (${r.rec.toFixed(1)} of ${r.drilled.toFixed(1)} ft)</dd></div>
         <div><dt>Casing set to</dt><dd>${r.casing.toFixed(1)} ft</dd></div>
-${r.aaron ? `<div><dt>Aaron's deadline</dt><dd class="${r.aaron.pen ? 'r' : 'g'}">${r.aaron.pen ? `${ms(r.aaron.late)} late, ${r.aaron.pen} points off` : `made it with ${ms(r.aaron.spare)} to spare`} (he gave you ${Math.round(r.aaron.limit / 60)} min)</dd></div>
+${r.aaron ? `<div><dt>Aaron's deadline</dt><dd class="${r.aaron.pen ? 'r' : 'g'}">${r.aaron.pen ? `${ms(r.aaron.late)} late, ${r.aaron.pen} ${r.aaron.pen === 1 ? 'point' : 'points'} off` : r.aaron.late > 0 ? `${ms(r.aaron.late)} late, close enough: nothing off` : `made it with ${ms(r.aaron.spare)} to spare`} (he gave you ${Math.round(r.aaron.limit / 60)} min${r.aaron.pen ? '; every minute late costs more than the last' : ''})</dd></div>
         ` : ''}<div><dt>Shift time</dt><dd>${Math.floor(r.shiftMin / 60)} h ${Math.round(r.shiftMin % 60)} min</dd></div>
         <div><dt>Water used</dt><dd>${Math.round(r.waterUsed)} gal (${Math.round(r.spilled)} gal came back up the casing)</dd></div>
         <div><dt>Heave</dt><dd>${r.heave.toFixed(1)} ft of sand into the casing</dd></div>
