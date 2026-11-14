@@ -67,7 +67,8 @@
     S.driller = d.name;
     S.crew[0].name = l.name; S.crew[0].hat = hex(l.look.hat);
     S.crew[1].name = c.name; S.crew[1].hat = hex(c.look.hat);
-    WORLD.setCrew({ driller: SWAG.dress(d.look), lead: l.look, core: c.look });      // the driller wears whatever swag is on (js/swag.js)
+    WORLD.setCrew({ driller: SWAG.dress(d.look), lead: l.look, core: c.look });
+    APP.looks = { driller: SWAG.dress(d.look), lead: l.look, core: c.look };      // the driller wears whatever swag is on (js/swag.js)
     itemKey = null;
     if (!briefSrc) briefSrc = { briefEasy: $('briefEasy').innerHTML, briefFull: $('briefFull').innerHTML };
     for (const id in briefSrc) $(id).innerHTML = SIM.nm(S, briefSrc[id]).replace(/\{well\}/g, S.site.well).replace(/\{depth\}/g, S.site.depth);
@@ -355,29 +356,52 @@
     if (!$('holes').hidden) openHoles();
   }
 
-  // ---------- the career: ten holes, each harder than the last (js/sites.js) ----------
+  // ---------- the career: mission types, each with its own holes, every hole harder than the last (js/sites.js) ----------
   // the bits of the screen that name the hole
   function showSite() {
     const st = APP.S.site, at = APP.S.done && APP.menu ? SITES.get(APP.nextHole) : st;
-    $('jobTag').textContent = `Hole ${st.n} of ${SITES.COUNT} · ${st.name} · ${st.depth} ft · pass mark ${SITES.PASS}`;
+    $('jobTag').textContent = `${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · ${st.depth} ft · pass mark ${SITES.PASS}`;
     $('holeChip').textContent = `${st.n}/${SITES.COUNT}`;
-    $('holeChip').title = `Hole ${st.n} of ${SITES.COUNT}: ${st.name}`;
+    $('holeChip').title = `${st.kind} drilling, hole ${st.n} of ${SITES.COUNT}: ${st.name}`;
     $('bhTitle').textContent = `Borehole ${st.well} `;
-    $('menuHole').textContent = `Hole ${at.n} of ${SITES.COUNT}: ${at.name} · ${at.depth} ft`;
-    $('briefSub').textContent = `07:00 · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
+    $('menuHole').textContent = `${at.kind} · Hole ${at.n} of ${SITES.COUNT}: ${at.name} · ${at.depth} ft`;
+    $('briefSub').textContent = `07:00 · ${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
     $('briefSite').innerHTML = `<b>Today: ${st.name}.</b> ${st.depth} ft, water at ${st.wt} ft. ${st.blurb}`;
-    $('reportSub').textContent = `Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
+    $('brief').dataset.job = st.job; $('briefGeo').hidden = st.job !== 'spt';
+    $('reportSub').textContent = `${st.kind} · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
   }
   // The hole selection screen. It comes up after every hole (from the report's Continue button) and from the main
   // menu. Every hole is on it: the ones passed with their top score, the one to drill next, and the locked ones,
   // blacked out until the hole before them has been passed. Tap an open one to drill it.
+  // Across the top are the mission types (environmental, geotechnical): each has its own holes and its own progress.
+  // Tapping a type only shows its holes. The type being played changes when one of its holes is started.
   const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/></svg>';
-  function openHoles() {
-    const grid = $('holesGrid'), C = SITES.career, S = APP.S, after = S.done && !APP.menu;
-    const next = S.done ? APP.nextHole : S.site.n;
+  let holesType = '';            // the mission type the hole selection screen is showing
+  function openHoles(type) {
+    const grid = $('holesGrid'), S = APP.S, after = S.done && !APP.menu;
+    if (typeof type === 'string') holesType = type; else if ($('holes').hidden || !holesType) holesType = S.site.type;
+    const T = SITES.typeOf(holesType), C = T.career, same = T.id === S.site.type, total = SITES.count(T);
+    const next = !same ? C.last : S.done ? APP.nextHole : S.site.n;
+    const tabs = $('holesTypes'); tabs.innerHTML = '';
+    for (const X of SITES.TYPES) {
+      const of = SITES.count(X), got = Object.keys(X.career.best).filter(k => X.career.best[k] >= SITES.PASS).length;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'mtype';
+      b.setAttribute('aria-pressed', String(X.id === T.id)); if (!of) b.dataset.soon = '1';
+      b.innerHTML = '<b></b><span></span><small></small>';
+      b.querySelector('b').textContent = X.name; b.querySelector('span').textContent = X.blurb;
+      b.querySelector('small').textContent = of ? `${got} of ${of} holes completed${X.id === S.site.type ? ' · on now' : ''}` : 'Coming soon';
+      b.addEventListener('click', () => openHoles(X.id));
+      tabs.append(b);
+    }
     grid.innerHTML = '';
-    for (let n = 1; n <= SITES.COUNT; n++) {
-      const st = SITES.get(n), open = SITES.isOpen(n), best = C.best[n], passed = best >= SITES.PASS;
+    if (!total) {
+      const d = document.createElement('div'); d.className = 'holes-soon';
+      d.innerHTML = '<b>Coming soon</b><span></span>';
+      d.querySelector('span').textContent = `${T.name} is not ready yet. Its holes will show up here when it is.`;
+      grid.append(d);
+    }
+    for (let n = 1; n <= total; n++) {
+      const st = SITES.get(n, T), open = SITES.isOpen(n, T), best = C.best[n], passed = best >= SITES.PASS;
       const b = document.createElement('button'); b.type = 'button';
       b.className = 'hole' + (open ? '' : ' locked') + (passed ? ' passed' : '') + (open && n === next ? ' cur' : '');
       b.disabled = !open;
@@ -386,16 +410,16 @@
         b.setAttribute('aria-label', `Hole ${n}: locked. Complete hole ${n - 1} first.`);
       } else {
         const status = passed ? `Completed · top score ${best}` : best != null ? `Top score ${best} · ${SITES.PASS} to pass` : 'Not drilled yet';
-        b.innerHTML = `<i>${n}</i><b></b><span class="h-depth">${st.depth} ft · water at ${st.wt} ft</span><span class="h-blurb"></span><span class="h-best">${status}</span>${n === next ? `<em>${after && passed ? 'Play again' : 'Up next'}</em>` : ''}`;
+        b.innerHTML = `<i>${n}</i><b></b><span class="h-depth">${st.depth} ft · water at ${st.wt} ft</span><span class="h-blurb"></span><span class="h-best">${status}</span>${n === next ? `<em>${after && same && passed ? 'Play again' : 'Up next'}</em>` : ''}`;
         b.querySelector('b').textContent = st.name;
         b.querySelector('.h-blurb').textContent = st.blurb;
-        b.addEventListener('click', () => { $('holes').hidden = true; if (APP.menu) holeFromMenu(n); else newHole(n); });
+        b.addEventListener('click', () => { $('holes').hidden = true; if (APP.menu) holeFromMenu(n, T.id); else newHole(n, T.id); });
       }
       grid.append(b);
     }
     const done = Object.keys(C.best).filter(k => C.best[k] >= SITES.PASS).length;
     $('holesTitle').textContent = after ? 'Pick your next hole' : 'Pick a hole';
-    $('holesSub').textContent = `${done} of ${SITES.COUNT} completed · score ${SITES.PASS} or better to complete a hole and unlock the next`;
+    $('holesSub').textContent = total ? `${T.name} · ${done} of ${total} completed · score ${SITES.PASS} or better to complete a hole and unlock the next` : `${T.name} · coming soon`;
     const eq = SHOP.get(SHOP.take());
     $('holesItem').textContent = `${SHOP.state.bucks} Safety Buck${SHOP.state.bucks === 1 ? '' : 's'} · ${SWAG.state.tokens} Swag Token${SWAG.state.tokens === 1 ? '' : 's'} · bringing: ${eq ? eq.icon + ' ' + eq.name : 'nothing'}`;
     $('holesBack').textContent = after ? 'Back to the report' : 'Back';
@@ -403,10 +427,23 @@
     const cur = grid.querySelector('.cur'); if (cur) { cur.scrollIntoView({ block: 'nearest' }); cur.focus({ preventScroll: true }); }
   }
   // from the main menu: pick the crew, read the briefing the first time, then fly down to a fresh hole
-  function holeFromMenu(n) {
-    openPick(() => { newHole(n); setPaused(true); if (!APP.briefed) openBrief(true); else leaveMenu(); });
+  function holeFromMenu(n, type) {
+    openPick(() => { newHole(n, type); setPaused(true); if (!APP.briefed) openBrief(true); else leaveMenu(); });
   }
   // the well is built and signed off: keep the grade, open the next hole on a pass, and show the report
+  // A job with nothing to build once the hole is at depth: the drilling grade is the grade, with the SPT log on a
+  // geotechnical hole. (The well install does this itself for a job with a well: see finish in js/well.js.)
+  function closeOut(S) {
+    const R = S.report, A = AARON.settle(S);
+    R.drill = R.score;
+    if (S.site.job === 'spt') {                   // geotechnical: the blow counts on the log are part of the grade (js/spt.js)
+      const G = R.spt = SPT.grade(S), gr = R.grout = S.grout || null, wg = gr ? GROUT.W_GROUT : 0;      // ...and so is the grouting (js/grout.js)
+      R.score = Math.round(R.drill * (1 - SPT.W_SPT - wg) + G.score * SPT.W_SPT + (gr ? gr.score * wg : 0));
+      if (G.collapsed) R.score = Math.min(R.score, SPT.FAIL_CAP);
+    }
+    if (A) { R.aaron = { limit: A.limit, late: A.late, spare: A.spare, pen: A.pen }; R.score = Math.max(0, R.score - A.pen); }
+    R.grade = R.score >= 90 ? 'A' : R.score >= 80 ? 'B' : R.score >= 70 ? 'C' : R.score >= 60 ? 'D' : 'F';
+  }
   function endHole(S) {
     const n = S.site.n, res = SITES.record(n, S.report.score), more = n < SITES.COUNT && SITES.isOpen(n + 1);
     res.bucks = SHOP.earn(S.report.score);        // 95 or better earns a Safety Buck for the shop
@@ -415,8 +452,11 @@
     SITES.setLast(APP.nextHole);
     HUD.showReport(S, res);
     S.sfx.push(res.passed ? 'done' : 'stub');
+    GREG.grade(S.report.score);                   // a pass under 90: old Greg phones to say how they did it in his day
   }
-  function newHole(n) {
+  // type: the mission type to switch to (js/sites.js). Left out, the hole is one of the type already being played
+  function newHole(n, type) {
+    if (type) SITES.setType(type);
     if (n) APP.hole = n;
     APP.nextHole = APP.hole; SITES.setLast(APP.hole);
     APP.S = SIM.newGame(undefined, APP.hole);
@@ -426,6 +466,8 @@
     NAG.reset();
     MARL.reset();
     AARON.reset();
+    GREG.reset();
+    SPT.reset();
     APP.reportShown = false; APP.seenRuns = 0;
     $('report').hidden = true;
     applyCrew();
@@ -653,6 +695,8 @@
     NAG.init(APP);
     MARL.init(APP);
     AARON.init(APP);
+    GREG.init(APP);
+    SPT.init(APP);
     APP.seenRuns = APP.S.runs.length;
     WORLD.setInsets(freeArea);
     $('inspBack').addEventListener('click', leaveInspect);
@@ -692,7 +736,7 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
     const S = APP.S;
-    const running = !S.paused && !S.done && !APP.freeze && !(APP.easy && AUTO.st.qte) && !TOSS.busy && !NAG.busy && !MARL.busy && !AARON.busy;
+    const running = !S.paused && !S.done && !APP.freeze && !(APP.easy && AUTO.st.qte) && !TOSS.busy && !NAG.busy && !MARL.busy && !AARON.busy && !SPT.busy;
     if (running) {
       // thumb-pad mode: the player's own drilling runs at the chosen speed, the crew's pipe work runs faster
       const sdt = dt * (APP.easy ? EASY.speed || APP.speed : APP.speed), n = Math.max(1, Math.ceil(sdt / 0.02));
@@ -712,18 +756,23 @@
     HUD.update(S, dt);
     EASY.update(S, dt);
     WELL.update(S, dt);
+    SPT.update(S, dt);
     TOSS.update(S, dt);
     NAG.update(S, dt);
     MARL.update(S, dt);
     AARON.update(S, dt);
+    GREG.update(dt);
     syncSmoke();
     if (AUDIO.ready()) AUDIO.update(S, dt); else S.sfx.length = 0;
     if (S.runs.length > APP.seenRuns && !APP.away && !APP.menu) { APP.seenRuns = S.runs.length; goInspect(S.runs.length - 1, true); }
     $('btnCore').disabled = !S.runs.length || APP.away;
-    // the hole is finished: the engineer walks over and the crew builds the well. The shift report comes after that
+    // the hole is finished. On a job with a well, the engineer walks over and the crew builds it, and the shift report
+    // comes after that. On a job with nothing to build, the report comes straight away
     if (S.done && !APP.away && !APP.menu && !APP.fly) {
-      if (!S.well) WELL.start(S);
-      else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => endHole(S), 700); }
+      if (S.site.job === 'well') {
+        if (!S.well) WELL.start(S);
+        else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => endHole(S), 700); }
+      } else if (!APP.reportShown) { APP.reportShown = true; closeOut(S); setTimeout(() => endHole(S), 900); }
     }
     requestAnimationFrame(frame);
   }
@@ -732,6 +781,7 @@
   // [ ] flow, C bottom clamp, X top clamp, , . break-out, J/L head slide, K side switch, U/Y casing arm, Q tilt,
   // T/G throttle, E engine, H horn, V look at panel, I inspect core, B light a smoke, Esc pause, 1/2/4 speed
   window.addEventListener('keydown', e => {
+    if (GREG.key(e)) { e.preventDefault(); return; }           // Greg is on the phone, over the report: Enter answers and moves him on
     if (!$('install').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { $('install').hidden = true; e.preventDefault(); } return; }
     if (!$('settings').hidden) { if (e.key === 'Escape') { closeSettings(); e.preventDefault(); } return; }
     if (!$('shop').hidden) { if (e.key === 'Escape') { closeShop(); e.preventDefault(); } return; }
@@ -739,6 +789,7 @@
     if (!$('pick').hidden) { if (e.key === 'Escape') { closePick(false); e.preventDefault(); } return; }
     if (!$('brief').hidden || !$('report').hidden) { if (e.key === 'Escape' && !$('brief').hidden) closeBrief(); else if (e.key === 'Enter' && $('brief').hidden) { openHoles(); e.preventDefault(); } return; }
     if (APP.menu || APP.fly) return;
+    if (SPT.busy && !APP.away && SPT.key(e)) { e.preventDefault(); return; }      // the SPT: Space taps, Y and N answer the engineer
     if (WELL.active && !APP.away) {       // building the well: Space pours, Enter calls it, the prompts take A / D or Space
       let hit = WELL.key(e);
       if (!hit) { hit = true; switch (e.code) { case 'KeyB': toggleSmoke(); break; case 'KeyN': berate(); break; case 'Escape': if ($('plan').hidden) setPaused(!APP.S.paused); break; default: hit = false; } }

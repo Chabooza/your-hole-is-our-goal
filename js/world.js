@@ -1223,18 +1223,27 @@ window.WORLD = (() => {
   // the wrecked-install scene: where the helper bends over, where the driller stands, and where the camera goes to watch
   const SPANK_H = V(-0.45, 0, 1.3), SPANK_D = V(0.25, 0, 1.3), SPANK_WP = V(0.4, 0, 2.55), CINE_POS = V(-0.1, 1.55, 4.7), CINE_AT = V(-0.1, 0.95, 1.3), ME_AT = V();
   function updateCine(dt) {
-    cine.on = wj.on && wj.cine;
+    const job = jb.on && jb.cine;                   // the grouting is watched from outside too (see setJob)
+    cine.on = (wj.on && wj.cine) || job;
     if (!cine.on && cine.k <= 0) return;
     cine.k = clamp(cine.k + (cine.on ? dt / 0.45 : -dt / 0.6), 0, 1);
     const e = cine.k * cine.k * (3 - 2 * cine.k);
-    dM.lookAt(CINE_POS, CINE_AT, UP); dQ.setFromRotationMatrix(dM);
+    let P = CINE_POS, A = CINE_AT, F = 46;
+    if (job || (jCam.live && !wj.on)) {
+      if (job) {                                    // two places to watch from: close on the drum, or back far enough to see the top of the tower
+        const T = jb.far ? JOB_FAR : JOB_NEAR, kk = jCam.live ? 1 - Math.exp(-dt * 2.4) : 1;
+        jCam.p.lerp(T.p, kk); jCam.a.lerp(T.a, kk); jCam.f += (T.f - jCam.f) * kk; jCam.live = true;
+      }
+      P = jCam.p; A = jCam.a; F = jCam.f;
+    }
+    dM.lookAt(P, A, UP); dQ.setFromRotationMatrix(dM);
     fQ.copy(camera.quaternion);
-    camera.position.lerp(CINE_POS, e);
+    camera.position.lerp(P, e);
     camera.quaternion.copy(fQ).slerp(dQ, e);
-    const f = effFov(lerp(look.fov, 46, e));
+    const f = effFov(lerp(look.fov, F, e));
     if (Math.abs(camera.fov - f) > 0.01) { camera.fov = f; camera.updateProjectionMatrix(); }
     R.me.g.visible = cine.k > 0.3; R.legs.visible = cine.k <= 0.3;
-    if (cine.k <= 0) poseMe();
+    if (cine.k <= 0) { poseMe(); jCam.live = false; }
   }
   function slotTex() {
     const t = canvasTex(32, 32, (c) => { c.fillStyle = '#f4f4ee'; c.fillRect(0, 0, 32, 32); c.fillStyle = '#7d8790'; for (let y = 3; y < 32; y += 8) c.fillRect(3, y, 26, 2.5); });
@@ -1359,6 +1368,201 @@ window.WORLD = (() => {
       if (wj.cap) { R.pvcCap.visible = true; R.pvcCap.position.set(0, topY + 0.02, 0); }
     }
     if (wj.piece) { const b = wj.piece.bot * FT; seg(R.pvcNew, pB.set(0, b, 0), pC.set(0, b + wj.piece.len * FT, 0)); R.pvcNew.material = wj.piece.slot ? R.pvcSlot2 : R.pvcMat; }
+  }
+  // ---------- the SPT and the grouting on a geotechnical hole (js/spt.js and js/grout.js run the jobs) ----------
+  // Purely for show, like the well install. setJob() is called every frame with what there is to see. The sonic head
+  // slides left with the barrel hanging on it, so the winch line can come down the middle of the mast. The SPT is
+  // watched from the driller's place. The grouting is watched from outside, so the driller can be seen as well.
+  const jb = { on: false, kind: '', k: 0, sl: 0, cine: false, far: false, hookOn: false, hook: V(), up: 0, meK: 0 };
+  const DRUM_AT = V(0.05, 0, 1.9), POUR_AT = V(-0.62, 0, 1.95), NOZ_AT = V(0.12, 0, 1.2), PUMP_AT = V(0.25, 0, 2.95), ME_WP = V(0.62, 0, 2.95), ORIGIN = V();
+  const JOB_NEAR = { p: V(0.15, 2.05, 6.3), a: V(0.15, 0.85, 1.4), f: 46 }, JOB_FAR = { p: V(2.6, 4.2, 11.6), a: V(-0.1, 4.5, 0.7), f: 62 };
+  const jCam = { p: V(), a: V(), f: 46, live: false };
+  const JOB_ENG = V(-1.75, 0, 0.15), JOB_BACK = { dale: V(-1.1, 0, 0.85), tess: V(1.25, 0, -0.3) };      // where the engineer watches from, and where the helpers stand back to
+  const DRUM_H = 0.88, DRUM_R = 0.29, MARK_REF = 1.05;      // MARK_REF: the top face of the top clamp, in metres: the chalk marks are read against it
+  const HOIST = 6.6;                                        // how high the helper's boots go, metres
+  function buildJob() {
+    const g = new THREE.Group(); scene.add(g); R.jobG = g;
+    const steel = toon(0xdfe5e8), rod = () => M(new THREE.CylinderGeometry(0.022, 0.022, 1, 12), 0, 0.004, steel);
+    // the SPT: AW rods, the anvil, the hammer on the winch line, three chalk marks
+    R.awRod = rod(); R.awNew = rod(); g.add(R.awRod, R.awNew);
+    R.anvil = cyl(0.055, 0.055, 0.12, 0x5f6a72, 0.006, 14); g.add(R.anvil);
+    R.hammer = new THREE.Group(); g.add(R.hammer);
+    put(cyl(0.085, 0.085, 0.82, 0xf2a61c, 0.008, 16), 0, 0.41, 0, R.hammer);
+    for (const y of [0.16, 0.39, 0.62]) put(cyl(0.088, 0.088, 0.045, 0x1b1710, 0, 16), 0, y, 0, R.hammer);
+    put(cyl(0.06, 0.06, 0.05, 0x39424a, 0.005, 14), 0, 0.02, 0, R.hammer);
+    R.marks = [];
+    for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0255, 0.0255, 0.016, 12), new THREE.MeshBasicMaterial({ color: 0xffffff })); g.add(m); R.marks.push(m); }
+    R.markFlash = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.016, 8, 24), new THREE.MeshBasicMaterial({ color: 0x37c04a })); R.markFlash.rotation.x = Math.PI / 2; g.add(R.markFlash);
+    // the grouting: PVC and its fitting, the drum, the pump and its two hoses, the bag, the bentonite on top
+    R.gPvc = M(new THREE.CylinderGeometry(0.017, 0.017, 1, 10), 0, 0.004, toon(0xf4f4ee)); g.add(R.gPvc);
+    R.gFit = cyl(0.03, 0.03, 0.08, 0x3b6fd1, 0.004, 12); g.add(R.gFit);
+    const drum = new THREE.Group(); drum.position.copy(DRUM_AT); g.add(drum); R.drum = drum;
+    const side = new THREE.Mesh(new THREE.CylinderGeometry(DRUM_R, DRUM_R, DRUM_H, 24, 1, true), toon(0x2b6fd1, { side: THREE.DoubleSide })); side.position.y = DRUM_H / 2; side.castShadow = true; drum.add(side);
+    put(cyl(DRUM_R, DRUM_R, 0.03, 0x1f57a8, 0, 24), 0, 0.015, 0, drum);
+    for (const y of [0.02, 0.3, 0.6, DRUM_H]) { const r = new THREE.Mesh(new THREE.TorusGeometry(DRUM_R + 0.004, 0.012, 6, 28), toon(0x1f57a8)); r.rotation.x = Math.PI / 2; r.position.y = y; drum.add(r); }
+    R.drumLiq = new THREE.Mesh(new THREE.CylinderGeometry(DRUM_R - 0.012, DRUM_R - 0.012, 1, 24), toon(0x78bee8)); drum.add(R.drumLiq);
+    const pump = new THREE.Group(); pump.position.copy(PUMP_AT); g.add(pump); R.pump = pump;
+    put(box(0.5, 0.3, 0.34, 0xc8201a, 0.008), 0, 0.27, 0, pump);
+    put(box(0.26, 0.2, 0.26, 0x39424a, 0.006), -0.08, 0.5, 0, pump);
+    put(box(0.58, 0.06, 0.4, 0x39424a, 0.006), 0, 0.07, 0, pump);
+    const hd = cyl(0.015, 0.015, 0.5, 0x39424a, 0, 8); hd.rotation.z = Math.PI / 2; put(hd, 0, 0.66, 0, pump);
+    R.hoseSuck = new THREE.Mesh(new THREE.BufferGeometry(), toon(0x2a2f33)); R.hoseOut = new THREE.Mesh(new THREE.BufferGeometry(), toon(0xe0a020)); g.add(R.hoseSuck, R.hoseOut); R.jobHose = '';
+    R.gBag = new THREE.Group(); g.add(R.gBag);
+    R.gBagMesh = M(new THREE.BoxGeometry(0.34, 0.5, 0.15), 0, 0.006, toon(0xb9bcb6)); R.gBag.add(R.gBagMesh);
+    R.gCap = cyl(0.11, 0.11, 0.05, 0xc9b79a, 0.005, 16); g.add(R.gCap);
+    R.gSpill = cyl(0.5, 0.5, 0.02, 0x9a9c94, 0, 20); g.add(R.gSpill);
+  }
+  function setJob(o) {
+    if (!o) {
+      if (!jb.on) return;
+      jb.on = false; jb.cine = false; jb.k = 0; jb.up = 0; jb.hookOn = false;
+      if (R.jobG) R.jobG.visible = false;
+      if (R.eng && !wj.on && !vis.on) R.eng.g.visible = false;
+      return;
+    }
+    if (!R.jobG) buildJob();
+    if (o.eng) ensureEng(o.eng);
+    Object.assign(jb, { kind: '', cine: false, far: false, eng: null, talk: '', hold: false, work: false, back: false, piece: null, rodTop: -99, anvil: 0, hamK: 0, lift: 0, hits: 0, marks: 0, sink: 0, flash: 0,
+      station: false, pvcTop: -99, fit: false, water: 0, mixed: 0, drained: 0, hose: '', jet: false, splash: false, pour: '', rate: 0, pourer: 'helper', up: 0, meK: 0, meArm: false, cap: false, spill: 0 }, o);
+    jb.on = true;
+  }
+  function jobHoses(key, pvcTop) {
+    if (key === R.jobHose) return; R.jobHose = key;
+    R.hoseSuck.geometry.dispose(); R.hoseOut.geometry.dispose();
+    const D = DRUM_AT, P = PUMP_AT, inP = V(P.x - 0.25, 0.3, P.z), outP = V(P.x + 0.25, 0.3, P.z);
+    let a = null, b = null;
+    if (key === 'truck') {                        // 2 in. suction from the water truck, and straight into the drum
+      a = [inP, V(-0.9, 0.05, 3.7), V(-3.0, 0.05, 6.2), V(R.wt.position.x + 2.75, 1.2, R.wt.position.z + 0.4)];
+      b = [outP, V(0.7, 0.05, 2.6), V(0.55, 0.85, 2.2), V(D.x + 0.2, DRUM_H + 0.14, D.z + 0.12), V(D.x + 0.12, DRUM_H - 0.2, D.z)];
+    } else if (key === 'drum' || key === 'pvc') {   // suction out of the drum; 1 in. back to the nozzle, or on to the PVC
+      a = [inP, V(-0.25, 0.05, 2.65), V(-0.22, 0.8, 2.35), V(D.x - 0.1, DRUM_H + 0.16, D.z + 0.2), V(D.x - 0.12, 0.15, D.z + 0.05)];
+      b = key === 'drum' ? [outP, V(0.8, 0.05, 2.5), V(0.75, 0.05, 1.5), V(0.5, 0.7, 1.3), V(D.x + 0.06, DRUM_H + 0.34, D.z - 0.34)]
+        : [outP, V(0.8, 0.05, 2.5), V(0.65, 0.05, 1.0), V(0.3, 0.9, 0.35), V(0.02, pvcTop + 0.07, 0)];
+    }
+    R.hoseSuck.geometry = a ? tube(a, 0.03, 40) : new THREE.BufferGeometry();
+    R.hoseOut.geometry = b ? tube(b, 0.016, 40) : new THREE.BufferGeometry();
+  }
+  function updateJob(S, dt, casTop) {
+    jb.sl = clamp(jb.sl + (jb.on ? dt / 0.9 : -dt / 0.9), 0, 1);
+    if (!jb.on) return;
+    const live = S.paused ? 0 : dt;
+    jb.k = Math.min(1, jb.k + live / 1.2);
+    R.jobG.visible = true;
+    const spt = jb.kind === 'spt', gr = jb.kind === 'grout', low = Math.max(casTop - 0.06, -0.15);
+    R.awRod.visible = R.awNew.visible = R.anvil.visible = R.hammer.visible = R.markFlash.visible = false;
+    R.marks.forEach(m => { m.visible = false; });
+    R.gPvc.visible = R.gFit.visible = R.gBag.visible = R.gCap.visible = R.gSpill.visible = false;
+    R.drum.visible = R.pump.visible = R.hoseSuck.visible = R.hoseOut.visible = gr;
+    jb.hookOn = false;
+    if (spt) {
+      const top = jb.rodTop * FT;
+      if (top > low + 0.02) seg(R.awRod, pB.set(0, low, 0), pC.set(0, top, 0));
+      if (jb.piece) { const b = jb.piece.bot * FT; seg(R.awNew, pB.set(0, b, 0), pC.set(0, b + jb.piece.len * FT, 0)); }
+      for (let i = 0; i < jb.marks; i++) { const y = MARK_REF + (0.5 * (i + 1) - jb.sink) * FT; if (y > MARK_REF + 0.004) { R.marks[i].visible = true; R.marks[i].position.set(0, y, 0); } }
+      if (jb.flash > 0) { R.markFlash.visible = true; R.markFlash.position.set(0, MARK_REF + 0.014, 0); }
+      if (jb.anvil && top > low) { R.anvil.visible = true; R.anvil.position.set(0, top + 0.06 + (jb.anvil === 'hover' ? 0.12 + Math.sin(t * 9) * 0.015 : 0), 0); }
+      if (jb.hamK > 0) {                            // the hammer comes down the winch line and sits on the anvil
+        const e = jb.hamK * jb.hamK * (3 - 2 * jb.hamK), bot = top + 0.12 + (1 - e) * 2.7 + jb.lift * 0.17;
+        R.hammer.visible = true; R.hammer.position.set(0, bot, 0);
+        jb.hookOn = true; jb.hook.set(0, bot + 0.84, 0);
+      }
+      if (jb.hits !== R.jobHits) {                  // a blow: a few sparks off the anvil
+        if (R.jobHits != null && jb.hits > R.jobHits && live > 0) for (let i = 0; i < 5; i++) drop(V(0, top + 0.13, 0), V((Math.random() - 0.5) * 1.5, 0.5 + Math.random(), (Math.random() - 0.5) * 1.5), 0xfff3a8, 0.3);
+        R.jobHits = jb.hits;
+      }
+    }
+    const E = R.eng;                                // the engineer stands by with the clipboard for the whole test
+    if (E && jb.eng) {
+      E.g.visible = true; E.g.position.copy(JOB_ENG);
+      const yaw = Math.atan2(-JOB_ENG.x, -JOB_ENG.z);
+      E.g.rotation.y += Math.atan2(Math.sin(yaw - E.g.rotation.y), Math.cos(yaw - E.g.rotation.y)) * (1 - Math.exp(-dt * 7));
+      for (let i = 0; i < 2; i++) { E.legs[i].rotation.x = 0; E.shins[i].rotation.x = 0; }
+      E.arms[0].rotation.x = -0.3; E.fores[0].rotation.x = -1.2; E.arms[1].rotation.x = -0.25; E.fores[1].rotation.x = -1.1; R.engPaper.visible = true;
+      E.mouth.scale.y = jb.talk === 'eng' ? 1 + 2.5 * Math.abs(Math.sin(t * 11)) : 1; E.head.rotation.x = 0.12;
+    } else if (E && !wj.on && !vis.on) E.g.visible = false;
+    if (gr) {
+      const pt = jb.pvcTop * FT;
+      if (jb.pvcTop > -50 && pt > low + 0.02) seg(R.gPvc, pB.set(0, low, 0), pC.set(0, pt, 0));
+      if (jb.fit) { R.gFit.visible = true; R.gFit.position.set(0, pt + 0.03, 0); }
+      const lv = clamp(jb.water * (1 - jb.drained), 0, 1) * (DRUM_H - 0.07);
+      R.drumLiq.visible = lv > 0.01; R.drumLiq.scale.y = Math.max(0.01, lv); R.drumLiq.position.y = 0.035 + lv / 2;
+      R.drumLiq.material.color.setRGB(lerp(0.47, 0.6, jb.mixed), lerp(0.75, 0.61, jb.mixed), lerp(0.91, 0.58, jb.mixed));
+      jobHoses(jb.hose, pt);
+      const D = DRUM_AT;
+      if (live > 0) {
+        if (jb.jet) for (let i = 0; i < 2; i++) drop(V(D.x + 0.06, DRUM_H + 0.32, D.z - 0.32), V((Math.random() - 0.5) * 0.4, -1.6, 1.1 + Math.random() * 0.5), 0xdff2ff, 0.28);
+        if (jb.splash) for (let i = 0; i < 3; i++) drop(V(D.x + (Math.random() - 0.5) * 0.5, DRUM_H, D.z + (Math.random() - 0.5) * 0.5), V((Math.random() - 0.5) * 1.6, 1 + Math.random(), (Math.random() - 0.5) * 1.6), 0x78bee8, 0.8);
+      }
+      if (jb.pour) {                                // the bag, tipped over the rim by whoever is pouring
+        R.gBag.visible = true;
+        R.gBagMesh.material.color.setHex(jb.pour === 'gel' ? 0xe9d6a6 : 0xb9bcb6);
+        const tilt = 0.5 + jb.rate * 1.5 + (jb.rate > 0 ? Math.sin(t * 13) * 0.04 : 0);
+        R.gBagMesh.rotation.x += (tilt - R.gBagMesh.rotation.x) * (1 - Math.exp(-dt * 10));
+        R.gBag.position.set(D.x - 0.3, DRUM_H + 0.42, D.z + 0.02); R.gBag.rotation.y = Math.atan2(D.x - POUR_AT.x, D.z - POUR_AT.z);
+        if (jb.rate > 0.03 && live > 0) { const n = 1 + Math.round(jb.rate * 3); for (let i = 0; i < n; i++) drop(V(D.x - 0.12 + (Math.random() - 0.5) * 0.06, DRUM_H + 0.3, D.z + (Math.random() - 0.5) * 0.06), V((Math.random() - 0.5) * 0.3, -0.6, (Math.random() - 0.5) * 0.3), jb.pour === 'gel' ? 0xd9c38a : 0x8f918b, 0.32); }
+      }
+      if (jb.cap) { R.gCap.visible = true; R.gCap.position.set(0, Math.max(casTop, 0.02) + 0.02, 0); }
+      if (jb.spill > 0.02) { R.gSpill.visible = true; R.gSpill.position.set(0, 0.012, 0.3); R.gSpill.scale.set(1 + jb.spill * 0.8, 1, 1 + jb.spill * 0.8); }
+      // the driller, seen from outside: at the console, or walked round to the drum to pour
+      if (cine.k > 0 || jb.cine) {
+        const Me = R.me, u = clamp(jb.meK, 0, 1), walking = u > 0.001 && u < 0.999, back = u < (R.meKPrev == null ? u : R.meKPrev) - 1e-6; R.meKPrev = u;
+        ME_AT.set(EYE.x - R.fwd.x * 0.14, 0, EYE.z - R.fwd.z * 0.14);
+        const a = u < 0.5 ? ME_AT : ME_WP, b = u < 0.5 ? ME_WP : POUR_AT, k2 = u < 0.5 ? u * 2 : u * 2 - 1;
+        Me.g.position.lerpVectors(a, b, k2); Me.g.position.y = 0.25 * (1 - Math.min(1, u * 5)) + (walking ? Math.abs(Math.sin(t * 9)) * 0.03 : 0);
+        const yw = u <= 0.001 ? BASE_YAW + Math.PI : walking ? Math.atan2((b.x - a.x) * (back ? -1 : 1), (b.z - a.z) * (back ? -1 : 1)) : Math.atan2(D.x - POUR_AT.x, D.z - POUR_AT.z);
+        Me.g.rotation.y += Math.atan2(Math.sin(yw - Me.g.rotation.y), Math.cos(yw - Me.g.rotation.y)) * (1 - Math.exp(-dt * 10));
+        const w = walking ? Math.sin(t * 9) : 0;
+        Me.legs[0].rotation.x = w * 0.55; Me.legs[1].rotation.x = -w * 0.55;
+        Me.shins[0].rotation.x = Math.max(0, w) * 0.85; Me.shins[1].rotation.x = Math.max(0, -w) * 0.85;
+        let r0 = -w * 0.5, r1 = w * 0.5, g0 = walking ? -0.45 : -0.18, g1 = g0, hd2 = 0.1;
+        if (u <= 0.001) { r0 = r1 = -0.85; g0 = g1 = -0.75; hd2 = 0.2; }                          // hands on the levers
+        else if (!walking && jb.pour && jb.pourer === 'driller') { const q = jb.rate > 0 ? Math.sin(t * 13) * 0.05 : 0; r0 = r1 = -1.0 + q; g0 = g1 = -0.8; hd2 = 0.3; }
+        if (jb.meArm) { r1 = -2.5 + Math.sin(t * 7) * 0.12; g1 = -0.2; hd2 = -0.25; }           // pointing up the tower
+        Me.arms[0].rotation.x = r0; Me.arms[1].rotation.x = r1; Me.fores[0].rotation.x = g0; Me.fores[1].rotation.x = g1; Me.head.rotation.x = hd2;
+        Me.mouth.scale.y = jb.talk === 'me' ? 1 + 2.5 * Math.abs(Math.sin(t * 11)) : 1;
+      }
+    }
+  }
+  // where the two helpers are and what their arms are doing, on these jobs. Called from the crew part of update()
+  function jobCrew(m, P, pos, dt) {
+    const lead = m.id === 'dale', station = jb.kind === 'grout' && jb.station;
+    const at = station ? (lead ? POUR_AT : NOZ_AT) : jb.back ? JOB_BACK[m.id] : HANDS[m.id], face = station ? DRUM_AT : ORIGIN;
+    if (!P.jp) P.jp = pos.clone();                  // they walk from wherever they were to where the job wants them
+    tmp.copy(at).sub(P.jp);
+    const dist = tmp.length(), going = dist > 0.03;
+    if (going) P.jp.addScaledVector(tmp, Math.min(1, dt * 2.0 / dist));
+    P.g.position.copy(P.jp);
+    const yw = going ? Math.atan2(tmp.x, tmp.z) : Math.atan2(face.x - at.x, face.z - at.z);
+    if (P.wy == null) P.wy = P.g.rotation.y;
+    P.wy += Math.atan2(Math.sin(yw - P.wy), Math.cos(yw - P.wy)) * (1 - Math.exp(-dt * 8));
+    P.g.rotation.order = 'YXZ'; P.g.rotation.set(0, P.wy, 0);
+    const w = going ? Math.sin(t * 9) : 0;
+    P.legs[0].rotation.set(w * 0.55, 0, 0); P.legs[1].rotation.set(-w * 0.55, 0, 0);
+    P.shins[0].rotation.x = Math.max(0, w) * 0.85; P.shins[1].rotation.x = Math.max(0, -w) * 0.85;
+    P.g.position.y = w ? Math.abs(w) * 0.03 : 0;
+    let b0 = -w * 0.5, b1 = w * 0.5, f0 = going ? -0.45 : -0.18, f1 = f0, hd = 0.1;
+    if (!going) {
+      if (station && lead && jb.pour && jb.pourer === 'helper') { const q = jb.rate > 0 ? Math.sin(t * 13) * 0.05 : 0; b0 = b1 = -1.0 + q; f0 = f1 = -0.8; hd = 0.3; }      // tipping the bag
+      else if (station && !lead && jb.hose === 'drum') { b0 = b1 = -1.05 + (jb.jet ? Math.sin(t * 17) * 0.03 : 0); f0 = f1 = -0.6; hd = 0.28; }                        // on the nozzle
+      else if (!station && jb.hold) { const q = jb.work ? Math.sin(t * 10 + (lead ? 0 : 2)) * 0.22 : 0; b0 = -1.45 + q; b1 = -1.45 - q; f0 = f1 = -0.8; hd = -0.12; }  // hands on the pipe
+    }
+    P.arms[0].rotation.set(b0, 0, 0); P.arms[1].rotation.set(b1, 0, 0); P.fores[0].rotation.x = f0; P.fores[1].rotation.x = f1;
+    P.head.rotation.x = hd; P.rod.visible = false;
+    P.mouth.scale.y = jb.talk === (lead ? 'lead' : 'core') ? 1 + 2.5 * Math.abs(Math.sin(t * 11)) : 1;
+    if (lead && jb.up > 0) {                        // hooked to the winch and sent up the tower: crying, arms and legs going
+      const e = jb.up * jb.up * (3 - 2 * jb.up), hy = e * HOIST, in0 = Math.min(1, jb.up * 3), f = t * 11;
+      P.g.position.set(lerp(POUR_AT.x, 0, in0), hy, lerp(POUR_AT.z, 0.14, in0));
+      P.wy = Math.atan2(camera.position.x - P.g.position.x, camera.position.z - P.g.position.z);
+      P.g.rotation.set(Math.sin(t * 2.3) * 0.12, P.wy, Math.sin(t * 3.1) * 0.24);
+      P.arms[0].rotation.set(-2.5 + Math.sin(f) * 0.6, 0, -0.55 - Math.sin(f * 0.9) * 0.45); P.arms[1].rotation.set(-2.5 + Math.cos(f * 1.13) * 0.6, 0, 0.55 + Math.cos(f) * 0.45);
+      P.fores[0].rotation.x = P.fores[1].rotation.x = -0.35;
+      P.legs[0].rotation.set(Math.sin(f * 0.9 + 1) * 0.9, 0, -0.25 - Math.sin(f * 0.7) * 0.2); P.legs[1].rotation.set(Math.cos(f * 1.07) * 0.9, 0, 0.25 + Math.cos(f * 0.8) * 0.2);
+      P.shins[0].rotation.x = 0.5 + Math.sin(f * 1.2) * 0.45; P.shins[1].rotation.x = 0.5 + Math.cos(f * 1.3) * 0.45;
+      P.mouth.scale.y = 3.2; P.head.rotation.x = -0.3;
+      jb.hookOn = true; jb.hook.set(P.g.position.x, hy + 1.52, P.g.position.z);
+      if (jb.up > 0.4 && Math.random() < 0.5) drop(V(P.g.position.x + (Math.random() - 0.5) * 0.14, hy + 1.72, P.g.position.z + 0.1), V((Math.random() - 0.5) * 0.9, 0.3, (Math.random() - 0.5) * 0.9), 0x4ab0f0, 1.3);      // tears
+    }
+    pos.copy(at);
   }
   // ---------- throwing a Zonnic at a helper (js/toss.js runs the game side) ----------
   // A lump of core flies from the driller's hand to a helper. A hit sticks to the hard hat and stays for the rest of the
@@ -1709,9 +1913,10 @@ window.WORLD = (() => {
 
     // sonic head: up and down the mast, side-shift left / right, and tilt-out
     const headY = h.y * FT;
-    R.slide = h.x * SLIDE_M;
+    const jsl = jb.sl * jb.sl * (3 - 2 * jb.sl);          // on the SPT and the grouting the head is slid left with the barrel hanging straight
+    R.slide = lerp(h.x, -1, jsl) * SLIDE_M;
     R.head.position.set(R.slide, headY, 0);
-    const ta = h.tilt * Math.PI / 4;
+    const ta = h.tilt * Math.PI / 4 * (1 - jsl);
     R.tiltG.rotation.x = -ta;
     const vib = h.hz > 8 && running ? Math.min(0.012, 0.002 + sh * 0.01) : 0;
     R.headBody.position.set((Math.random() - 0.5) * vib, (Math.random() - 0.5) * vib, (Math.random() - 0.5) * vib);
@@ -1729,7 +1934,7 @@ window.WORLD = (() => {
     // core string: rods on top of the barrel. It hangs straight, or swings out with the head when tilted
     const core = S.core, hasCore = core.len > 0;
     const tilted = hasCore && h.conn === 'core' && ta > 0.001;
-    const top = tilted ? pA.set(R.slide, headY + 0.9 - 0.9 * Math.cos(ta), 0.9 * Math.sin(ta)) : pA.set(0, SIM.coreTop(S) * FT, 0);
+    const top = tilted ? pA.set(R.slide, headY + 0.9 - 0.9 * Math.cos(ta), 0.9 * Math.sin(ta)) : pA.set(jsl > 0 ? R.slide : 0, SIM.coreTop(S) * FT, 0);
     const dn = tilted ? pD.set(0, -Math.cos(ta), Math.sin(ta)) : pD.set(0, -1, 0);
     const lenM = core.len * FT, rodsM = Math.max(0, core.len - SIM.BARREL) * FT;
     const dMax = hasCore ? (tilted ? lenM : Math.min(lenM, top.y + 0.4)) : 0;
@@ -1766,7 +1971,7 @@ window.WORLD = (() => {
     R.yardSingles.forEach((p, i) => { p.visible = i < S.yard.singles; });
 
     // winch: line from the crown to the hoist plug, and a 20 ft stand if one is on it
-    const hook = pE.set(0, S.winch.y * FT, 0);
+    const hook = jb.on && jb.hookOn ? pE.copy(jb.hook) : pE.set(0, S.winch.y * FT, 0);      // (the SPT hammer, or a helper, on the line)
     R.stand.visible = R.standCol.visible = !!S.stand;
     R.standB = null;
     if (S.stand) {
@@ -1802,11 +2007,12 @@ window.WORLD = (() => {
 
     // crew
     updateWell(S, dt, casTop);
+    updateJob(S, dt, casTop);
     updateVisit(S.paused ? 0 : dt);
     const panicking = updatePanic(dt);
     for (const m of S.crew) {
       const P = m.id === 'dale' ? R.dale : R.tess;
-      const hid = m.hidden && !wj.on;
+      const hid = m.hidden && !wj.on && !jb.on;
       P.g.visible = !hid;
       if (hid) continue;
       const pos = pathPos(m.id, m.x);
@@ -1870,7 +2076,11 @@ window.WORLD = (() => {
           P.head.rotation.x = -0.5 * bk; P.mouth.scale.y = 1 + 2.6 * wj.hop;
         }
         pos.copy(at);
-      } else { P.wy = null; if (P.g.rotation.x) P.g.rotation.x = 0; }
+      } else if (jb.on) jobCrew(m, P, pos, S.paused ? 0 : dt);
+      else {
+        P.wy = null; if (P.g.rotation.x) P.g.rotation.x = 0;
+        if (P.jp) { P.jp = null; P.g.rotation.z = 0; for (let i = 0; i < 2; i++) { P.arms[i].rotation.z = 0; P.legs[i].rotation.z = 0; } }
+      }
       if (panicking) {                                // hands in the air, running in a circle
         const ph = t * 6.5 + (m.id === 'dale' ? 0 : 2.6), out = Math.hypot(pos.x, pos.z) || 1, rr = 0.6;
         const cx = pos.x + pos.x / out * 0.75, cz = pos.z + pos.z / out * 0.75;
@@ -1919,7 +2129,7 @@ window.WORLD = (() => {
       if (S.hoseBurst) for (let i = 0; i < 4; i++) drop(V(-1.2, 0.1, 1.3), V((Math.random() - 0.5) * 2, 3 + Math.random() * 2, (Math.random() - 0.5) * 2), 0x5bb8f0, 1.2);
       if (S.rop > 0.3 && conn === 'core' && Math.random() < 0.5) drop(V((Math.random() - 0.5) * 0.15, 0.05, (Math.random() - 0.5) * 0.15), V((Math.random() - 0.5) * 0.8, 0.8, (Math.random() - 0.5) * 0.8), 0x7a5a3a, 0.8);
     }
-    stepParticles(running || (wj.on && !S.paused) ? dt : 0);
+    stepParticles(running || ((wj.on || jb.on) && !S.paused) ? dt : 0);
     const tgt = Math.min(2.6, 0.15 + Math.sqrt(S.water.spilled) * 0.12);
     R.puddle.scale.x = lerp(R.puddle.scale.x, S.water.spilled > 2 ? tgt : 0.01, 0.02); R.puddle.scale.y = R.puddle.scale.x * 0.7;
   }
@@ -2018,7 +2228,7 @@ window.WORLD = (() => {
 
   return {
     init, update, render, resize, lookDrag, zoom, zoomBy, preset, project, crewHead, shoulder, walkTo, setInspectCore, smoke: lightUp, cigStyle,
-    setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell,
+    setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell, setJob,
     engHead() { return R.eng ? R.eng.g.position.clone().add(V(0, 2.15 * (R.engLook.height || 1), 0)) : V(0, 2, 0); },
     sadden(id, sec) { sad[id] = sec; sad.len = sec; },
     setVisit, throwSonic, laugh(sec) { laughFx.t = laughFx.dur = sec; }, annoy(id, sec) { mad[id] = sec; mad.len = sec; }, get tossing() { return toss.on && toss.state === 'fly'; },
