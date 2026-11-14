@@ -72,6 +72,7 @@ window.AARON = (() => {
         crew += crewT(f, e >= D);
       }
     }
+    if (SIM.GEO) spt += GROUT.parTime();          // and the hole is grouted at the end
     return { drill, crew, well: S.site.job === 'well' ? wellT(S) : spt };          // the player's own work after the drilling: the well, or the SPTs
   }
   function allow(S) {

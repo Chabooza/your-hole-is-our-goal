@@ -68,7 +68,7 @@
     S.crew[0].name = l.name; S.crew[0].hat = hex(l.look.hat);
     S.crew[1].name = c.name; S.crew[1].hat = hex(c.look.hat);
     WORLD.setCrew({ driller: SWAG.dress(d.look), lead: l.look, core: c.look });
-    APP.looks = { lead: l.look, core: c.look };      // the driller wears whatever swag is on (js/swag.js)
+    APP.looks = { driller: SWAG.dress(d.look), lead: l.look, core: c.look };      // the driller wears whatever swag is on (js/swag.js)
     itemKey = null;
     if (!briefSrc) briefSrc = { briefEasy: $('briefEasy').innerHTML, briefFull: $('briefFull').innerHTML };
     for (const id in briefSrc) $(id).innerHTML = SIM.nm(S, briefSrc[id]).replace(/\{well\}/g, S.site.well).replace(/\{depth\}/g, S.site.depth);
@@ -437,8 +437,8 @@
     const R = S.report, A = AARON.settle(S);
     R.drill = R.score;
     if (S.site.job === 'spt') {                   // geotechnical: the blow counts on the log are part of the grade (js/spt.js)
-      const G = R.spt = SPT.grade(S);
-      R.score = Math.round(R.drill * (1 - SPT.W_SPT) + G.score * SPT.W_SPT);
+      const G = R.spt = SPT.grade(S), gr = R.grout = S.grout || null, wg = gr ? GROUT.W_GROUT : 0;      // ...and so is the grouting (js/grout.js)
+      R.score = Math.round(R.drill * (1 - SPT.W_SPT - wg) + G.score * SPT.W_SPT + (gr ? gr.score * wg : 0));
       if (G.collapsed) R.score = Math.min(R.score, SPT.FAIL_CAP);
     }
     if (A) { R.aaron = { limit: A.limit, late: A.late, spare: A.spare, pen: A.pen }; R.score = Math.max(0, R.score - A.pen); }

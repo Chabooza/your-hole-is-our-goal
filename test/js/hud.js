@@ -204,7 +204,7 @@ window.HUD = (() => {
         <div><dt>${x.id === 'well' ? x.name : x.name + ', top'}</dt><dd class="${Math.abs(x.err) <= 0.5 ? 'g' : Math.abs(x.err) <= 1.5 ? 'a' : 'r'}">${dep(x.got)} (drawing: ${dep(x.target)})</dd></div>`).join('');
     const wear = Object.entries(s.dmg).filter(([, v]) => v > 0.005).map(([k, v]) => `${({ head: 'Sonic head', pump: 'Pump', bit: 'Bit', hyd: 'Hydraulics', clamp: 'Clamps', threads: 'Threads' })[k]} ${pct(v)}`).join(', ') || 'None';
     box.innerHTML = `${verdict}
-      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole ${st.well} cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}${r.spt ? `<br><small>Drilling ${r.drill} / 100 · SPT log ${r.spt.score} / 100${r.spt.collapsed ? ' · it fell down' : ''}${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}</div></div>
+      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole ${st.well} cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}${r.spt ? `<br><small>Drilling ${r.drill} / 100 · SPT log ${r.spt.score} / 100${r.grout ? ` · Grouting ${r.grout.score} / 100` : ''}${r.spt.collapsed ? ' · it fell down' : ''}${r.aaron && r.aaron.pen ? ` · Late for Aaron −${r.aaron.pen}` : ''}</small>` : ''}</div></div>
       <dl class="rp-stats">
         <div><dt>Crew</dt><dd>${s.driller ? s.driller + ' drilling, with ' : ''}${s.crew[0].name} and ${s.crew[1].name}</dd></div>
         <div><dt>Core recovery</dt><dd>${pct(r.recovery)} (${r.rec.toFixed(1)} of ${r.drilled.toFixed(1)} ft)</dd></div>
@@ -251,6 +251,14 @@ ${r.spt ? `
         if (t.drops) notes.push(`rods dropped ${t.drops}×`);
         return `<tr><td>${t.depth}</td><td>${t.real.join(', ')}</td><td>${t.said.join(', ')}</td><td class="${right ? 'g' : 'r'}">${t.rec.join(', ')}</td><td>${t.rec[1] + t.rec[2]}</td><td>${notes.join('; ') || '—'}</td></tr>`;
       }).join('')}</tbody></table></div>` : ''}
+${r.grout ? `
+      <h3>Grouting</h3>
+      <dl class="rp-stats">
+        <div><dt>Drum filled to</dt><dd class="${Math.abs(r.grout.fill - GROUT.AIM) <= 0.045 ? 'g' : Math.abs(r.grout.fill - GROUT.AIM) <= 0.12 ? 'a' : 'r'}">${Math.round(r.grout.fill * 100)}%${r.grout.over ? ', and it ran over' : ''} (aim: about ${Math.round(GROUT.AIM * 100)}%)</dd></div>
+        <div><dt>Clumped up the pump</dt><dd class="${r.grout.clumps ? 'r' : 'g'}">${r.grout.clumps ? `${r.grout.clumps} time${r.grout.clumps === 1 ? '' : 's'}. ${r.grout.helper} went up the tower` : 'Never: a clean pour'}</dd></div>
+        <div><dt>Grout in the hole</dt><dd class="${r.grout.spilled > 0.05 ? 'r' : r.grout.short > 2.5 ? 'a' : 'g'}">${r.grout.spilled > 0.05 ? 'Pumped out over the top' : r.grout.short > 2.5 ? `Stopped ${f1(r.grout.short)} ft short of the top` : 'To surface'}, topped off with bentonite</dd></div>${r.grout.fumbles ? `
+        <div><dt>Fitting cross-threaded</dt><dd class="a">${r.grout.fumbles}</dd></div>` : ''}
+      </dl>` : ''}
       <h3>Boring log</h3>
       <div class="rp-table"><table><thead><tr><th>Run</th><th>Depth (ft)</th><th>Material</th><th>Cored</th><th>Recovered</th><th>Rec.</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     $('report').hidden = false;

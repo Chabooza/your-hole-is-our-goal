@@ -13,6 +13,8 @@
         no and gives the numbers. Whatever is agreed goes on the log. Agreeing with a wrong count is the lie.
      6. Hammer off, anvil off, rods winched out.
 
+   After the last test the hole is grouted (js/grout.js), on this same screen.
+
    If the bottom of the hole has sloughed in (wet sand in the 5 ft of open hole under the casing: the model works that
    out), the pen lands on the slough and the first blows hardly count for anything: not a good pen, and not the
    player's fault, but the numbers still have to be right.
@@ -33,7 +35,7 @@ window.SPT = (() => {
   const CLAMP_Y = 3.2;           // the top of the top clamp, ft above the ground: the marks are measured from here
   const SLOUGH_BAD = 0.5;        // this much slough on bottom, in ft, and the pen lands on it: not a good test
   const COLLAPSE = 0.20;         // the log this far out (all the wrong blows over all the real blows) and it falls down
-  const W_SPT = 0.4;             // the SPT's share of the grade; the drilling is the rest
+  const W_SPT = 0.35;            // the SPT's share of the grade; grouting has its own (js/grout.js), the drilling is the rest
   const ERR_PEN = 300;           // points off the SPT grade for a log that is 100% out (so 10% out costs 30)
   const DROP_PEN = 6;            // points off the SPT grade each time the rods are dropped down the hole
   const FAIL_CAP = 69;           // the best grade a hole can get when the building falls down
@@ -107,10 +109,12 @@ window.SPT = (() => {
     E.root.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; AUDIO.init(); tap(); });
     E.go.addEventListener('click', () => { AUDIO.init(); go(); });
     E.ask.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { AUDIO.init(); answer(b.dataset.a); } });
+    GROUT.init(app);
     reset();
   }
   function reset() {
     P = null; F = null; camK = 0;
+    GROUT.reset();
     document.body.classList.remove('spt-job');
     if (E) E.root.hidden = true;
   }
@@ -215,7 +219,7 @@ window.SPT = (() => {
     log(`SPT at ${P.depth} ft: ${t.rec.join(', ')} went on the log (N = ${t.rec[1] + t.rec[2]})${P.bad ? ', on slough' : ''}.`, 'good');
     const last = P.last;
     P = null;
-    if (last) { startFinale(); return; }
+    if (last) { close(); S.spt.grout = true; GROUT.start(S, startFinale); return; }      // the hole gets grouted before anything is built on it
     close();
     SIM.sptDone(S);
   }
@@ -375,8 +379,9 @@ window.SPT = (() => {
   function update(S_, dt) {
     S = S_;
     if (!E) return;
+    if (GROUT.busy) { GROUT.update(S, dt); return; }
     if (!P && !F) {
-      if (S.phase === 'SPT' && S.spt && !S.done && !S.paused && !APP.away && !APP.menu && !APP.fly && APP.seenRuns >= S.runs.length && $('report').hidden) start();      // (the core table comes first)
+      if (S.phase === 'SPT' && S.spt && !S.spt.grout && !S.done && !S.paused && !APP.away && !APP.menu && !APP.fly && APP.seenRuns >= S.runs.length && $('report').hidden) start();      // (the core table comes first)
       else return;
     }
     const off = APP.away || APP.menu || APP.fly;
@@ -387,6 +392,7 @@ window.SPT = (() => {
   }
   // Space and Enter tap; on the report Y and N answer, the arrows change a number
   function key(e) {
+    if (GROUT.busy) return GROUT.key(e);
     if (!P && !F) return false;
     if (e.code === 'Escape') return false;
     if (e.repeat) return true;
@@ -596,6 +602,6 @@ window.SPT = (() => {
     for (const b of F.bits) { g.save(); g.translate(gx + b.x * u, gy - b.y * u); g.rotate(b.a); g.fillStyle = b.c; g.fillRect(-5, -3, 10, 6); g.restore(); }
   }
 
-  return { init, reset, update, key, grade, parTime, W_SPT, FAIL_CAP, COLLAPSE, get busy() { return !!(P || F); }, get testing() { return !!P; }, get active() { return !!(P || F) || (S && S.phase === 'SPT'); },
+  return { init, reset, update, key, grade, parTime, W_SPT, FAIL_CAP, COLLAPSE, get busy() { return !!(P || F) || GROUT.busy; }, get testing() { return !!P || GROUT.busy; }, get active() { return !!(P || F) || (S && S.phase === 'SPT'); },
     get state() { return { P, F }; } };
 })();

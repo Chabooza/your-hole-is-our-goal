@@ -443,6 +443,8 @@ body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 .spt-bar i { position: absolute; top: 0; bottom: 0; background: #4caf50; }
 .spt-bar u { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -4px; background: #fffdf4; border-radius: 4px; box-shadow: 0 0 0 2px #0c0f0d; }
 .spt-q .q-time { width: 100%; }
+.spt-q[data-type="pour"] .spt-bar { background: linear-gradient(90deg, #1b201d 0 62%, #e0a020 62% 86%, #d8362b 86% 100%); }
+.spt-q[data-type="pour"] .spt-bar i { opacity: 0.9; }
 .spt-q[data-state="ready"] .q-time i { background: #9ba495; }
 .spt-q[data-state="fail"] .spt-bar, .spt-q[data-state="done"] .spt-bar, .spt-q[data-state="fail"] .q-time, .spt-q[data-state="done"] .q-time { visibility: hidden; }
 .spt-talk { display: flex; gap: 9px; align-items: center; background: #fffdf4; color: #2a2320; border: 3px solid #1b1710; border-radius: 14px; padding: 7px 10px; box-shadow: 0 4px 0 #0006; }
@@ -1092,6 +1094,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
         <li><b>Count the blows.</b> The rod is marked three times, 6 in. apart. Count the hammer blows for each 6 in. <b>in your head</b>: nothing on screen keeps count.</li>
         <li><b>The helper reports to the engineer.</b> Sometimes he has it wrong. Say he is right, or say no and give the real numbers. Whatever you agree to goes on the log.</li>
       </ol>
+      <p><b>Then grout the hole.</b> PVC goes to the bottom. Fill the blue drum with water to about 80% and say when. Then pour the cement and the gel in <b>slowly</b>: hold to tip the bag, and let go before it clumps in the pump. Clump it and somebody goes up the tower. Last, pump the grout down the hole and stop when it reaches the top.</p>
       <p><b>Then it gets built.</b> If the numbers on the log are 20% or more out, what they build falls down, and the hole is not passed.</p>
     </div>
     <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole. From hole 3 on, expect a call from Aaron: he has another job waiting and gives you a deadline. Finish late and it costs you points. Score <b>95 or better</b> on any hole and you earn a Safety Buck for the shop, where there is gear and one-time help to buy. You bring one item per hole. Score <b>85 or better</b> and you earn a Swag Token: hard hats, glasses, gloves and outfits that do nothing but look good.</p>
@@ -1227,6 +1230,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <script src="js/easy.js" charset="utf-8"></script>
 <script src="js/well.js" charset="utf-8"></script>
 <script src="js/spt.js" charset="utf-8"></script>
+<script src="js/grout.js" charset="utf-8"></script>
 <script src="js/toss.js" charset="utf-8"></script>
 <script src="js/nag.js" charset="utf-8"></script>
 <script src="js/marl.js" charset="utf-8"></script>
