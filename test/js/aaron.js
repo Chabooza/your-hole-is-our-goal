@@ -10,6 +10,11 @@
    the game's speed (so fast-forward burns it faster), and during a prompt, a breakdown, a Zonnic throw or the well
    install it runs at one second a second. It stops while the game is paused and while the core is on the table.
 
+   The other call: "you're on your last leg". Fail a hole (a grade under the pass mark) and, at the start of the next
+   hole you play, before any drilling, Aaron phones to say so. Fail again and he phones again, with more to say each
+   time. A pass clears the count. It costs nothing: it is only a talking-to. The count is kept in this browser
+   (yhiog-aaron), so closing the game does not get you out of the call.
+
    Par was measured with a robot player on every site (the numbers in par() are fitted to those runs):
    the crew's pipe handling per run by depth, coring and casing per foot by material, and the well by depth. */
 window.AARON = (() => {
@@ -23,7 +28,9 @@ window.AARON = (() => {
   const FULL_CREW = 2.0;         // full rig: the player does the pipe handling too, so that part of par is doubled
   const FULL_EXTRA = 0.3;        // ...and gets this much more slack on the drilling
   const RING_MAX = 8;            // seconds it rings before the driller picks up anyway
-  const LINE = 3.0;              // seconds each thing Aaron says stays up (a tap moves it on)
+  const LINE = 3.0, READ = 0.062;      // each thing Aaron says stays up at least LINE seconds, longer for a long line (a tap moves it on)
+  const LEG_KEY = 'yhiog-aaron'; // where the count of failed holes in a row is kept
+  const LEG_WAIT = 1.6;          // seconds into the next hole before he rings about the last one
   const PEN_STEP = 60;           // late: the first PEN_STEP seconds cost 1 point, the next 2 more, the next 3 more, and so on
   const PEN_MAX = 30;            // ...and the most being late can cost
   const LATER = 180;             // seconds late at which Aaron texts again
@@ -40,12 +47,30 @@ window.AARON = (() => {
   const CLOSE = ["Cutting it close, bud. I'll let that one go.", 'Right on the buzzer. Good enough.'];              // late, but not by enough to cost a point
   const MISSED = ['A bit late, bud. The client noticed.', 'Late, but done. Get rolling.'];                         // a few points
   const BADLY = ["We'll talk about this later.", 'The client is not happy, bud.'];                                   // 10 points or more
+  // the last-leg call. {s} is the failed grade, {n} how many holes in a row have failed
+  const LEG_HELLO = ['Hey, bud. We need to talk.', "Bud. It's Aaron. Got a minute? You do.", 'Hey, bud. Before you start that hole.', "Bud. Don't touch that throttle yet."];
+  const LEG_SCORE = ['I got the report on your last hole. {s} out of 100.', 'You scored {s} on that last one, bud. That is not a pass.', 'The client sent the last hole back. {s} out of 100, bud.', '{s} out of 100 on the last hole. I had to read it twice.'];
+  const LEG1 = ["You're on your last leg, bud.", "I'll be straight with you: you're on your last leg here.", "One more like that and we have a problem. You're on your last leg.", "I went to bat for you on that one. You're on your last leg."];
+  const LEG2 = ["That's two in a row. You were on your last leg. Now you're hopping.", 'Two sent back, bud. I told you that you were on your last leg.', "Two in a row. That last leg of yours is getting wobbly."];
+  const LEG3 = ["{n} in a row, bud. I've run out of legs for you to stand on.", '{n} failed holes. Greg is asking about your truck.', "{n} in a row. I'm only still calling because nobody else wants the job.", '{n} in a row, bud. The client knows your name now. Not in a good way.'];
+  const LEG_BYE = ['So do this one right, eh?', "Get this one right. I'm watching the report.", "Don't make me call you again, bud.", 'Slow down, read the ground, and get me a pass.'];
+  const LEG_REPLY = ['Yes, Aaron.', "Won't happen again.", '...Understood.', 'It was the ground, Aaron.', 'Tell the client I said sorry.', 'Last leg. Got it.'];
   const LOOK = { suit: 0x3a4658, suitDark: 0x2a3444, patch: 'Aaron', hat: 0xf6f6f1, hatTrim: 0xd9d9d2, skin: 0xe6b48c, nose: 0xd9a37b, vest: 0xf47a1f, shirt: 0xbcd3ee,
     brow: 0x2b1d14, eye: 0x3a2a1c, glasses: 'none', lensClear: true, wire: false, lens: ['#ffffff', '#ffffff', '#ffffff'], frame: 0x17171a, smile: true,
     build: 1.06, height: 1, hair: 0x2b1d14, stache: 0x2b1d14, stacheStyle: 'medium' };
 
   let APP, E = null, st = '', t = 0, at = 0, lines = [], li = 0, lastT = 0, face = '', toastT = 0, ringT = 0, meTimer = null;
+  let kind = 'job', hold = LINE, legT = 0;      // kind: which call is on the phone, 'job' (the deadline) or 'leg' (the talking-to)
   const last = {};
+  // failed holes in a row, the last failed grade, and whether Aaron still has to phone about it
+  const leg = { fails: 0, score: 0, owed: false };
+  try { const v = JSON.parse(localStorage.getItem(LEG_KEY) || 'null'); if (v) { leg.fails = Math.max(0, v.fails | 0); leg.score = Math.max(0, v.score | 0); leg.owed = !!v.owed && leg.fails > 0; } } catch (e) {}
+  const saveLeg = () => { try { localStorage.setItem(LEG_KEY, JSON.stringify(leg)); } catch (e) {} };
+  // a hole has been graded (endHole in js/main.js): a fail is one more in a row and a call to come, a pass wipes the slate
+  function result(passed, score) {
+    if (passed) { leg.fails = 0; leg.owed = false; } else { leg.fails++; leg.score = Math.round(score); leg.owed = true; }
+    saveLeg();
+  }
 
   // ---------- how long the rest of the hole should take ----------
   const rotF = L => 1 + L.rotBen * Math.min(1.25, 0.75 * L.maxRpm / 80);
@@ -98,9 +123,19 @@ window.AARON = (() => {
 
   // ---------- the phone ----------
   // coring, and nothing else going on: the only time the phone rings
+  // nothing else is going on that the phone would get in the way of
+  function quiet() {
+    const S = APP.S;
+    return !(S.done || S.paused || APP.away || APP.menu || APP.fly || APP.freeze || WELL.active || TOSS.state.state || NAG.active || MARL.active);
+  }
+  // a hole that has only just begun: nothing drilled yet. This is when Aaron phones about the hole before it
+  function fresh() {
+    const S = APP.S;
+    return quiet() && S.hole.depth < 0.5 && !S.runs.length && !SPT.busy && !(APP.easy && (AUTO.st.qte || AUTO.st.failed));
+  }
   function drilling() {
     const S = APP.S;
-    if (S.done || S.paused || APP.away || APP.menu || APP.fly || APP.freeze || WELL.active || TOSS.state.state || NAG.active || MARL.active) return false;
+    if (!quiet()) return false;
     if (APP.easy) return AUTO.manual === 'core' && !AUTO.st.qte && !AUTO.st.failed;
     return S.phase === 'CORE_RUN' && S.head.conn === 'core' && S.head.hz > 8;
   }
@@ -113,7 +148,7 @@ window.AARON = (() => {
     reset();
   }
   function reset() {
-    st = ''; t = 0; toastT = 0; lastT = APP ? APP.S.t : 0;
+    st = ''; t = 0; toastT = 0; legT = 0; lastT = APP ? APP.S.t : 0;
     const S = APP && APP.S;
     // the phone rings somewhere in the first part of the hole
     at = S ? SIM.TARGET * (0.06 + Math.random() * 0.32) : 0;
@@ -121,44 +156,58 @@ window.AARON = (() => {
     document.body.classList.remove('on-call');
     for (const k in last) delete last[k];
   }
-  function ring() {
+  function show(line) { E.say.textContent = line; hold = Math.max(LINE, line.length * READ); t = 0; }
+  function ring(k) {
     const S = APP.S;
+    kind = k || 'job';
     st = 'ring'; t = 0; ringT = 0;
     if (!face) { try { face = WORLD.portraits([LOOK], 160, 180)[0] || ''; } catch (e) { face = ''; } }
     E.face.style.backgroundImage = face ? `url(${face})` : ''; E.face.textContent = face ? '' : 'A';
     E.root.dataset.state = 'ring'; E.root.hidden = false; E.bubble.hidden = true;
-    E.root.dataset.fav = S.item === 'favour' && !S.itemSpent ? '1' : '';
+    E.root.dataset.fav = kind === 'job' && S.item === 'favour' && !S.itemSpent ? '1' : '';
     E.status.textContent = 'calling…';
     document.body.classList.add('on-call');
     PANEL.setHands(false);
-    S.aaronCalled = true;
+    if (kind === 'job') S.aaronCalled = true;
     S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: 'Your phone is ringing. It is Aaron.', lvl: 'warn' });
   }
   function answer() {
     if (st !== 'ring' || APP.S.paused) return;
     AUDIO.init();
-    const S = APP.S, fav = S.item === 'favour' && SHOP.use(S), limit = allow(S) + (fav ? 180 : 0);      // Aaron's favour from the shop: 3 more minutes
-    S.aaron = { limit, left: limit, half: false, two: false, zero: false, worse: false, done: false, pen: 0 };
-    lines = [pick(HELLO), pick(NEWS), pick(HURRY).replace('{t}', minutes(limit))]; li = 0;
-    if (fav) lines.push('And since I owe you one, that includes three extra minutes.');
-    st = 'talk'; t = 0;
+    const S = APP.S;
+    if (kind === 'leg') {                         // the talking-to: said once, then it is off his chest
+      const n = leg.fails, fill = x => x.replace(/\{s\}/g, leg.score).replace(/\{n\}/g, n);
+      lines = [pick(LEG_HELLO), pick(LEG_SCORE), pick(n >= 3 ? LEG3 : n === 2 ? LEG2 : LEG1), pick(LEG_BYE)].map(fill);
+      leg.owed = false; saveLeg();
+    } else {
+      const fav = S.item === 'favour' && SHOP.use(S), limit = allow(S) + (fav ? 180 : 0);      // Aaron's favour from the shop: 3 more minutes
+      S.aaron = { limit, left: limit, half: false, two: false, zero: false, worse: false, done: false, pen: 0 };
+      lines = [pick(HELLO), pick(NEWS), pick(HURRY).replace('{t}', minutes(limit))];
+      if (fav) lines.push('And since I owe you one, that includes three extra minutes.');
+    }
+    li = 0; st = 'talk';
     E.root.dataset.state = 'talk'; E.status.textContent = 'on the phone';
-    E.say.textContent = lines[0]; E.bubble.hidden = false;
+    show(lines[0]); E.bubble.hidden = false;
     S.sfx.push('ok');
   }
   function next() {
     if (st !== 'talk') return;
     li++; t = 0;
-    if (li < lines.length) { E.say.textContent = lines[li]; return; }
+    if (li < lines.length) { show(lines[li]); return; }
     hangUp();
   }
   function hangUp() {
     const S = APP.S, A = S.aaron;
     st = ''; E.root.hidden = true; document.body.classList.remove('on-call');
     if (!APP.away && !APP.menu) PANEL.setHands(true);
-    E.me.querySelector('span').textContent = pick(REPLY); E.me.hidden = false;
+    E.me.querySelector('span').textContent = pick(kind === 'leg' ? LEG_REPLY : REPLY); E.me.hidden = false;
     clearTimeout(meTimer); meTimer = setTimeout(() => { E.me.hidden = true; }, 2200);
     lastT = S.t;
+    if (kind === 'leg') {
+      S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: leg.fails > 1 ? `Aaron: ${leg.fails} holes in a row have not passed. You are on your last leg.` : `Aaron: the last hole did not pass (${leg.score} out of 100). You are on your last leg.`, lvl: 'warn' });
+      S.sfx.push('switch');
+      return;
+    }
     S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: `Aaron: another job is waiting. ${minutes(A.limit)} to finish this hole${S.site.job === 'well' ? ', well and all' : ''}. Late costs points: a few at first, more with every minute.`, lvl: 'warn' });
     S.sfx.push('switch');
     E.timer.classList.remove('pop'); void E.timer.offsetWidth; E.timer.classList.add('pop');
@@ -189,12 +238,14 @@ window.AARON = (() => {
     if (st) E.root.hidden = off;
     // the call
     if (!S.paused && !off) {
-      if (st === '' && !S.aaron && !S.aaronCalled && S.site.n >= FIRST && S.hole.depth >= at && drilling()) ring();
-      else if (st === 'ring') {
+      if (st === '') {
+        if (leg.owed && fresh()) { legT += dt; if (legT >= LEG_WAIT) ring('leg'); }          // the last hole failed: he phones before this one starts
+        else if (!S.aaron && !S.aaronCalled && S.site.n >= FIRST && S.hole.depth >= at && drilling()) ring('job');
+      } else if (st === 'ring') {
         t += dt; ringT -= dt;
         if (ringT <= 0) { ringT = 1.7; S.sfx.push('ring'); }
         if (t >= RING_MAX) answer();
-      } else if (st === 'talk') { t += dt; if (t >= LINE) next(); }
+      } else if (st === 'talk') { t += dt; if (t >= hold) next(); }
     }
     // the countdown
     const A = S.aaron, dS = Math.max(0, S.t - lastT); lastT = S.t;
@@ -226,7 +277,8 @@ window.AARON = (() => {
     return true;
   }
 
-  return { init, reset, update, key, settle, par, allow, penFor, PEN_MAX, get busy() { return st === 'ring' || st === 'talk'; }, get active() { return st !== ''; },
+  return { init, reset, update, key, settle, result, par, allow, penFor, PEN_MAX, get busy() { return st === 'ring' || st === 'talk'; }, get active() { return st !== ''; },
     call() { at = 0; APP.S.aaronCalled = false; APP.S.aaron = null; },          // for testing: ring on the next moment of drilling
-    get state() { return { st, t, at, aaron: APP.S.aaron }; } };
+    lastLeg(n, score) { leg.fails = Math.max(1, n || 1); leg.score = score == null ? 62 : score; leg.owed = true; legT = 0; saveLeg(); },      // for testing: he phones at the start of the next hole, as if n holes in a row had failed
+    get state() { return { st, t, at, kind, lines, leg: Object.assign({}, leg), aaron: APP.S.aaron }; } };
 })();

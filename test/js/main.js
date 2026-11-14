@@ -451,6 +451,7 @@
     APP.nextHole = res.passed && more ? n + 1 : n;
     SITES.setLast(APP.nextHole);
     HUD.showReport(S, res);
+    AARON.result(res.passed, S.report.score);     // a fail: Aaron phones at the start of the next hole to say you are on your last leg
     S.sfx.push(res.passed ? 'done' : 'stub');
     GREG.grade(S.report.score);                   // a pass under 90: old Greg phones to say how they did it in his day
   }
