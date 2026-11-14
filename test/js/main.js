@@ -188,33 +188,39 @@
     $('pickGo').addEventListener('click', () => closePick(true));
     $('pickBack').addEventListener('click', () => closePick(false));
   }
-  // ---------- install as an app (only on the game's own web address, and only until it has been installed) ----------
-  // Android and computers get a real Install button. An iPhone has no such thing, so it gets the steps to follow in Safari.
+  // ---------- install as an app ----------
+  // The game can only be installed from its own web address. There, Android and computers get a one-tap install and an
+  // iPhone gets the steps to follow in Safari. Anywhere else (the older claude.ai links), the same button sends
+  // people to that address first. Either way it asks which device, and shows the steps for that one.
   let installEvt = null;
   function bindInstall() {
     const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || navigator.standalone === true;
-    const hosted = !/claude|anthropic/.test(location.hostname) && (location.protocol === 'https:' || location.hostname === 'localhost');
-    const btns = [$('menuInstall'), $('rotateInstall')], show = v => btns.forEach(b => { b.hidden = !v; });
-    show(hosted && !standalone);
-    if (!hosted || standalone) return;
-    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
-    window.addEventListener('appinstalled', () => { installEvt = null; show(false); $('install').hidden = true; });
-    // Android and computers: the browser hands over a ready-made install, so one tap does it
-    const ready = () => { $('instNow').hidden = !installEvt; $('install').dataset.ready = installEvt ? '1' : ''; };
-    const sheet = () => {
-      const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const inApp = ios && !/CriOS|FxiOS|EdgiOS/.test(ua) && (!/Safari/.test(ua) || /FBAN|FBAV|Instagram|Line\/|Snapchat|GSA\//.test(ua));
-      $('install').dataset.os = ios ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop';
-      $('instInApp').hidden = !inApp;
-      ready();
-      $('install').hidden = false;
+    const hosted = /(^|\.)github\.io$/.test(location.hostname) || location.hostname === 'localhost';
+    const I = $('install'), btns = [$('menuInstall'), $('rotateInstall')], show = v => btns.forEach(b => { b.hidden = !v; });
+    show(!standalone);
+    if (standalone) return;
+    const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const mine = ios ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop';
+    const inApp = ios && !/CriOS|FxiOS|EdgiOS/.test(ua) && (!/Safari/.test(ua) || /FBAN|FBAV|Instagram|Line\/|Snapchat|GSA\//.test(ua));
+    const ready = () => { const ok = hosted && !!installEvt; $('instNow').hidden = !ok; I.dataset.ready = ok ? '1' : ''; };
+    const pick = os => {
+      I.dataset.os = os;
+      I.querySelectorAll('[data-os-pick]').forEach(b => { const on = b.dataset.osPick === os; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+      $('instInApp').hidden = !(hosted && os === 'ios' && inApp);
     };
-    const open = () => { if (installEvt) installEvt.prompt(); else sheet(); };
-    window.addEventListener('beforeinstallprompt', ready);
-    btns.forEach(b => b.addEventListener('click', open));
+    const sheet = () => { I.dataset.away = hosted ? '' : '1'; pick(mine); ready(); I.hidden = false; };
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; ready(); });
+    window.addEventListener('appinstalled', () => { installEvt = null; show(false); I.hidden = true; });
+    btns.forEach(b => b.addEventListener('click', sheet));
+    I.querySelectorAll('[data-os-pick]').forEach(b => b.addEventListener('click', () => pick(b.dataset.osPick)));
     $('instNow').addEventListener('click', () => { if (installEvt) installEvt.prompt(); });
-    if (/install/.test(location.hash)) setTimeout(sheet, 700);          // a link ending in #install opens straight onto the install help
-    $('instDone').addEventListener('click', () => { $('install').hidden = true; });
+    $('instCopy').addEventListener('click', () => {
+      const url = $('instLink').href.replace(/#.*$/, ''), done = () => { $('instCopy').textContent = 'Copied'; setTimeout(() => { $('instCopy').textContent = 'Copy link'; }, 2000); };
+      const byHand = () => { const r = document.createRange(); r.selectNodeContents($('instUrl')); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); try { if (document.execCommand('copy')) done(); } catch (e) { /* left selected, to copy by hand */ } };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, byHand); else byHand();
+    });
+    $('instDone').addEventListener('click', () => { I.hidden = true; });
+    if (hosted && /install/.test(location.hash)) setTimeout(sheet, 700);          // a link ending in #install opens straight onto the install help
   }
   function neutral() { const c = APP.S.ctl; c.feed = 0; c.rot = 0; c.winch = 0; c.slide = 0; c.arm = 0; c.brk = 0; }
   // walk to the core table for a close look at a sample. auto = straight after a run: shut the sonic down first

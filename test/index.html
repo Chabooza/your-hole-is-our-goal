@@ -399,11 +399,20 @@ body.phone .slot-driller { width: min(100%, 340px); }
 .sheet.narrow { width: min(520px, 100%); }
 #install { z-index: 70; }
 #install .inst { display: none; gap: 9px; }
-#install #instNow { margin: 4px 0 12px; }
+#install[data-os="ios"] .inst.ios, #install[data-os="android"] .inst.android, #install[data-os="desktop"] .inst.desktop { display: flex; }
+#install .inst-q { margin: 0 0 6px; font-weight: 800; font-size: 17px; }
+#install .inst-pick { display: flex; width: 100%; margin-bottom: 12px; }
+#install .inst-pick button { flex: 1; padding: 10px 6px; font-size: 17px; }
+#install .inst-away { margin-bottom: 10px; }
+#install .inst-away p { margin: 0 0 8px; }
+#install #instLink { display: inline-block; text-decoration: none; }
+#install .inst-url { margin: 10px 0 0 !important; font-family: var(--f-mono); font-size: 13px !important; word-break: break-all; user-select: text; -webkit-user-select: text; }
+#install .inst-url .tb { margin-left: 6px; font-family: var(--f-ui); }
+#install #instNow { margin: 0 0 12px; }
+#install[data-os="ios"] #instNow { display: none; }
+#install:not([data-away="1"]) .only-away, #install[data-away="1"] .only-here { display: none !important; }
 #install .inst-ready, #install[data-ready="1"] .inst-manual { display: none; }
 #install[data-ready="1"] .inst-ready { display: list-item; }
-#install[data-os="ios"] #instNow { display: none; }
-#install[data-os="ios"] .inst.ios, #install[data-os="android"] .inst.android, #install[data-os="desktop"] .inst.desktop { display: flex; }
 .inst-ico { width: 1.3em; height: 1.3em; vertical-align: -0.28em; color: #1b6fd1; }
 .rotate #rotateInstall { display: block; margin: 12px auto 0; }
 .rotate #rotateInstall[hidden] { display: none; }
@@ -757,8 +766,17 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
   <div class="sheet narrow">
     <h2 id="instTitle">Install as an app</h2>
     <p class="sub">Free · updates itself · works with no signal</p>
+    <p class="inst-q" id="instQ">What are you installing it on?</p>
+    <div class="seg inst-pick" role="group" aria-labelledby="instQ"><button type="button" data-os-pick="ios">iPhone</button><button type="button" data-os-pick="android">Android</button><button type="button" data-os-pick="desktop">Computer</button></div>
+    <div class="only-away inst-away">
+      <p>The copy you are playing now cannot be installed. The game has its own page that can:</p>
+      <a class="btn-big" id="instLink" href="https://chabooza.github.io/your-hole-is-our-goal/#install" target="_blank" rel="noopener">Open the install page</a>
+      <p class="inst-url"><span id="instUrl">chabooza.github.io/your-hole-is-our-goal</span> <button type="button" class="tb" id="instCopy">Copy link</button></p>
+    </div>
     <p class="safety" id="instInApp" hidden>You are inside another app's browser, which cannot install it. First open this page in Safari: look for a compass icon, or a menu with "Open in Safari".</p>
+    <button type="button" class="btn-big" id="instNow" hidden>Install now</button>
     <ol class="inst ios">
+      <li class="only-away">Tap <b>Open the install page</b> above. It has to open in <b>Safari</b>. If it opens anywhere else, tap <i>Copy link</i> and paste it into Safari.</li>
       <li>Hold the phone <b>upright</b>.</li>
       <li>Find Safari's <b>Share</b> button: a square with an arrow pointing up <svg class="inst-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>. It is on <b>Safari's own bar</b> at the bottom or top of the screen, not inside the game.</li>
       <li>Cannot see it? Tap the <b>⋯</b> (three dots) beside the web address, or tap the web address itself, and it appears.</li>
@@ -767,16 +785,18 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
       <li>Close Safari and open the game from its new icon. It now runs full screen, with no Safari bars.</li>
       <li>Still seeing Safari's bars? Hold your finger on the icon, remove it, and add it again with that switch on.</li>
     </ol>
-    <button type="button" class="btn-big" id="instNow" hidden>Install now</button>
     <ol class="inst android">
-      <li>Open this page in <b>Chrome</b>.</li>
-      <li class="inst-ready">Tap <b>Install now</b> above, then <b>Install</b> when the phone asks.</li>
-      <li class="inst-manual">Tap the <b>⋮</b> (three dots) at the top right of Chrome, then <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.</li>
+      <li class="only-away">Tap <b>Open the install page</b> above. It should open in <b>Chrome</b>.</li>
+      <li class="only-away">On that page tap <b>Install now</b>, then <b>Install</b> when the phone asks. No button? Tap Chrome's <b>⋮</b> (three dots), then <b>Install app</b>.</li>
+      <li class="only-here">Open this page in <b>Chrome</b>.</li>
+      <li class="only-here inst-ready">Tap <b>Install now</b> above, then <b>Install</b> when the phone asks.</li>
+      <li class="only-here inst-manual">Tap the <b>⋮</b> (three dots) at the top right of Chrome, then <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.</li>
       <li>Open the game from its new icon. It runs full screen and sideways, like any other app, and updates itself.</li>
     </ol>
     <ol class="inst desktop">
-      <li>In Chrome or Edge, click the <b>install icon</b> at the right-hand end of the address bar (a small screen with an arrow).</li>
-      <li>Or open the browser's <b>⋮</b> menu and choose <b>Install</b> (in Chrome it is under <i>Cast, save and share</i>).</li>
+      <li class="only-away">Click <b>Open the install page</b> above, in Chrome or Edge.</li>
+      <li class="only-here inst-ready">Click <b>Install now</b> above, then <b>Install</b>.</li>
+      <li class="inst-manual">Click the <b>install icon</b> at the right-hand end of the address bar (a small screen with an arrow), or open the browser's <b>⋮</b> menu and choose <b>Install</b>.</li>
       <li>The game opens in its own window and gets an icon like any other program.</li>
     </ol>
     <div class="go"><button type="button" class="btn-big" id="instDone">Got it</button></div>
