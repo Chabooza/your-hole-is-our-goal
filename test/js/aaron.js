@@ -11,9 +11,12 @@
    install it runs at one second a second. It stops while the game is paused and while the core is on the table.
 
    The other call: "you're on your last leg". Fail a hole (a grade under the pass mark) and, at the start of the next
-   hole you play, before any drilling, Aaron phones to say so. Fail again and he phones again, with more to say each
-   time. A pass clears the count. It costs nothing: it is only a talking-to. The count is kept in this browser
-   (yhiog-aaron), so closing the game does not get you out of the call.
+   hole you play, before any drilling, Aaron phones to say so. A pass clears the count. It costs nothing: it is only a
+   talking-to. The count is kept in this browser (yhiog-aaron), so closing the game does not get you out of it.
+
+   Fail two in a row and he does not phone. He drives out to site (visit, below): walks up, says his piece, calls the
+   driller over, bends him over and smacks him while he cries, then leaves. More fails in a row, more smacks. It is
+   drawn in the 3D scene (setBoss in js/world.js) and watched from outside. It also costs nothing.
 
    Par was measured with a robot player on every site (the numbers in par() are fitted to those runs):
    the crew's pipe handling per run by depth, coring and casing per foot by material, and the well by depth. */
@@ -31,6 +34,15 @@ window.AARON = (() => {
   const LINE = 3.0, READ = 0.062;      // each thing Aaron says stays up at least LINE seconds, longer for a long line (a tap moves it on)
   const LEG_KEY = 'yhiog-aaron'; // where the count of failed holes in a row is kept
   const LEG_WAIT = 1.6;          // seconds into the next hole before he rings about the last one
+  // two fails in a row or more: he comes out to site instead of phoning. Times are seconds into the scene
+  const VISIT_AT = 2;            // failed holes in a row that bring him out
+  const V_IN = 3.0;              // his walk in
+  const V_SAY2 = 3.3;            // his second line, once he has stopped
+  const V_GO = 4.6, V_WALK = 1.4;      // the driller starts over to him, and how long that walk takes
+  const V_BEND = 5.7;            // the driller bends over
+  const V_T0 = 6.5, V_EVERY = 0.55;    // the first wind-up, and seconds per smack
+  const V_SKIP = 1.0;            // seconds before the scene can be skipped
+  const smacks = n => Math.min(10, 2 + 2 * n);      // 6 for two fails in a row, 8 for three, 10 for four or more
   const PEN_STEP = 60;           // late: the first PEN_STEP seconds cost 1 point, the next 2 more, the next 3 more, and so on
   const PEN_MAX = 30;            // ...and the most being late can cost
   const LATER = 180;             // seconds late at which Aaron texts again
@@ -54,12 +66,16 @@ window.AARON = (() => {
   const LEG2 = ["That's two in a row. You were on your last leg. Now you're hopping.", 'Two sent back. I told you that you were on your last leg.', "Two in a row. That last leg of yours is getting wobbly."];
   const LEG3 = ["{n} in a row. I've run out of legs for you to stand on.", '{n} failed holes. Greg is asking about your truck.', "{n} in a row. I'm only still calling because nobody else wants the job.", '{n} in a row. The client knows your name now. Not in a good way.'];
   const LEG_BYE = ['So do this one right, eh?', "Get this one right. I'm watching the report.", "Don't make me call you again.", 'Slow down, read the ground, and get me a pass.'];
+  const COME = ['Get over here.', 'Come here. Now.', 'Off the rig. Over here.', 'Right here. Bend over.'];
+  const WAAH = ['OW!', 'WAAAH!', 'Ow! I am sorry, Aaron!', 'OW! It was the ground!', 'Waaah! Not in front of the helpers!', 'Ow! I will read the gauges!', 'WAAAAAH!', 'Ow! Never again!', 'I want my mom!', 'OW! That one hurt!', 'Waaah! I will pass the next one!', 'Ow! Tell the client I am sorry!'];
+  const SNIFF = ['*sniff*', 'Yes, Aaron. *sniff*', '*sniff* ...It was the ground.', "*sniff* Won't happen again."];
   const LEG_REPLY = ['Yes, Aaron.', "Won't happen again.", '...Understood.', 'It was the ground, Aaron.', 'Tell the client I said sorry.', 'Last leg. Got it.'];
   const LOOK = { suit: 0x3a4658, suitDark: 0x2a3444, patch: 'Aaron', hat: 0xf6f6f1, hatTrim: 0xd9d9d2, skin: 0xe6b48c, nose: 0xd9a37b, vest: 0xf47a1f, shirt: 0xbcd3ee,
     brow: 0x2b1d14, eye: 0x3a2a1c, glasses: 'none', lensClear: true, wire: false, lens: ['#ffffff', '#ffffff', '#ffffff'], frame: 0x17171a, smile: true,
     build: 1.06, height: 1, hair: 0x2b1d14, stache: 0x2b1d14, stacheStyle: 'medium' };
 
   let APP, E = null, st = '', t = 0, at = 0, lines = [], li = 0, lastT = 0, face = '', toastT = 0, ringT = 0, meTimer = null;
+  let X = null;                  // the site visit while it is on: { n, lines, hits, hop, said, end ... }
   let kind = 'job', hold = LINE, legT = 0;      // kind: which call is on the phone, 'job' (the deadline) or 'leg' (the talking-to)
   const last = {};
   // failed holes in a row, the last failed grade, and whether Aaron still has to phone about it
@@ -145,9 +161,12 @@ window.AARON = (() => {
       timer: $('arTimer'), time: $('arTime'), label: $('arLabel'), text: $('arText'), textSay: $('arTextSay'), me: $('bubMe') };
     E.answer.addEventListener('click', answer);
     E.root.addEventListener('pointerdown', e => { if (st === 'talk' && t > 0.35) { e.preventDefault(); next(); } });
+    E.skip = $('arSkip');
+    if (E.skip) E.skip.addEventListener('click', () => { if (st === 'visit' && t > V_SKIP) endVisit(true); });
     reset();
   }
   function reset() {
+    if (st === 'visit') endVisit(false);
     st = ''; t = 0; toastT = 0; legT = 0; lastT = APP ? APP.S.t : 0;
     const S = APP && APP.S;
     // the phone rings somewhere in the first part of the hole
@@ -218,6 +237,59 @@ window.AARON = (() => {
     APP.S.sfx.push('buzz');
   }
 
+  // ---------- the site visit: two fails in a row ----------
+  function say(line) { E.textSay.textContent = line; E.text.hidden = false; toastT = Math.max(3.2, line.length * READ + 0.6); X.talkT = Math.min(2.6, 0.8 + line.length * 0.035); }
+  function me(line) { E.me.querySelector('span').textContent = line; E.me.hidden = false; clearTimeout(meTimer); }
+  function visit() {
+    const S = APP.S, n = leg.fails, fill = x => x.replace(/\{s\}/g, leg.score).replace(/\{n\}/g, n), hits = smacks(n);
+    st = 'visit'; t = 0;
+    const end = V_T0 + hits * V_EVERY + 0.3;      // the last smack has landed
+    X = { n, hits, done: 0, hop: 0, said: 0, talkT: 0, end, back: end + 1.0, out: end + 1.5, over: end + 4.0, lines: [pick(LEG_SCORE), pick(n >= 3 ? LEG3 : LEG2), pick(COME), pick(LEG_BYE)].map(fill) };
+    leg.owed = false; saveLeg();                  // said once, in person
+    document.body.classList.add('boss-on');
+    PANEL.setHands(false);
+    if (E.skip) E.skip.hidden = true;
+    S.sfx.push('horn');
+    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: 'A truck just pulled up. It is Aaron.', lvl: 'warn' });
+  }
+  const ease = k => k * k * (3 - 2 * k);
+  function visitScene() {
+    const out = t >= X.out, back = t >= X.back;
+    WORLD.setBoss({ look: LOOK, cine: true, k: out ? 1 - ease(clamp((t - X.out) / (V_IN * 0.8), 0, 1)) : ease(clamp(t / V_IN, 0, 1)), out,
+      talk: X.talkT > 0, point: t >= V_GO - 0.4 && t < V_T0,
+      meK: back ? 1 - clamp((t - X.back) / (V_WALK * 1.5), 0, 1) : clamp((t - V_GO) / V_WALK, 0, 1), meBack: back,
+      bendK: clamp((t - V_BEND) / 0.7, 0, 1) * clamp((X.end + 0.5 - t) / 0.4, 0, 1),
+      spankT: t >= V_T0 && t < X.end ? t - V_T0 : -1, hop: X.hop, cry: t < V_T0 + V_EVERY ? 0 : t < X.end + 0.4 ? 1 : 0.45 });
+  }
+  function updateVisit(S, dt) {
+    t += dt; X.hop = Math.max(0, X.hop - dt * 4.5); X.talkT -= dt;
+    if (X.said < 1 && t >= 0.3) { X.said = 1; say(X.lines[0]); }
+    if (X.said < 2 && t >= V_SAY2) { X.said = 2; say(X.lines[1]); }
+    if (X.said < 3 && t >= V_GO - 0.4) { X.said = 3; say(X.lines[2]); }
+    if (t >= V_T0 && t < X.end) {                 // each smack: the slap, a hop, and something wailed
+      const hit = Math.min(X.hits, Math.floor((t - V_T0) / V_EVERY));
+      if (hit > X.done) { X.done = hit; X.hop = 1; S.sfx.push('slap'); me(hit === 1 ? WAAH[0] : pick(WAAH.slice(1))); }
+    }
+    if (X.said < 4 && t >= X.end + 0.2) { X.said = 4; say(X.lines[3]); me(pick(SNIFF)); }
+    if (E.skip && E.skip.hidden === (t > V_SKIP)) E.skip.hidden = !(t > V_SKIP);
+    if (t >= X.over) endVisit(true); else visitScene();
+  }
+  // seen: the scene ran (or was skipped), as against the hole being thrown away under it
+  function endVisit(seen) {
+    const S = APP.S, n = X ? X.n : leg.fails;
+    st = ''; X = null;
+    WORLD.setBoss(null);
+    document.body.classList.remove('boss-on');
+    if (E.skip) E.skip.hidden = true;
+    E.text.hidden = true; toastT = 0;
+    clearTimeout(meTimer); meTimer = setTimeout(() => { E.me.hidden = true; }, seen ? 1500 : 0);
+    if (!seen) return;
+    if (!APP.away && !APP.menu) PANEL.setHands(true);
+    lastT = S.t;
+    S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: `Aaron came out to site: ${n} holes in a row have not passed. He made his point.`, lvl: 'warn' });
+    S.sfx.push('switch');
+  }
+
   // the well is built: stop the clock and say what it cost. Called by the well install as it works out the grade
   function settle(S) {
     const A = S.aaron;
@@ -235,17 +307,18 @@ window.AARON = (() => {
     if (!E) return;
     const off = APP.menu || APP.away || APP.fly;
     if (toastT > 0 && !S.paused) { toastT -= dt; if (toastT <= 0) E.text.hidden = true; }
-    if (st) E.root.hidden = off;
+    if (st === 'ring' || st === 'talk') E.root.hidden = off;
     // the call
     if (!S.paused && !off) {
       if (st === '') {
-        if (leg.owed && fresh()) { legT += dt; if (legT >= LEG_WAIT) ring('leg'); }          // the last hole failed: he phones before this one starts
+        if (leg.owed && fresh()) { legT += dt; if (legT >= LEG_WAIT) { if (leg.fails >= VISIT_AT) visit(); else ring('leg'); } }      // the last hole failed: he phones before this one starts, or comes out himself
         else if (!S.aaron && !S.aaronCalled && S.site.n >= FIRST && S.hole.depth >= at && drilling()) ring('job');
       } else if (st === 'ring') {
         t += dt; ringT -= dt;
         if (ringT <= 0) { ringT = 1.7; S.sfx.push('ring'); }
         if (t >= RING_MAX) answer();
       } else if (st === 'talk') { t += dt; if (t >= hold) next(); }
+      else if (st === 'visit') updateVisit(S, dt);
     }
     // the countdown
     const A = S.aaron, dS = Math.max(0, S.t - lastT); lastT = S.t;
@@ -271,14 +344,19 @@ window.AARON = (() => {
   }
   // Enter, Space or A answers the phone and moves the talk on. While the phone is up, other keys wait.
   function key(e) {
+    if (st === 'visit') {                         // Aaron is on site: Enter or Space skips the scene, everything else waits
+      if (e.code === 'Escape') return false;
+      if (!e.repeat && t > V_SKIP && (e.code === 'Enter' || e.code === 'Space')) endVisit(true);
+      return true;
+    }
     if (st !== 'ring' && st !== 'talk') return false;
     if (e.code === 'Escape') return false;
     if (!e.repeat && (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyA')) { if (st === 'ring') answer(); else if (t > 0.35) next(); }
     return true;
   }
 
-  return { init, reset, update, key, settle, result, par, allow, penFor, PEN_MAX, get busy() { return st === 'ring' || st === 'talk'; }, get active() { return st !== ''; },
+  return { init, reset, update, key, settle, result, par, allow, penFor, PEN_MAX, get busy() { return st === 'ring' || st === 'talk' || st === 'visit'; }, get active() { return st !== ''; },
     call() { at = 0; APP.S.aaronCalled = false; APP.S.aaron = null; },          // for testing: ring on the next moment of drilling
     lastLeg(n, score) { leg.fails = Math.max(1, n || 1); leg.score = score == null ? 62 : score; leg.owed = true; legT = 0; saveLeg(); },      // for testing: he phones at the start of the next hole, as if n holes in a row had failed
-    get state() { return { st, t, at, kind, lines, leg: Object.assign({}, leg), aaron: APP.S.aaron }; } };
+    get state() { return { st, t, at, kind, lines, visit: X, leg: Object.assign({}, leg), aaron: APP.S.aaron }; } };
 })();

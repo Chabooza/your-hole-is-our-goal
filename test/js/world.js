@@ -1224,7 +1224,7 @@ window.WORLD = (() => {
   const SPANK_H = V(-0.45, 0, 1.3), SPANK_D = V(0.25, 0, 1.3), SPANK_WP = V(0.4, 0, 2.55), CINE_POS = V(-0.1, 1.55, 4.7), CINE_AT = V(-0.1, 0.95, 1.3), ME_AT = V();
   function updateCine(dt) {
     const job = jb.on && jb.cine;                   // the grouting is watched from outside too (see setJob)
-    cine.on = (wj.on && wj.cine) || job;
+    cine.on = (wj.on && wj.cine) || job || (bs.on && bs.cine);
     if (!cine.on && cine.k <= 0) return;
     cine.k = clamp(cine.k + (cine.on ? dt / 0.45 : -dt / 0.6), 0, 1);
     const e = cine.k * cine.k * (3 - 2 * cine.k);
@@ -1244,6 +1244,103 @@ window.WORLD = (() => {
     if (Math.abs(camera.fov - f) > 0.01) { camera.fov = f; camera.updateProjectionMatrix(); }
     R.me.g.visible = cine.k > 0.3; R.legs.visible = cine.k <= 0.3;
     if (cine.k <= 0) { poseMe(); jCam.live = false; }
+  }
+  // ---------- the boss on site (js/aaron.js runs it) ----------
+  // Purely for show. After a second failed hole in a row Aaron turns up before the next one starts, and the driller
+  // gets what a helper gets for wrecking a well: called over, bent over, and smacked while he cries. setBoss() is
+  // called every frame with what there is to see. It is watched from outside, from the same place as the wrecked well.
+  const bs = { on: false, cine: false, k: 0, out: false, talk: false, point: false, meK: 0, meBack: false, bendK: 0, spankT: -1, hop: 0, cry: 0, myw: null };
+  const BOSS_FROM = V(2.7, 0, 6.3), BOSS_SPLIT = 0.78;      // where he walks in from, and how far along his walk he rounds the console
+  function setBoss(o) {
+    if (!o) {
+      if (!bs.on) return;
+      bs.on = false; bs.cine = false; bs.myw = null;
+      if (R.boss) R.boss.g.visible = false;
+      const vis = R.me.g.visible; poseMe(); R.me.g.visible = vis;      // the driller is back at the console
+      R.me.g.rotation.x = 0; R.me.mouth.scale.y = 1;
+      for (let i = 0; i < 2; i++) { R.me.legs[i].rotation.x = 0; R.me.shins[i].rotation.x = 0; }
+      return;
+    }
+    if (o.look && R.bossLook !== o.look) { if (R.boss) scene.remove(R.boss.g); R.boss = makePerson(o.look); R.bossLook = o.look; R.boss.g.visible = false; }
+    Object.assign(bs, o); bs.on = true;
+  }
+  function updateBoss(dt) {
+    if (!bs.on || !R.boss) return;
+    const B = R.boss, Me = R.me, ek = 1 - Math.exp(-dt * 9), turn = (cur, to, rate) => cur + Math.atan2(Math.sin(to - cur), Math.cos(to - cur)) * (1 - Math.exp(-dt * rate));
+    // Aaron: in from the right, round the console to stand behind the driller, and out the way he came
+    {
+      const k = clamp(bs.k, 0, 1), moving = k > 0.001 && k < 0.999, first = k < BOSS_SPLIT;
+      const a = first ? BOSS_FROM : SPANK_WP, b = first ? SPANK_WP : SPANK_D, kk = first ? k / BOSS_SPLIT : (k - BOSS_SPLIT) / (1 - BOSS_SPLIT), sg = bs.out ? -1 : 1;
+      B.g.visible = k > 0 || !bs.out;
+      B.g.position.lerpVectors(a, b, kk);
+      B.g.rotation.y = turn(B.g.rotation.y, moving ? Math.atan2((b.x - a.x) * sg, (b.z - a.z) * sg) : -Math.PI / 2, 9);
+      const w = moving ? Math.sin(t * 11) : 0;
+      B.legs[0].rotation.x = w * 0.6; B.legs[1].rotation.x = -w * 0.6;
+      B.shins[0].rotation.x = Math.max(0, w) * 0.85; B.shins[1].rotation.x = Math.max(0, -w) * 0.85;
+      B.g.position.y = moving ? Math.abs(w) * 0.03 : 0;
+      let r1 = w * 0.5, g1 = moving ? -0.45 : -0.18, r0 = -w * 0.5, g0 = g1, hd = 0;
+      if (bs.spankT >= 0) { const ph = (bs.spankT % 0.55) / 0.55; r1 = -0.75 - 1.2 * Math.sin(Math.PI * ph); g1 = -0.12; r0 = -0.15; g0 = -1.5; hd = 0.35; }      // wind up, and down. The other hand on his hip
+      else if (!moving && bs.point) { r1 = -1.45 + Math.sin(t * 9) * 0.05; g1 = -0.1; r0 = -0.15; g0 = -1.5; hd = 0.1; }                                           // pointing at the ground in front of him
+      else if (!moving && bs.talk) { r1 = -0.95 + Math.sin(t * 5) * 0.08; g1 = -1.15; r0 = -0.15; g0 = -1.5; }
+      else if (!moving) { r0 = r1 = -0.15; g0 = g1 = -1.5; }                                                                                                       // both hands on his hips
+      B.arms[1].rotation.x += (r1 - B.arms[1].rotation.x) * (bs.spankT >= 0 ? 1 : ek); B.fores[1].rotation.x += (g1 - B.fores[1].rotation.x) * ek;
+      B.arms[0].rotation.x += (r0 - B.arms[0].rotation.x) * ek; B.fores[0].rotation.x += (g0 - B.fores[0].rotation.x) * ek;
+      B.mouth.scale.y = bs.talk ? 1 + 2.5 * Math.abs(Math.sin(t * 11)) : 1;
+      B.head.rotation.x = hd;
+    }
+    // the driller, seen from outside: round the console to where Aaron is pointing, bent over, and back again
+    if (cine.k > 0 || bs.cine) {
+      const u = clamp(bs.meK, 0, 1), walking = u > 0.001 && u < 0.999, a = u < 0.5 ? ME_AT : SPANK_WP, b = u < 0.5 ? SPANK_WP : SPANK_H, k = u < 0.5 ? u * 2 : u * 2 - 1, sg = bs.meBack ? -1 : 1;
+      ME_AT.set(EYE.x - R.fwd.x * 0.14, 0, EYE.z - R.fwd.z * 0.14);
+      Me.g.position.lerpVectors(a, b, k);
+      let y = 0.25 * (1 - Math.min(1, u * 5)) + (walking ? Math.abs(Math.sin(t * 9)) * 0.03 : 0);
+      if (bs.myw == null) bs.myw = Me.g.rotation.y;
+      bs.myw = turn(bs.myw, u <= 0.001 ? BASE_YAW + Math.PI : walking ? Math.atan2((b.x - a.x) * sg, (b.z - a.z) * sg) : -Math.PI / 2, 10);
+      Me.g.rotation.order = 'YXZ'; Me.g.rotation.y = bs.myw; Me.g.rotation.x = 0;
+      const w = walking ? Math.sin(t * 9) * (bs.meBack ? 0.6 : 1) : 0, sob = bs.cry > 0 ? Math.abs(Math.sin(t * 13)) : 0;
+      Me.legs[0].rotation.x = w * 0.55; Me.legs[1].rotation.x = -w * 0.55;
+      Me.shins[0].rotation.x = Math.max(0, w) * 0.85; Me.shins[1].rotation.x = Math.max(0, -w) * 0.85;
+      let a0 = -w * 0.5, a1 = w * 0.5, f0 = walking ? -0.45 : -0.18, f1 = f0, hd = walking ? 0.3 : 0.1;
+      if (u <= 0.001) { a0 = a1 = -0.85; f0 = f1 = -0.75; hd = 0.2; }                    // at the console
+      if (bs.cry > 0 && u > 0.001) { a0 = a1 = -2.3 + sob * 0.12; f0 = f1 = -2.15; hd = 0.4; }      // crying into his hands on the walk back
+      const bk = bs.bendK * bs.bendK * (3 - 2 * bs.bendK);
+      if (bk > 0.02) {                               // bent over with straight legs, and hopping at every smack
+        const an = 0.8 * bk, sn = Math.sin(an);
+        Me.g.rotation.x = an;
+        Me.legs[0].rotation.x -= an; Me.legs[1].rotation.x -= an;
+        Me.g.position.x -= Math.sin(bs.myw) * 0.9 * sn; Me.g.position.z -= Math.cos(bs.myw) * 0.9 * sn;
+        y += 0.9 * (1 - Math.cos(an)) + bs.hop * 0.09;
+        a0 = a1 = lerp(a0, -0.55 - bs.hop * 1.6, bk); f0 = f1 = lerp(f0, -0.3, bk); hd = lerp(hd, -0.5, bk);      // arms fly out at every smack
+        Me.shins[0].rotation.x = bs.hop * 0.5; Me.shins[1].rotation.x = bs.hop * 0.25;
+      }
+      Me.g.position.y = y;
+      Me.arms[0].rotation.x = a0; Me.arms[1].rotation.x = a1; Me.fores[0].rotation.x = f0; Me.fores[1].rotation.x = f1;
+      Me.head.rotation.x = hd;
+      Me.mouth.scale.y = bs.cry > 0 ? 1.6 + 1.8 * sob + 1.4 * bs.hop : 1;
+      if (bs.cry > 0 && dt > 0 && Math.random() < 0.75 * bs.cry) {      // tears
+        Me.head.getWorldPosition(pB);
+        drop(V(pB.x + (Math.random() - 0.5) * 0.14, pB.y + 0.05, pB.z + (Math.random() - 0.5) * 0.14), V((Math.random() - 0.5) * 1.1, 0.5 + Math.random() * 0.7, (Math.random() - 0.2) * 1.2), 0x4ab0f0, 1.1);
+      }
+    }
+  }
+  // the two helpers while the boss is on site: they step back out of the way, turn to look, and then cannot watch
+  const BOSS_BACK = { dale: V(-1.85, 0, 0.3), tess: V(1.25, 0, -0.3) };
+  function bossCrew(m, P, pos, dt) {
+    P.bossK = clamp((P.bossK || 0) + (bs.on ? dt : -dt) / 0.9, 0, 1);
+    const e = P.bossK * P.bossK * (3 - 2 * P.bossK), at = BOSS_BACK[m.id], moving = P.bossK > 0.001 && P.bossK < 0.999, sg = bs.on ? 1 : -1;
+    P.g.position.lerpVectors(pos, at, e);
+    const yw = moving && pos.distanceToSquared(at) > 0.01 ? Math.atan2((at.x - pos.x) * sg, (at.z - pos.z) * sg) : Math.atan2(SPANK_H.x - at.x, SPANK_H.z - at.z);
+    P.g.rotation.y += Math.atan2(Math.sin(yw - P.g.rotation.y), Math.cos(yw - P.g.rotation.y)) * (1 - Math.exp(-dt * 9));
+    const w = moving ? Math.sin(t * 9) : 0;
+    P.legs[0].rotation.x = w * 0.55; P.legs[1].rotation.x = -w * 0.55;
+    P.shins[0].rotation.x = Math.max(0, w) * 0.85; P.shins[1].rotation.x = Math.max(0, -w) * 0.85;
+    P.g.position.y = Math.abs(w) * 0.03;
+    const hide = bs.on && (bs.spankT >= 0 || bs.bendK > 0.6), ek = 1 - Math.exp(-dt * 10);      // hands over the eyes
+    for (let i = 0; i < 2; i++) {
+      P.arms[i].rotation.x += ((hide ? -2.3 : (i ? w : -w) * 0.5) - P.arms[i].rotation.x) * ek;
+      P.fores[i].rotation.x += ((hide ? -2.15 : moving ? -0.45 : -0.18) - P.fores[i].rotation.x) * ek;
+    }
+    P.head.rotation.x = hide ? 0.15 : 0; P.rod.visible = false;
   }
   function slotTex() {
     const t = canvasTex(32, 32, (c) => { c.fillStyle = '#f4f4ee'; c.fillRect(0, 0, 32, 32); c.fillStyle = '#7d8790'; for (let y = 3; y < 32; y += 8) c.fillRect(3, y, 26, 2.5); });
@@ -2008,6 +2105,7 @@ window.WORLD = (() => {
     // crew
     updateWell(S, dt, casTop);
     updateJob(S, dt, casTop);
+    updateBoss(S.paused ? 0 : dt);
     updateVisit(S.paused ? 0 : dt);
     const panicking = updatePanic(dt);
     for (const m of S.crew) {
@@ -2077,6 +2175,7 @@ window.WORLD = (() => {
         }
         pos.copy(at);
       } else if (jb.on) jobCrew(m, P, pos, S.paused ? 0 : dt);
+      else if (bs.on || P.bossK > 0) bossCrew(m, P, pos, S.paused ? 0 : dt);
       else {
         P.wy = null; if (P.g.rotation.x) P.g.rotation.x = 0;
         if (P.jp) { P.jp = null; P.g.rotation.z = 0; for (let i = 0; i < 2; i++) { P.arms[i].rotation.z = 0; P.legs[i].rotation.z = 0; } }
@@ -2129,7 +2228,7 @@ window.WORLD = (() => {
       if (S.hoseBurst) for (let i = 0; i < 4; i++) drop(V(-1.2, 0.1, 1.3), V((Math.random() - 0.5) * 2, 3 + Math.random() * 2, (Math.random() - 0.5) * 2), 0x5bb8f0, 1.2);
       if (S.rop > 0.3 && conn === 'core' && Math.random() < 0.5) drop(V((Math.random() - 0.5) * 0.15, 0.05, (Math.random() - 0.5) * 0.15), V((Math.random() - 0.5) * 0.8, 0.8, (Math.random() - 0.5) * 0.8), 0x7a5a3a, 0.8);
     }
-    stepParticles(running || ((wj.on || jb.on) && !S.paused) ? dt : 0);
+    stepParticles(running || ((wj.on || jb.on || bs.on) && !S.paused) ? dt : 0);
     const tgt = Math.min(2.6, 0.15 + Math.sqrt(S.water.spilled) * 0.12);
     R.puddle.scale.x = lerp(R.puddle.scale.x, S.water.spilled > 2 ? tgt : 0.01, 0.02); R.puddle.scale.y = R.puddle.scale.x * 0.7;
   }
@@ -2228,7 +2327,7 @@ window.WORLD = (() => {
 
   return {
     init, update, render, resize, lookDrag, zoom, zoomBy, preset, project, crewHead, shoulder, walkTo, setInspectCore, smoke: lightUp, cigStyle,
-    setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell, setJob,
+    setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell, setJob, setBoss,
     engHead() { return R.eng ? R.eng.g.position.clone().add(V(0, 2.15 * (R.engLook.height || 1), 0)) : V(0, 2, 0); },
     sadden(id, sec) { sad[id] = sec; sad.len = sec; },
     setVisit, throwSonic, laugh(sec) { laughFx.t = laughFx.dur = sec; }, annoy(id, sec) { mad[id] = sec; mad.len = sec; }, get tossing() { return toss.on && toss.state === 'fly'; },

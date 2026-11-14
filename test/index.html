@@ -473,6 +473,11 @@ body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 .spt-cap small { display: block; margin-top: 5px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
 .spt[data-fin="1"] { background: #9fd3f0; }
 body.spt-job .hud-left, body.spt-job .hud-right, body.spt-job .views, body.spt-job .logbox, body.spt-job .hint-strip, body.spt-job .ez, body.spt-job .speed { display: none !important; }
+/* Aaron on site after two failed holes in a row (js/aaron.js): the scene is watched from outside, with the screen cleared */
+body.boss-on .hud-left, body.boss-on .hud-right, body.boss-on .views, body.boss-on .logbox, body.boss-on .hint-strip, body.boss-on .ez, body.boss-on .speed { display: none !important; }
+.ar-skip { position: fixed; z-index: 7; right: 14px; bottom: 14px; font: inherit; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #fffdf4; background: #121c0ecc; border: 2px solid #050805; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+.ar-skip:hover { background: #1f2f18; }
+body.at-menu .ar-skip { display: none; }
 .spt[data-fin="1"] .spt-side { left: 50%; right: auto; transform: translateX(-50%); width: min(560px, 82vw); text-align: center; }
 body.spt-job .ar-timer, body.spt-job .ar-text { z-index: 27; }
 body.spt-fin .ar-timer, body.spt-fin .ar-text { display: none; }
@@ -941,6 +946,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 </div>
 <div class="ar-timer" id="arTimer" data-lvl="ok" role="timer" hidden><small id="arLabel">Aaron's deadline</small><b id="arTime">0:00</b></div>
 <div class="ar-text" id="arText" role="status" hidden><b>Aaron</b><span id="arTextSay"></span></div>
+<button class="ar-skip" id="arSkip" type="button" hidden>Skip</button>
 
 <div class="menu" id="menu">
   <div>
