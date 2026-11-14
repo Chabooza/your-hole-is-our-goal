@@ -5,24 +5,25 @@
    Progress is kept in this browser (yhiog-career): the highest hole opened, the best grade on each, and the last one played.
 
    A layer is [material, bottom depth in ft, changes]. The materials themselves (how they drill) are MATS in js/sim.js.
+   Hole 1 is the game's original hole, as it was before there was a career.
    Changes can rename a layer or alter how it drills: heave (how hard the sand runs), base (how fast it cuts),
    cob: [gapMin, gapMax, lenMin, lenMax] in ft (how many cobbles or boulders, and how big). Depths are in whole tens of
    feet, 40 to 80: the rig carries enough casing and rods for 80. */
 window.SITES = (() => {
   const PASS = 80, KEY = 'yhiog-career';
   const LIST = [
-    { name: "Farmer's field", depth: 60, wt: 22,
-      blurb: 'Soft, forgiving ground with no cobbles. A good hole to learn on.',
-      layers: [['topsoil', 4], ['clay', 24], ['sand', 36, { heave: 0.4 }], ['till', 50], ['shale', 70]] },
-    { name: 'Gravel pit road', depth: 50, wt: 16,
-      blurb: 'Gravel with the odd cobble near the top, then clay and sand.',
-      layers: [['topsoil', 2], ['gravel', 14, { cob: [2.6, 5, 0.5, 1] }], ['clay', 28], ['sand', 40, { heave: 0.8 }], ['till', 60]] },
-    { name: 'Riverbank', depth: 40, wt: 6,
-      blurb: 'A short hole, but the water is nearly at surface and the sand runs.',
-      layers: [['topsoil', 3], ['sand', 20, { heave: 1.2 }], ['gravel', 31], ['clay', 50]] },
     { name: 'Old gas station', depth: 60, wt: 12,
-      blurb: 'A bit of everything: clay, running sand, cobbles, till and rock.',
+      blurb: 'The first job. A bit of everything: clay, running sand, cobbles, till and rock.',
       layers: [['topsoil', 3], ['clay', 14], ['sand', 28], ['gravel', 40], ['till', 52], ['shale', 70]] },
+    { name: 'Gravel pit road', depth: 50, wt: 10,
+      blurb: 'Cobbles from 2 ft down, then clay, then sand that runs.',
+      layers: [['topsoil', 2], ['gravel', 16, { cob: [1.5, 3.8, 0.5, 1.2] }], ['clay', 26], ['sand', 40, { heave: 1.1 }], ['till', 60]] },
+    { name: 'Riverbank', depth: 40, wt: 6,
+      blurb: 'A short hole, but the water is nearly at surface and the sand runs hard.',
+      layers: [['topsoil', 3], ['sand', 20, { heave: 1.3 }], ['gravel', 32, { cob: [1.4, 3.6, 0.5, 1.2] }], ['clay', 50]] },
+    { name: 'Highway cut', depth: 60, wt: 9,
+      blurb: 'Cobbles early, running sand under them, and stiff till over the rock.',
+      layers: [['topsoil', 2], ['clay', 10], ['gravel', 26, { cob: [1.4, 3.4, 0.5, 1.2] }], ['sand', 40, { heave: 1.2 }], ['till', 52, { base: 4.6 }], ['shale', 70]] },
     { name: 'Railway yard', depth: 70, wt: 10,
       blurb: 'Deeper. A long stretch of sand, then a thick bed of cobbles.',
       layers: [['topsoil', 5, { name: 'Cinder fill', short: 'Cinders' }], ['clay', 15], ['sand', 32, { heave: 1.1 }], ['gravel', 46, { cob: [1.3, 3.4, 0.5, 1.2] }], ['till', 60], ['shale', 80]] },
