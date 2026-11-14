@@ -188,6 +188,28 @@
     $('pickGo').addEventListener('click', () => closePick(true));
     $('pickBack').addEventListener('click', () => closePick(false));
   }
+  // ---------- install as an app (only on the game's own web address, and only until it has been installed) ----------
+  // Android and computers get a real Install button. An iPhone has no such thing, so it gets the steps to follow in Safari.
+  let installEvt = null;
+  function bindInstall() {
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || navigator.standalone === true;
+    const hosted = !/claude|anthropic/.test(location.hostname) && (location.protocol === 'https:' || location.hostname === 'localhost');
+    const btns = [$('menuInstall'), $('rotateInstall')], show = v => btns.forEach(b => { b.hidden = !v; });
+    show(hosted && !standalone);
+    if (!hosted || standalone) return;
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+    window.addEventListener('appinstalled', () => { installEvt = null; show(false); $('install').hidden = true; });
+    const open = () => {
+      if (installEvt) { installEvt.prompt(); return; }
+      const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const inApp = ios && !/CriOS|FxiOS|EdgiOS/.test(ua) && (!/Safari/.test(ua) || /FBAN|FBAV|Instagram|Line\/|Snapchat|GSA\//.test(ua));
+      $('install').dataset.os = ios ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop';
+      $('instInApp').hidden = !inApp;
+      $('install').hidden = false;
+    };
+    btns.forEach(b => b.addEventListener('click', open));
+    $('instDone').addEventListener('click', () => { $('install').hidden = true; });
+  }
   function neutral() { const c = APP.S.ctl; c.feed = 0; c.rot = 0; c.winch = 0; c.slide = 0; c.arm = 0; c.brk = 0; }
   // walk to the core table for a close look at a sample. auto = straight after a run: shut the sonic down first
   function goInspect(i, auto) {
@@ -459,7 +481,7 @@
     $('btnNeutral').addEventListener('click', neutral);
     $('rotateOk').addEventListener('click', () => document.body.classList.add('upright'));
     layout(true);
-    bindSettings(); WORLD.setOptions({ quality: settings.gfx }); setMode(); applySettings(false);
+    bindSettings(); bindInstall(); WORLD.setOptions({ quality: settings.gfx }); setMode(); applySettings(false);
     window.addEventListener('resize', () => layout(false));
     setTimeout(() => { $('hintStrip').hidden = true; }, 60000);
     if (APP.S.t > 0) setPaused(APP.S.paused); else { APP.S.paused = true; showMenu(true); }
@@ -509,6 +531,7 @@
   // [ ] flow, C bottom clamp, X top clamp, , . break-out, J/L head slide, K side switch, U/Y casing arm, Q tilt,
   // T/G throttle, E engine, H horn, V look at panel, I inspect core, B light a smoke, Esc pause, 1/2/4 speed
   window.addEventListener('keydown', e => {
+    if (!$('install').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { $('install').hidden = true; e.preventDefault(); } return; }
     if (!$('settings').hidden) { if (e.key === 'Escape') { closeSettings(); e.preventDefault(); } return; }
     if (!$('pick').hidden) { if (e.key === 'Escape') { closePick(false); e.preventDefault(); } return; }
     if (!$('brief').hidden || !$('report').hidden) { if (e.key === 'Escape' && !$('brief').hidden) closeBrief(); return; }
