@@ -37,23 +37,23 @@ window.AARON = (() => {
 
   const HELLO = ["Hey, bud, how's it going?", 'Hey, bud. Got a second?', "Hey, bud. How's the hole?", "Bud! It's Aaron."];
   const NEWS = ["Just wanted to let you know you've got another job coming up.", 'So, the next job got moved up on us.', 'The client on the next one is already on site.', "I've booked you another hole after this one. Today."];
-  const HURRY = ['Which means you got to get this hole done quick. You have {t}.', 'So get this one done quick. I need you rolling in {t}.', "So no messing around, eh? You've got {t} to finish up.", 'So wrap this hole up. {t}, bud. Not a second more.'];
+  const HURRY = ['Which means you got to get this hole done quick. You have {t}.', 'So get this one done quick. I need you rolling in {t}.', "So no messing around, eh? You've got {t} to finish up.", 'So wrap this hole up. {t}. Not a second more.'];
   const REPLY = ['Yeah, yeah. On it.', 'No problem, Aaron.', '...Great.', 'Sure. Why not.', 'You got it, boss.'];
-  const HALF = ["How's that hole coming, bud?", 'Half your time is gone, bud.', 'Client just called again. No pressure.'];
-  const TWO = ['Two minutes, bud. Wrap it up.', 'You packing up yet? Two minutes.'];
-  const LATE = ["You're late, bud. Every minute costs you more than the last.", "That's time. The client is waiting, and it only gets worse from here."];
-  const WORSE = ['Three minutes over, bud. This is getting expensive.', 'Still not done? The client is counting every minute.'];
-  const MADE = ['Nice work, bud. Get rolling.', 'Good stuff. See you at the next one.'];
-  const CLOSE = ["Cutting it close, bud. I'll let that one go.", 'Right on the buzzer. Good enough.'];              // late, but not by enough to cost a point
-  const MISSED = ['A bit late, bud. The client noticed.', 'Late, but done. Get rolling.'];                         // a few points
-  const BADLY = ["We'll talk about this later.", 'The client is not happy, bud.'];                                   // 10 points or more
+  const HALF = ["How's that hole coming?", 'Half your time is gone.', 'Client just called again. No pressure.'];
+  const TWO = ['Two minutes. Wrap it up.', 'You packing up yet? Two minutes.'];
+  const LATE = ["You're late. Every minute costs you more than the last.", "That's time. The client is waiting, and it only gets worse from here."];
+  const WORSE = ['Three minutes over. This is getting expensive.', 'Still not done? The client is counting every minute.'];
+  const MADE = ['Nice work. Get rolling.', 'Good stuff. See you at the next one.'];
+  const CLOSE = ["Cutting it close. I'll let that one go.", 'Right on the buzzer. Good enough.'];              // late, but not by enough to cost a point
+  const MISSED = ['A bit late. The client noticed.', 'Late, but done. Get rolling.'];                         // a few points
+  const BADLY = ["We'll talk about this later.", 'The client is not happy.'];                                   // 10 points or more
   // the last-leg call. {s} is the failed grade, {n} how many holes in a row have failed
   const LEG_HELLO = ['Hey, bud. We need to talk.', "Bud. It's Aaron. Got a minute? You do.", 'Hey, bud. Before you start that hole.', "Bud. Don't touch that throttle yet."];
-  const LEG_SCORE = ['I got the report on your last hole. {s} out of 100.', 'You scored {s} on that last one, bud. That is not a pass.', 'The client sent the last hole back. {s} out of 100, bud.', '{s} out of 100 on the last hole. I had to read it twice.'];
-  const LEG1 = ["You're on your last leg, bud.", "I'll be straight with you: you're on your last leg here.", "One more like that and we have a problem. You're on your last leg.", "I went to bat for you on that one. You're on your last leg."];
-  const LEG2 = ["That's two in a row. You were on your last leg. Now you're hopping.", 'Two sent back, bud. I told you that you were on your last leg.', "Two in a row. That last leg of yours is getting wobbly."];
-  const LEG3 = ["{n} in a row, bud. I've run out of legs for you to stand on.", '{n} failed holes. Greg is asking about your truck.', "{n} in a row. I'm only still calling because nobody else wants the job.", '{n} in a row, bud. The client knows your name now. Not in a good way.'];
-  const LEG_BYE = ['So do this one right, eh?', "Get this one right. I'm watching the report.", "Don't make me call you again, bud.", 'Slow down, read the ground, and get me a pass.'];
+  const LEG_SCORE = ['I got the report on your last hole. {s} out of 100.', 'You scored {s} on that last one. That is not a pass.', 'The client sent the last hole back. {s} out of 100.', '{s} out of 100 on the last hole. I had to read it twice.'];
+  const LEG1 = ["You're on your last leg.", "I'll be straight with you: you're on your last leg here.", "One more like that and we have a problem. You're on your last leg.", "I went to bat for you on that one. You're on your last leg."];
+  const LEG2 = ["That's two in a row. You were on your last leg. Now you're hopping.", 'Two sent back. I told you that you were on your last leg.', "Two in a row. That last leg of yours is getting wobbly."];
+  const LEG3 = ["{n} in a row. I've run out of legs for you to stand on.", '{n} failed holes. Greg is asking about your truck.', "{n} in a row. I'm only still calling because nobody else wants the job.", '{n} in a row. The client knows your name now. Not in a good way.'];
+  const LEG_BYE = ['So do this one right, eh?', "Get this one right. I'm watching the report.", "Don't make me call you again.", 'Slow down, read the ground, and get me a pass.'];
   const LEG_REPLY = ['Yes, Aaron.', "Won't happen again.", '...Understood.', 'It was the ground, Aaron.', 'Tell the client I said sorry.', 'Last leg. Got it.'];
   const LOOK = { suit: 0x3a4658, suitDark: 0x2a3444, patch: 'Aaron', hat: 0xf6f6f1, hatTrim: 0xd9d9d2, skin: 0xe6b48c, nose: 0xd9a37b, vest: 0xf47a1f, shirt: 0xbcd3ee,
     brow: 0x2b1d14, eye: 0x3a2a1c, glasses: 'none', lensClear: true, wire: false, lens: ['#ffffff', '#ffffff', '#ffffff'], frame: 0x17171a, smile: true,
