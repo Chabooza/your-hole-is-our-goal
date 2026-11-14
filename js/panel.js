@@ -491,18 +491,19 @@ window.PANEL = (() => {
     }
   }
 
-  // the grippy gloves from the shop: orange, with dark cuffs
-  function setGloves(grippy) {
-    const want = grippy ? [0xff7a1a, 0x23272b] : [0xd9a441, 0xc48e33];
-    for (const k of ['L', 'R']) hands[k].g.traverse(o => {
-      if (!o.isMesh || !o.material || !o.material.color) return;
-      if (o.userData.role == null) {
-        const hx = o.material.color.getHex();
-        o.userData.role = hx === 0xd9a441 ? 0 : hx === 0xc48e33 ? 1 : -1;
-        if (o.userData.role >= 0) o.material = o.material.clone();
-      }
-      if (o.userData.role >= 0) o.material.color.setHex(want[o.userData.role]);
-    });
+  // What the hands on the levers wear. spec = { palm, cuff, fingers: [four colours], thumb, size } from js/swag.js or
+  // the grippy gloves; nothing = the plain tan leather. sleeve = the colour (or pattern name) of the outfit's arms.
+  function setGloves(spec, sleeve) {
+    const s = spec || {}, palm = s.palm == null ? 0xd9a441 : s.palm, cuff = s.cuff == null ? 0xc48e33 : s.cuff;
+    const arm = sleeve == null ? 0x2f5d8c : typeof sleeve === 'string' ? H.pat(sleeve) : sleeve;
+    for (const k of ['L', 'R']) {
+      const hd = hands[k], ch = hd.g.children;
+      ch[0].material = H.toon(palm); ch[1].material = H.toon(cuff);
+      for (let i = 0; i < 4; i++) ch[2 + i].children[0].material = H.toon(s.fingers ? s.fingers[k === 'L' ? i : 3 - i] : palm);
+      ch[6].children[0].material = H.toon(s.thumb == null ? palm : s.thumb);
+      hd.g.scale.setScalar(s.size || 1);
+      hd.arm.material = H.toon(arm);
+    }
   }
   // the item brought from the shop: a card clipped to the top corner of the console, with its picture and name
   let plaque = null, plaqueCtx = null, plaqueTex = null, plaqueKey = '';
