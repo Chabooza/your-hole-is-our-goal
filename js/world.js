@@ -1272,6 +1272,14 @@ window.WORLD = (() => {
     return cig.on;
   }
 
+  // the special cigarette from the shop: gold paper, a green filter and green smoke
+  function cigStyle(special) {
+    if (!R.cig) return;
+    if (!R.cigOwn) { R.cigOwn = true; R.cigPaper.material = R.cigPaper.material.clone(); R.cigFilter.material = R.cigFilter.material.clone(); }
+    R.cigPaper.material.color.setHex(special ? 0xf2cf62 : 0xf7f4ec); R.cigFilter.material.color.setHex(special ? 0x2f8f57 : 0xd58d3f);
+    for (const q of R.puffs) q.s.material.color.setHex(special ? 0x9df08a : 0xf3f3f0);
+  }
+
   // ---------- rebuilt-on-change geometry ----------
   function tube(points, r, segs) { return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), segs || 32, r, 8, false); }
   function updateHoses(headY, slide) {
@@ -1666,7 +1674,7 @@ window.WORLD = (() => {
   }
 
   return {
-    init, update, render, resize, lookDrag, zoom, zoomBy, preset, project, crewHead, shoulder, walkTo, setInspectCore, smoke: lightUp,
+    init, update, render, resize, lookDrag, zoom, zoomBy, preset, project, crewHead, shoulder, walkTo, setInspectCore, smoke: lightUp, cigStyle,
     setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell,
     engHead() { return R.eng ? R.eng.g.position.clone().add(V(0, 2.15 * (R.engLook.height || 1), 0)) : V(0, 2, 0); },
     sadden(id, sec) { sad[id] = sec; sad.len = sec; },

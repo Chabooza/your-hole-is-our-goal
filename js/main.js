@@ -48,6 +48,7 @@
     $('pausedTag').hidden = true;                 // the clock starts when the drone has landed
     layout(false);
     if (APP.phone && !APP.easy) WORLD.preset('work');
+    if (APP.S.t === 0) packItem(true);            // whatever is picked in the shop when the hole starts is what comes along
     WORLD.setDrone(false, false, () => { APP.fly = false; PANEL.setHands(true); setPaused(false); });
   }
 
@@ -190,6 +191,9 @@
     $('menuNew').addEventListener('click', () => { AUDIO.init(); holeFromMenu(APP.hole); });
     $('menuHoles').addEventListener('click', () => { AUDIO.init(); openHoles(); });
     $('holesBack').addEventListener('click', () => { $('holes').hidden = true; });
+    $('menuShop').addEventListener('click', () => { AUDIO.init(); openShop(); });
+    $('holesShop').addEventListener('click', openShop);
+    $('shopBack').addEventListener('click', closeShop);
     $('pickGo').addEventListener('click', () => closePick(true));
     $('pickBack').addEventListener('click', () => closePick(false));
   }
@@ -245,6 +249,56 @@
     INSPECT.close(); APP.freeze = false;
     WORLD.walkTo(false, () => { APP.away = false; PANEL.setHands(true); document.body.classList.remove('inspecting'); });
   }
+  // ---------- the shop (js/shop.js): the one item the driller brings to a hole ----------
+  // fresh: a hole is starting, so take whatever is picked in the shop now
+  function packItem(fresh) {
+    const S = APP.S;
+    if (fresh) { S.item = SHOP.take(); S.itemSpent = false; S.luck = 0; if (S.dartLit) { S.dartLit = false; } WORLD.cigStyle(false); }
+    showItem();
+  }
+  // everything on screen that shows the item: the chip in the top bar, the card on the console, gloves, tint, jitters
+  let itemKey = null;
+  function showItem() {
+    const S = APP.S, it = SHOP.get(S.item), live = SHOP.dartOn(S);
+    if (S.item === 'energy' && S.t > 0 && !S.itemSpent) SHOP.use(S);          // drunk as the shift starts
+    const gone = !!S.itemSpent && !live && ['dart', 'favour', 'duct', 'kit'].includes(S.item);
+    const key = (S.item || '') + '|' + gone + '|' + live;
+    if (key === itemKey) return;
+    itemKey = key;
+    const chip = $('itemChip');
+    chip.hidden = !it;
+    if (it) { chip.textContent = it.icon; chip.title = it.name + (gone ? ' (used)' : live ? ' (burning)' : ''); chip.classList.toggle('spent', gone); chip.classList.toggle('live', live); }
+    PANEL.setItem(it ? it.icon : '', it ? it.name : '', gone);
+    PANEL.setGloves(S.item === 'gloves');
+    document.body.classList.toggle('wear-shades', S.item === 'shades');
+    document.body.classList.toggle('jitters', S.item === 'energy');
+  }
+  function drawShop() {
+    const st = SHOP.state, eq = SHOP.get(SHOP.take());
+    $('shopBucks').textContent = st.bucks;
+    $('shopSub').textContent = eq ? `Bringing to the next hole: ${eq.name}` : 'Bringing nothing to the next hole';
+    for (const [boxId, keep] of [['shopGear', true], ['shopOnce', false]]) {
+      const box = $(boxId); box.innerHTML = '';
+      for (const it of SHOP.ITEMS.filter(i => i.keep === keep)) {
+        const have = SHOP.has(it.id), on = have && st.equip === it.id;
+        const d = document.createElement('div'); d.className = 'item' + (have ? ' own' : '') + (on ? ' on' : '');
+        d.innerHTML = `<i>${it.icon}</i><b></b><span class="i-have">${keep ? (have ? 'Yours for good' : 'Not bought') : `You have ${SHOP.count(it.id)}`}</span><span class="i-what"></span><span class="i-see"></span><div class="i-btns"></div>${on ? '<em>Bringing</em>' : ''}`;
+        d.querySelector('b').textContent = it.name; d.querySelector('.i-what').textContent = it.what; d.querySelector('.i-see').textContent = 'What you see: ' + it.see;
+        const btns = d.querySelector('.i-btns');
+        const btn = (label, alt, fn, off) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; if (alt) b.className = 'alt'; b.disabled = !!off; b.addEventListener('click', () => { fn(); drawShop(); }); btns.append(b); };
+        if (have) btn(on ? 'Leave it behind' : 'Bring it', on, () => SHOP.equip(it.id));
+        if (!keep || !have) btn(`Buy · ${SHOP.PRICE} buck`, have, () => SHOP.buy(it.id), st.bucks < SHOP.PRICE);
+        box.append(d);
+      }
+    }
+  }
+  function openShop() { drawShop(); $('shop').hidden = false; }
+  function closeShop() {
+    $('shop').hidden = true;
+    if (APP.S.t === 0) packItem(true);            // the hole has not started: bring the new pick
+    if (!$('holes').hidden) openHoles();
+  }
+
   // ---------- the career: ten holes, each harder than the last (js/sites.js) ----------
   // the bits of the screen that name the hole
   function showSite() {
@@ -286,6 +340,8 @@
     const done = Object.keys(C.best).filter(k => C.best[k] >= SITES.PASS).length;
     $('holesTitle').textContent = after ? 'Pick your next hole' : 'Pick a hole';
     $('holesSub').textContent = `${done} of ${SITES.COUNT} completed · score ${SITES.PASS} or better to complete a hole and unlock the next`;
+    const eq = SHOP.get(SHOP.take());
+    $('holesItem').textContent = `${SHOP.state.bucks} Safety Buck${SHOP.state.bucks === 1 ? '' : 's'} · bringing: ${eq ? eq.icon + ' ' + eq.name : 'nothing'}`;
     $('holesBack').textContent = after ? 'Back to the report' : 'Back';
     $('holes').hidden = false;
     const cur = grid.querySelector('.cur'); if (cur) { cur.scrollIntoView({ block: 'nearest' }); cur.focus({ preventScroll: true }); }
@@ -297,6 +353,7 @@
   // the well is built and signed off: keep the grade, open the next hole on a pass, and show the report
   function endHole(S) {
     const n = S.site.n, res = SITES.record(n, S.report.score), more = n < SITES.COUNT && SITES.isOpen(n + 1);
+    res.bucks = SHOP.earn(S.report.score);        // 95 or better earns a Safety Buck for the shop
     APP.nextHole = res.passed && more ? n + 1 : n;
     SITES.setLast(APP.nextHole);
     HUD.showReport(S, res);
@@ -306,6 +363,7 @@
     if (n) APP.hole = n;
     APP.nextHole = APP.hole; SITES.setLast(APP.hole);
     APP.S = SIM.newGame(undefined, APP.hole);
+    packItem(true);
     WELL.reset();
     TOSS.reset();
     NAG.reset();
@@ -332,11 +390,15 @@
 
   // ---------- a smoke ----------
   const QUIPS = [['dale', 'Got a spare one, boss?'], ['dale', "Smoke 'em if you got 'em."], ['tess', 'Downwind of the core, please.'], ['tess', 'Those will kill you before the rig does.'], ['dale', 'Not near the fuel tank, eh.']];
-  let smokeShown = false;
+  let smokeShown = '';
   function toggleSmoke() {
     AUDIO.init();
     const S = APP.S, on = WORLD.smoke(!WORLD.smoking);
     S.sfx.push(on ? 'lighter' : 'stub');
+    if (on && S.item === 'dart' && SHOP.use(S)) {            // the special from the shop: prompts run slow while it burns
+      S.dartLit = true; WORLD.cigStyle(true);
+      S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: 'The special is lit. Every prompt runs slow until it burns down.', lvl: 'good' });
+    }
     if (on) {
       S.stats.smokes = (S.stats.smokes || 0) + 1;
       const [who, line] = QUIPS[Math.floor(Math.random() * QUIPS.length)];
@@ -345,10 +407,11 @@
     }
   }
   function syncSmoke() {
-    const on = WORLD.smoking; if (on === smokeShown) return;
-    smokeShown = on;
-    $('btnSmoke').textContent = on ? 'Put it out' : 'Light a smoke';
-    $('btnSmoke').setAttribute('aria-pressed', String(on));
+    const S = APP.S, on = WORLD.smoking;
+    if (!on && S.dartLit) { S.dartLit = false; WORLD.cigStyle(false); }       // the special has burned down
+    const label = on ? 'Put it out' : S.item === 'dart' && !S.itemSpent ? 'Light the special' : 'Light a smoke';
+    if (label !== smokeShown) { smokeShown = label; $('btnSmoke').textContent = label; $('btnSmoke').setAttribute('aria-pressed', String(on)); }
+    showItem();
   }
 
   // ---------- berate a helper ----------
@@ -524,6 +587,7 @@
     WORLD.init($('view'));
     PANEL.build(APP);
     loadSettings(); applyCrew();
+    packItem(true);
     HUD.init(APP);
     INSPECT.init();
     EASY.init(APP);
@@ -613,6 +677,7 @@
   window.addEventListener('keydown', e => {
     if (!$('install').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { $('install').hidden = true; e.preventDefault(); } return; }
     if (!$('settings').hidden) { if (e.key === 'Escape') { closeSettings(); e.preventDefault(); } return; }
+    if (!$('shop').hidden) { if (e.key === 'Escape') { closeShop(); e.preventDefault(); } return; }
     if (!$('holes').hidden) { if (e.key === 'Escape') { $('holes').hidden = true; e.preventDefault(); } return; }
     if (!$('pick').hidden) { if (e.key === 'Escape') { closePick(false); e.preventDefault(); } return; }
     if (!$('brief').hidden || !$('report').hidden) { if (e.key === 'Escape' && !$('brief').hidden) closeBrief(); else if (e.key === 'Enter' && $('brief').hidden) { openHoles(); e.preventDefault(); } return; }

@@ -93,7 +93,18 @@ window.MARL = (() => {
   function update(S, dt) {
     if (!plan || plan.done) return;
     if (st === '') {
+      if (S.item === 'padlock') return;           // a padlock on the toolbox (js/shop.js): Marl never got near the rig
       if (S.hole.depth >= plan.depth && quiet() && FNS[plan.fn].used(S, S.ctl)) {
+        if (S.item === 'duct' && SHOP.use(S)) {   // a roll of duct tape: fixed on the spot, no stopping to look
+          const name = FNS[plan.fn].name;
+          plan.done = true;
+          E.warn.textContent = `The ${name} quit. You slap duct tape on it. Fixed. Fucking Marl.`; E.warn.hidden = false;
+          setTimeout(() => { if (st === '') E.warn.hidden = true; }, 3400);
+          S.stats.marl = `Taped up on the spot (${name})`;
+          S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: `The ${name} quit. Duct tape. Fixed. Fucking Marl.`, lvl: 'warn' });
+          S.sfx.push('clank');
+          return;
+        }
         st = 'dead'; t = 0;
         E.warn.textContent = `The ${FNS[plan.fn].name} has quit working!`; E.warn.hidden = false;
         S.sfx.push('cough');

@@ -38,7 +38,7 @@ window.EASY = (() => {
   const Q = { src: null, state: 'idle', t: 0, limit: 4.5, turns: 1.6, need: 7, keys: 8, hold: 0, prog: 0, turn: 0, strokes: 0, ext: 0, dir: 0, lp: null, lh: null, keyLast: '' };
   const CIRC = 2 * Math.PI * 52;
   function qStart(src, retry) {
-    const tn = APP.S.site.tune;                  // later holes: less time, more circles, more swipes (js/sites.js)
+    const tn = SHOP.tune(APP.S);                 // later holes: less time, more circles, more swipes (js/sites.js), eased by what you brought (js/shop.js)
     Q.limit = tn.spinTime; Q.turns = tn.turns; Q.need = tn.strokes; Q.keys = tn.keys;
     Q.src = src; Q.state = 'ready'; Q.hold = retry ? 0.5 : 0.7; Q.t = 0; Q.prog = 0; Q.turn = 0; Q.strokes = 0; Q.dir = 0; Q.lp = null; Q.lh = null; Q.keyLast = '';
     E.qte.hidden = false; E.root.dataset.qte = '1';
@@ -84,7 +84,7 @@ window.EASY = (() => {
       if (Q.prog >= 1) { Q.state = 'done'; Q.hold = 0.55; S.sfx.push('ok'); }
       else if (Q.t >= Q.limit) {                                // missed it: the pipe goes over and the helpers scatter
         Q.state = 'fail'; Q.hold = 2.8; Q.focus = AUTO.st.focus; AUTO.st.focus = 'panic'; lookHold = 0;
-        S.stats.fumbles = (S.stats.fumbles || 0) + 1;
+        if (!SHOP.lucky(S)) S.stats.fumbles = (S.stats.fumbles || 0) + 1;
         S.log.unshift({ t: S.t, clock: SIM.clockStr(S), msg: 'Fumbled a connection. The pipe went over and everybody jumped clear.', lvl: 'warn' });
         S.crew[0].say = 'Look out!'; S.crew[0].sayT = 2.6; S.crew[1].say = 'Whoa, whoa, whoa!'; S.crew[1].sayT = 2.6;
         WORLD.panic(2.8, Q.src.pipe === 'casing' ? 0.085 : 0.045);

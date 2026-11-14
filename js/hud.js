@@ -195,7 +195,7 @@ window.HUD = (() => {
       const tail = !res.passed ? `You need ${SITES.PASS} or better, drilling and well together, to open the next hole.`
         : res.last ? 'That was the last hole. You have drilled the lot.'
         : res.opened ? `Hole ${nxt.n}, ${nxt.name}, is now open.` : `Hole ${nxt.n}, ${nxt.name}, is open.`;
-      verdict = `<div class="rp-pass ${res.passed ? 'ok' : 'no'}"><b>${res.passed ? 'Passed' : 'Not passed'}</b><span>Hole ${st.n} of ${SITES.COUNT} · ${st.name} · pass mark ${SITES.PASS}. ${tail}${res.record ? ' A new best for this hole.' : res.best > r.score ? ` Your best here is ${res.best}.` : ''}</span></div>`;
+      verdict = `<div class="rp-pass ${res.passed ? 'ok' : 'no'}"><b>${res.passed ? 'Passed' : 'Not passed'}</b><span>Hole ${st.n} of ${SITES.COUNT} · ${st.name} · pass mark ${SITES.PASS}. ${tail}${res.record ? ' A new best for this hole.' : res.best > r.score ? ` Your best here is ${res.best}.` : ''}${res.bucks ? ` <b class="rp-buck">+${res.bucks} Safety Buck</b> for scoring ${SHOP.NEED} or better. Spend it in the shop.` : ''}</span></div>`;
     }
     const pct = v => `${Math.round(v * 100)}%`, ms = v => { v = Math.max(0, Math.round(v)); return Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0'); };
     const rows = s.runs.map(x => `<tr><td>${x.n}</td><td>${x.from.toFixed(1)}–${x.to.toFixed(1)}</td><td>${x.segs.filter(g => !g.slough).map(g => SIM.LAYERS.find(L => L.id === g.layer).short).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'slough'}</td><td>${x.drilled.toFixed(1)}</td><td>${x.recNet.toFixed(1)}</td><td class="${x.recovery >= 0.9 ? 'g' : x.recovery >= 0.7 ? 'a' : 'r'}">${pct(x.recovery)}</td><td>${SIM.noteKeys(x).map(k => SIM.NOTE_TEXT[k]).join('; ') || '—'}${x.slough > 0.05 ? `; ${x.slough.toFixed(1)} ft slough` : ''}</td></tr>`).join('');
@@ -216,7 +216,8 @@ ${r.aaron ? `<div><dt>Aaron's deadline</dt><dd class="${r.aaron.pen ? 'r' : 'g'}
         <div><dt>Near misses and drops</dt><dd>${r.incidents}${r.drops ? ` (${r.drops} dropped pipe)` : ''}</dd></div>
         <div><dt>Joints run in loose</dt><dd>${r.loose}</dd></div>${r.fumbles ? `
         <div><dt>Connections fumbled</dt><dd>${r.fumbles}</dd></div>` : ''}
-        <div><dt>Equipment wear</dt><dd>${wear}</dd></div>${s.stats.smokes ? `
+        <div><dt>Equipment wear</dt><dd>${wear}</dd></div>${SHOP.get(s.item) ? `
+        <div><dt>Brought from the shop</dt><dd>${SHOP.get(s.item).icon} ${SHOP.get(s.item).name}</dd></div>` : ''}${s.stats.smokes ? `
         <div><dt>Smoke breaks</dt><dd>${s.stats.smokes}</dd></div>` : ''}
 ${s.stats.marl ? `<div><dt>Marl's handiwork</dt><dd>${s.stats.marl}</dd></div>
         ` : ''}${s.stats.nags ? `<div><dt>Earfuls from the engineer</dt><dd>${s.stats.nags}</dd></div>
@@ -229,7 +230,7 @@ ${w ? `
         <div><dt>Engineer's drawing</dt><dd>${w.plan.L} ft of screen, bottom at ${f1(w.plan.B)} ft</dd></div>${wellRows}
 ${w.pulls ? `
         <div><dt>Casing pulled</dt><dd>${w.pulls} joint${w.pulls === 1 ? '' : 's'}, ${w.clean} with the fill right</dd></div>` : ''}${w.wrecks ? `
-        <div><dt>Installs wrecked</dt><dd class="r">${w.wrecks} (too much in the casing)</dd></div>` : ''}
+        <div><dt>Installs wrecked</dt><dd class="r">${w.wrecks} (too much in the casing${w.forgiven ? ', 1 forgiven by the spare well kit' : ''})</dd></div>` : ''}
         <div><dt>Bags down the hole</dt><dd>${w.bags.bent.toFixed(1)} bentonite, ${w.bags.sand.toFixed(1)} sand</dd></div>${w.fumbles ? `
         <div><dt>Pipe fumbled</dt><dd>${w.fumbles}</dd></div>` : ''}${w.spill > 0.3 ? `
         <div><dt>Bentonite spilled out the top</dt><dd class="a">about ${Math.max(1, Math.round(w.spill / 3))} bag${Math.round(w.spill / 3) > 1 ? 's' : ''}</dd></div>` : ''}

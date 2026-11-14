@@ -491,6 +491,45 @@ window.PANEL = (() => {
     }
   }
 
+  // the grippy gloves from the shop: orange, with dark cuffs
+  function setGloves(grippy) {
+    const want = grippy ? [0xff7a1a, 0x23272b] : [0xd9a441, 0xc48e33];
+    for (const k of ['L', 'R']) hands[k].g.traverse(o => {
+      if (!o.isMesh || !o.material || !o.material.color) return;
+      if (o.userData.role == null) {
+        const hx = o.material.color.getHex();
+        o.userData.role = hx === 0xd9a441 ? 0 : hx === 0xc48e33 ? 1 : -1;
+        if (o.userData.role >= 0) o.material = o.material.clone();
+      }
+      if (o.userData.role >= 0) o.material.color.setHex(want[o.userData.role]);
+    });
+  }
+  // the item brought from the shop: a card clipped to the top corner of the console, with its picture and name
+  let plaque = null, plaqueCtx = null, plaqueTex = null, plaqueKey = '';
+  function setItem(icon, name, spent) {
+    if (!group) return;
+    if (!plaque) {
+      const cv = document.createElement('canvas'); cv.width = 256; cv.height = 300; plaqueCtx = cv.getContext('2d');
+      plaqueTex = new THREE.CanvasTexture(cv); plaqueTex.colorSpace = THREE.SRGBColorSpace; plaqueTex.anisotropy = 4;
+      plaque = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.2), new THREE.MeshBasicMaterial({ map: plaqueTex, transparent: true }));
+      plaque.position.set(W / 2 - 0.1, HH / 2 + 0.085, 0.012); face.add(plaque);
+    }
+    plaque.visible = !!icon;
+    const key = icon + '|' + name + '|' + (spent ? 1 : 0);
+    if (!icon || key === plaqueKey) return;
+    plaqueKey = key;
+    const c = plaqueCtx; c.clearRect(0, 0, 256, 300);
+    c.beginPath(); c.moveTo(34, 8); c.arcTo(248, 8, 248, 292, 26); c.arcTo(248, 292, 8, 292, 26); c.arcTo(8, 292, 8, 8, 26); c.arcTo(8, 8, 248, 8, 26); c.closePath();
+    c.fillStyle = '#fffdf4'; c.fill(); c.lineWidth = 10; c.strokeStyle = '#1b1710'; c.stroke();
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#1b1710';
+    c.font = '132px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif'; c.fillText(icon, 128, 112);
+    c.font = '700 31px "Barlow Condensed", "Arial Narrow", sans-serif';
+    const words = name.split(' '), lines = [''];
+    for (const w of words) { const cur = lines[lines.length - 1], next = cur ? cur + ' ' + w : w; if (c.measureText(next).width > 216 && cur) lines.push(w); else lines[lines.length - 1] = next; }
+    lines.slice(0, 3).forEach((l, i) => c.fillText(l, 128, 212 + i * 31 - (Math.min(3, lines.length) - 1) * 15));
+    if (spent) { c.fillStyle = 'rgba(255,253,244,0.72)'; c.fillRect(13, 13, 230, 274); c.fillStyle = '#b3261b'; c.font = '400 44px Bungee, "Arial Black", sans-serif'; c.save(); c.translate(128, 150); c.rotate(-0.3); c.fillText('USED', 0, 0); c.restore(); }
+    plaqueTex.needsUpdate = true;
+  }
   function setHands(v) { for (const k of ['L', 'R']) { hands[k].g.visible = v; hands[k].arm.visible = v; } }
-  return { build, update, hit, nearest, framePoints, begin, move, end, cancel, wheel, describe, setHover, touch, setHands, get pickables() { return pickables; }, get dragging() { return drag; } };
+  return { build, update, hit, nearest, framePoints, begin, move, end, cancel, wheel, describe, setHover, touch, setHands, setGloves, setItem, get pickables() { return pickables; }, get dragging() { return drag; } };
 })();

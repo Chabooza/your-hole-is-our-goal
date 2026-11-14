@@ -105,6 +105,7 @@ window.AARON = (() => {
     if (!face) { try { face = WORLD.portraits([LOOK], 160, 180)[0] || ''; } catch (e) { face = ''; } }
     E.face.style.backgroundImage = face ? `url(${face})` : ''; E.face.textContent = face ? '' : 'A';
     E.root.dataset.state = 'ring'; E.root.hidden = false; E.bubble.hidden = true;
+    E.root.dataset.fav = S.item === 'favour' && !S.itemSpent ? '1' : '';
     E.status.textContent = 'calling…';
     document.body.classList.add('on-call');
     PANEL.setHands(false);
@@ -114,9 +115,10 @@ window.AARON = (() => {
   function answer() {
     if (st !== 'ring' || APP.S.paused) return;
     AUDIO.init();
-    const S = APP.S, limit = allow(S);
+    const S = APP.S, fav = S.item === 'favour' && SHOP.use(S), limit = allow(S) + (fav ? 180 : 0);      // Aaron's favour from the shop: 3 more minutes
     S.aaron = { limit, left: limit, half: false, two: false, zero: false, done: false, pen: 0 };
     lines = [pick(HELLO), pick(NEWS), pick(HURRY).replace('{t}', minutes(limit))]; li = 0;
+    if (fav) lines.push('And since I owe you one, that includes three extra minutes.');
     st = 'talk'; t = 0;
     E.root.dataset.state = 'talk'; E.status.textContent = 'on the phone';
     E.say.textContent = lines[0]; E.bubble.hidden = false;
