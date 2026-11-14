@@ -397,6 +397,16 @@ body.phone .slot-driller { width: min(100%, 340px); }
 
 /* settings */
 .sheet.narrow { width: min(520px, 100%); }
+#install { z-index: 70; }
+#install .inst { display: none; gap: 9px; }
+#install #instNow { margin: 4px 0 12px; }
+#install .inst-ready, #install[data-ready="1"] .inst-manual { display: none; }
+#install[data-ready="1"] .inst-ready { display: list-item; }
+#install[data-os="ios"] #instNow { display: none; }
+#install[data-os="ios"] .inst.ios, #install[data-os="android"] .inst.android, #install[data-os="desktop"] .inst.desktop { display: flex; }
+.inst-ico { width: 1.3em; height: 1.3em; vertical-align: -0.28em; color: #1b6fd1; }
+.rotate #rotateInstall { display: block; margin: 12px auto 0; }
+.rotate #rotateInstall[hidden] { display: none; }
 .set-row { display: grid; grid-template-columns: 8em 1fr auto; align-items: center; gap: 10px 14px; padding: 9px 0; border-bottom: 1px solid #d9cfb2; font-size: 17px; font-weight: 700; }
 .set-row output { font-family: var(--f-mono); font-size: 13px; min-width: 3.4em; text-align: right; color: #5d5240; }
 .set-row input[type=range] { width: 100%; accent-color: #b3730a; height: 28px; margin: 0; }
@@ -692,6 +702,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <button type="button" class="btn-big" id="menuStart">Start</button>
     <button type="button" class="btn-big alt" id="menuNew" hidden>Start a new hole</button>
     <button type="button" class="btn-big alt" id="menuSettings">Settings</button>
+    <button type="button" class="btn-big alt" id="menuInstall" hidden>Install as an app</button>
   </div>
 </div>
 
@@ -740,7 +751,37 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
   </div>
 </div>
 
-<div class="rotate" id="rotate"><div><div class="turn"></div><b>Turn your phone sideways</b><p>The control panel needs the wide view.</p><button type="button" class="btn-big alt" id="rotateOk">Play upright anyway</button></div></div>
+<div class="rotate" id="rotate"><div><div class="turn"></div><b>Turn your phone sideways</b><p>The control panel needs the wide view.</p><button type="button" class="btn-big alt" id="rotateOk">Play upright anyway</button><button type="button" class="btn-big" id="rotateInstall" hidden>Install as an app</button></div></div>
+
+<div class="modal" id="install" role="dialog" aria-modal="true" aria-labelledby="instTitle" data-os="ios" hidden>
+  <div class="sheet narrow">
+    <h2 id="instTitle">Install as an app</h2>
+    <p class="sub">Free · updates itself · works with no signal</p>
+    <p class="safety" id="instInApp" hidden>You are inside another app's browser, which cannot install it. First open this page in Safari: look for a compass icon, or a menu with "Open in Safari".</p>
+    <ol class="inst ios">
+      <li>Hold the phone <b>upright</b>.</li>
+      <li>Find Safari's <b>Share</b> button: a square with an arrow pointing up <svg class="inst-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>. It is on <b>Safari's own bar</b> at the bottom or top of the screen, not inside the game.</li>
+      <li>Cannot see it? Tap the <b>⋯</b> (three dots) beside the web address, or tap the web address itself, and it appears.</li>
+      <li>Scroll down the list and tap <b>Add to Home Screen</b>.</li>
+      <li>If there is a switch called <b>Open as Web App</b>, make sure it is <b>on</b> (green). With it off you only get a bookmark that opens in Safari. Then tap <b>Add</b>.</li>
+      <li>Close Safari and open the game from its new icon. It now runs full screen, with no Safari bars.</li>
+      <li>Still seeing Safari's bars? Hold your finger on the icon, remove it, and add it again with that switch on.</li>
+    </ol>
+    <button type="button" class="btn-big" id="instNow" hidden>Install now</button>
+    <ol class="inst android">
+      <li>Open this page in <b>Chrome</b>.</li>
+      <li class="inst-ready">Tap <b>Install now</b> above, then <b>Install</b> when the phone asks.</li>
+      <li class="inst-manual">Tap the <b>⋮</b> (three dots) at the top right of Chrome, then <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.</li>
+      <li>Open the game from its new icon. It runs full screen and sideways, like any other app, and updates itself.</li>
+    </ol>
+    <ol class="inst desktop">
+      <li>In Chrome or Edge, click the <b>install icon</b> at the right-hand end of the address bar (a small screen with an arrow).</li>
+      <li>Or open the browser's <b>⋮</b> menu and choose <b>Install</b> (in Chrome it is under <i>Cast, save and share</i>).</li>
+      <li>The game opens in its own window and gets an icon like any other program.</li>
+    </ol>
+    <div class="go"><button type="button" class="btn-big" id="instDone">Got it</button></div>
+  </div>
+</div>
 
 <div class="modal" id="brief" role="dialog" aria-modal="true" aria-labelledby="briefTitle" hidden>
   <div class="sheet">

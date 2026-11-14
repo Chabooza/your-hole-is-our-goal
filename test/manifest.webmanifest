@@ -9,6 +9,12 @@
   "orientation": "landscape",
   "background_color": "#151917",
   "theme_color": "#151917",
+  "categories": ["games"],
+  "screenshots": [
+    { "src": "icons/screen-rig.jpg", "sizes": "1280x720", "type": "image/jpeg", "label": "The sonic rig and crew on site" },
+    { "src": "icons/screen-console.jpg", "sizes": "1280x720", "type": "image/jpeg", "label": "The view from the driller's console" },
+    { "src": "icons/screen-rig.jpg", "sizes": "1280x720", "type": "image/jpeg", "form_factor": "wide", "label": "The sonic rig and crew on site" }
+  ],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

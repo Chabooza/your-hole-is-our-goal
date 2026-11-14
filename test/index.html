@@ -399,6 +399,10 @@ body.phone .slot-driller { width: min(100%, 340px); }
 .sheet.narrow { width: min(520px, 100%); }
 #install { z-index: 70; }
 #install .inst { display: none; gap: 9px; }
+#install #instNow { margin: 4px 0 12px; }
+#install .inst-ready, #install[data-ready="1"] .inst-manual { display: none; }
+#install[data-ready="1"] .inst-ready { display: list-item; }
+#install[data-os="ios"] #instNow { display: none; }
 #install[data-os="ios"] .inst.ios, #install[data-os="android"] .inst.android, #install[data-os="desktop"] .inst.desktop { display: flex; }
 .inst-ico { width: 1.3em; height: 1.3em; vertical-align: -0.28em; color: #1b6fd1; }
 .rotate #rotateInstall { display: block; margin: 12px auto 0; }
@@ -763,10 +767,12 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
       <li>Close Safari and open the game from its new icon. It now runs full screen, with no Safari bars.</li>
       <li>Still seeing Safari's bars? Hold your finger on the icon, remove it, and add it again with that switch on.</li>
     </ol>
+    <button type="button" class="btn-big" id="instNow" hidden>Install now</button>
     <ol class="inst android">
-      <li>Tap the <b>⋮</b> (three dots) at the top right of Chrome.</li>
-      <li>Tap <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.</li>
-      <li>Open the game from its new icon. It now runs full screen.</li>
+      <li>Open this page in <b>Chrome</b>.</li>
+      <li class="inst-ready">Tap <b>Install now</b> above, then <b>Install</b> when the phone asks.</li>
+      <li class="inst-manual">Tap the <b>⋮</b> (three dots) at the top right of Chrome, then <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.</li>
+      <li>Open the game from its new icon. It runs full screen and sideways, like any other app, and updates itself.</li>
     </ol>
     <ol class="inst desktop">
       <li>In Chrome or Edge, click the <b>install icon</b> at the right-hand end of the address bar (a small screen with an arrow).</li>

@@ -199,15 +199,21 @@
     if (!hosted || standalone) return;
     window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
     window.addEventListener('appinstalled', () => { installEvt = null; show(false); $('install').hidden = true; });
-    const open = () => {
-      if (installEvt) { installEvt.prompt(); return; }
+    // Android and computers: the browser hands over a ready-made install, so one tap does it
+    const ready = () => { $('instNow').hidden = !installEvt; $('install').dataset.ready = installEvt ? '1' : ''; };
+    const sheet = () => {
       const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const inApp = ios && !/CriOS|FxiOS|EdgiOS/.test(ua) && (!/Safari/.test(ua) || /FBAN|FBAV|Instagram|Line\/|Snapchat|GSA\//.test(ua));
       $('install').dataset.os = ios ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop';
       $('instInApp').hidden = !inApp;
+      ready();
       $('install').hidden = false;
     };
+    const open = () => { if (installEvt) installEvt.prompt(); else sheet(); };
+    window.addEventListener('beforeinstallprompt', ready);
     btns.forEach(b => b.addEventListener('click', open));
+    $('instNow').addEventListener('click', () => { if (installEvt) installEvt.prompt(); });
+    if (/install/.test(location.hash)) setTimeout(sheet, 700);          // a link ending in #install opens straight onto the install help
     $('instDone').addEventListener('click', () => { $('install').hidden = true; });
   }
   function neutral() { const c = APP.S.ctl; c.feed = 0; c.rot = 0; c.winch = 0; c.slide = 0; c.arm = 0; c.brk = 0; }
