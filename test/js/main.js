@@ -67,7 +67,8 @@
     S.driller = d.name;
     S.crew[0].name = l.name; S.crew[0].hat = hex(l.look.hat);
     S.crew[1].name = c.name; S.crew[1].hat = hex(c.look.hat);
-    WORLD.setCrew({ driller: d.look, lead: l.look, core: c.look });
+    WORLD.setCrew({ driller: SWAG.dress(d.look), lead: l.look, core: c.look });      // the driller wears whatever swag is on (js/swag.js)
+    itemKey = null;
     if (!briefSrc) briefSrc = { briefEasy: $('briefEasy').innerHTML, briefFull: $('briefFull').innerHTML };
     for (const id in briefSrc) $(id).innerHTML = SIM.nm(S, briefSrc[id]).replace(/\{well\}/g, S.site.well).replace(/\{depth\}/g, S.site.depth);
     showSite();
@@ -194,6 +195,8 @@
     $('menuShop').addEventListener('click', () => { AUDIO.init(); openShop(); });
     $('holesShop').addEventListener('click', openShop);
     $('shopBack').addEventListener('click', closeShop);
+    document.querySelectorAll('[data-shop-tab]').forEach(b => b.addEventListener('click', () => showShopTab(b.dataset.shopTab)));
+    document.querySelectorAll('[data-swag-slot]').forEach(b => b.addEventListener('click', () => { swagSlot = b.dataset.swagSlot; drawSwag(); }));
     $('pickGo').addEventListener('click', () => closePick(true));
     $('pickBack').addEventListener('click', () => closePick(false));
   }
@@ -269,7 +272,8 @@
     chip.hidden = !it;
     if (it) { chip.textContent = it.icon; chip.title = it.name + (gone ? ' (used)' : live ? ' (burning)' : ''); chip.classList.toggle('spent', gone); chip.classList.toggle('live', live); }
     PANEL.setItem(it ? it.icon : '', it ? it.name : '', gone);
-    PANEL.setGloves(S.item === 'gloves');
+    const hd = SWAG.hands();                      // swag gloves win over the grippy gloves; the sleeve is the outfit's
+    PANEL.setGloves(hd.gloves || (S.item === 'gloves' ? { palm: 0xff7a1a, cuff: 0x23272b } : null), hd.sleeve);
     document.body.classList.toggle('wear-shades', S.item === 'shades');
     document.body.classList.toggle('jitters', S.item === 'energy');
   }
@@ -292,7 +296,58 @@
       }
     }
   }
-  function openShop() { drawShop(); $('shop').hidden = false; }
+  // ---------- swag (js/swag.js): the cosmetics half of the shop ----------
+  let shopTab = 'gear', swagSlot = 'hat';
+  const swagPics = {};                            // pictures already taken, by driller and item
+  function swagPic(key, look, full) {
+    const k = settings.crew.driller + '|' + key;
+    if (swagPics[k] == null) { try { swagPics[k] = WORLD.portraits([look], full ? 190 : 200, full ? 300 : 225, full)[0] || ''; } catch (e) { swagPics[k] = ''; } }
+    return swagPics[k];
+  }
+  const cssHex = n => '#' + n.toString(16).padStart(6, '0');
+  function drawSwag() {
+    const st = SWAG.state, base = person(settings.crew.driller).look;
+    $('swagTokens').textContent = st.tokens;
+    const worn = SWAG.SLOTS.map(([slot]) => SWAG.worn(slot)).filter(Boolean);
+    $('swagWorn').textContent = worn.length ? 'Wearing: ' + worn.map(i => i.name).join(', ') : 'Wearing the standard blue coveralls';
+    $('swagMirror').src = swagPic('mirror|' + SWAG.SLOTS.map(([slot]) => st.wear[slot]).join(','), SWAG.dress(base), true);
+    document.querySelectorAll('[data-swag-slot]').forEach(b => { const on = b.dataset.swagSlot === swagSlot; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    const box = $('swagGrid'); box.innerHTML = '';
+    const items = SWAG.ITEMS.filter(i => i.slot === swagSlot), full = swagSlot === 'outfit', pk = id => settings.crew.driller + '|' + id;
+    const need = swagSlot === 'gloves' ? [] : items.filter(it => swagPics[pk(it.id)] == null);
+    if (need.length) {                            // take every missing picture in one go: one camera set-up for the lot
+      let pics = [];
+      try { pics = WORLD.portraits(need.map(it => SWAG.tryOn(base, it.id)), full ? 190 : 200, full ? 300 : 225, full); } catch (e) { /* no pictures: the cards still work */ }
+      need.forEach((it, i) => { swagPics[pk(it.id)] = pics[i] || ''; });
+    }
+    for (const it of items) {
+      const have = !!st.own[it.id], on = st.wear[it.slot] === it.id;
+      const d = document.createElement('div'); d.className = 'swag' + (have ? ' own' : '') + (on ? ' on' : '');
+      let pic;
+      if (it.slot === 'gloves') {                 // gloves do not show in a head shot: draw the hand's colours instead
+        const h = it.hands, f = h.fingers || [h.palm, h.palm, h.palm, h.palm];
+        pic = `<span class="sw-glove" aria-hidden="true">${f.map(c => `<i style="background:${cssHex(c)}"></i>`).join('')}<span class="pm" style="background:${cssHex(h.palm)}"></span><span class="th" style="background:${cssHex(h.thumb == null ? h.palm : h.thumb)}"></span><span class="cf" style="background:${cssHex(h.cuff)}"></span></span>`;
+      } else {
+        pic = `<img alt="" src="${swagPics[pk(it.id)]}">`;
+      }
+      d.innerHTML = `${pic}<b></b><span class="sw-blurb"></span><span class="sw-have">${have ? 'Yours' : `${SWAG.PRICE} token`}</span><div class="i-btns"></div>${on ? '<em>Wearing</em>' : ''}`;
+      d.querySelector('b').textContent = it.name; d.querySelector('.sw-blurb').textContent = it.blurb;
+      const b = document.createElement('button'); b.type = 'button';
+      if (have) { b.textContent = on ? 'Take it off' : 'Wear it'; if (on) b.className = 'alt'; b.addEventListener('click', () => { SWAG.wear(it.id); swagChanged(); }); }
+      else { b.textContent = `Buy · ${SWAG.PRICE} token`; b.disabled = st.tokens < SWAG.PRICE; b.addEventListener('click', () => { if (SWAG.buy(it.id)) swagChanged(); }); }
+      d.querySelector('.i-btns').append(b);
+      box.append(d);
+    }
+  }
+  // something was bought, put on or taken off: dress the driller on the site, the hands on the levers, and the shop
+  function swagChanged() { applyCrew(); showItem(); drawSwag(); }
+  function showShopTab(tab) {
+    shopTab = tab;
+    $('shopGearPane').hidden = tab !== 'gear'; $('shopSwagPane').hidden = tab !== 'swag';
+    document.querySelectorAll('[data-shop-tab]').forEach(b => { const on = b.dataset.shopTab === tab; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    if (tab === 'swag') drawSwag(); else drawShop();
+  }
+  function openShop() { $('shop').hidden = false; showShopTab(shopTab); }
   function closeShop() {
     $('shop').hidden = true;
     if (APP.S.t === 0) packItem(true);            // the hole has not started: bring the new pick
@@ -341,7 +396,7 @@
     $('holesTitle').textContent = after ? 'Pick your next hole' : 'Pick a hole';
     $('holesSub').textContent = `${done} of ${SITES.COUNT} completed · score ${SITES.PASS} or better to complete a hole and unlock the next`;
     const eq = SHOP.get(SHOP.take());
-    $('holesItem').textContent = `${SHOP.state.bucks} Safety Buck${SHOP.state.bucks === 1 ? '' : 's'} · bringing: ${eq ? eq.icon + ' ' + eq.name : 'nothing'}`;
+    $('holesItem').textContent = `${SHOP.state.bucks} Safety Buck${SHOP.state.bucks === 1 ? '' : 's'} · ${SWAG.state.tokens} Swag Token${SWAG.state.tokens === 1 ? '' : 's'} · bringing: ${eq ? eq.icon + ' ' + eq.name : 'nothing'}`;
     $('holesBack').textContent = after ? 'Back to the report' : 'Back';
     $('holes').hidden = false;
     const cur = grid.querySelector('.cur'); if (cur) { cur.scrollIntoView({ block: 'nearest' }); cur.focus({ preventScroll: true }); }
@@ -354,6 +409,7 @@
   function endHole(S) {
     const n = S.site.n, res = SITES.record(n, S.report.score), more = n < SITES.COUNT && SITES.isOpen(n + 1);
     res.bucks = SHOP.earn(S.report.score);        // 95 or better earns a Safety Buck for the shop
+    res.tokens = SWAG.earn(S.report.score);       // 85 or better earns a Swag Token for the cosmetics
     APP.nextHole = res.passed && more ? n + 1 : n;
     SITES.setLast(APP.nextHole);
     HUD.showReport(S, res);

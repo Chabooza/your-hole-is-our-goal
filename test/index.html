@@ -431,6 +431,39 @@ body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 .rp-buck { background: #f2b630; border: 2px solid #1b1710; border-radius: 6px; padding: 0 6px; font-family: inherit !important; font-size: 15px !important; font-weight: 800 !important; color: #1d1606 !important; text-transform: none !important; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { body.jitters #view { animation: none; } }
 
+/* swag: the cosmetics half of the shop */
+.shop-tabs { display: flex; width: min(340px, 100%); margin: 4px 0 10px; }
+.shop-tabs button { flex: 1; font-size: 17px; padding: 8px 10px; }
+.shop-bucks.tok { background: #d9e8fb; }
+.swag-top { display: grid; grid-template-columns: auto 1fr; gap: 12px 16px; align-items: start; margin-bottom: 12px; }
+.swag-mirror { width: 118px; aspect-ratio: 19 / 30; object-fit: cover; background: #bfe3f5; border: 3px solid #1b1710; border-radius: 12px; box-shadow: 0 3px 0 #1b1710; }
+.swag-note { margin: 6px 0 8px !important; font-size: 14px !important; color: #5d5240; }
+.swag-slots { display: flex; flex-wrap: wrap; width: 100%; }
+.swag-slots button { flex: 1 1 auto; padding: 8px 8px; font-size: 15px; }
+.swag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 13px 10px; }
+.swag { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; background: #fffdf4; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; padding: 7px 8px 8px; box-shadow: 0 3px 0 #1b1710; }
+.swag img { width: 100%; aspect-ratio: 8 / 9; object-fit: cover; object-position: center 20%; background: #bfe3f5; border: 2px solid #1b1710; border-radius: 8px; }
+.swag b { font-size: 16px; font-weight: 800; margin-top: 3px; }
+.swag .sw-blurb { font-size: 13px; font-weight: 500; color: #5d5240; flex: 1; }
+.swag .sw-have { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8a4b0c; }
+.swag .i-btns { width: 100%; display: flex; margin-top: 5px; }
+.swag .i-btns button { flex: 1; background: #f2b630; color: #1d1606; border: 2px solid #1b1710; border-radius: 8px; padding: 7px 6px; font: inherit; font-size: 14px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; box-shadow: 0 3px 0 #1b1710; }
+.swag .i-btns button:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b1710; }
+.swag .i-btns button.alt { background: #e9e2cc; }
+.swag .i-btns button:disabled { opacity: 0.45; cursor: not-allowed; }
+.swag.own .sw-have { color: #2c8a22; }
+.swag.on { outline: 4px solid #1b6fd1; outline-offset: 1px; background: #eef4fd; }
+.swag em { position: absolute; top: -9px; right: 8px; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: #1b6fd1; color: #fff; border: 2px solid #1b1710; border-radius: 6px; padding: 1px 7px; }
+.sw-glove { position: relative; display: block; width: 100%; aspect-ratio: 8 / 9; background: #bfe3f5; border: 2px solid #1b1710; border-radius: 8px; overflow: hidden; }
+.sw-glove i, .sw-glove span { position: absolute; display: block; border: 3px solid #1b1710; margin: 0; }
+.sw-glove i { width: 15%; height: 34%; top: 9%; border-radius: 999px; }
+.sw-glove i:nth-child(1) { left: 21%; top: 15%; } .sw-glove i:nth-child(2) { left: 36%; top: 8%; } .sw-glove i:nth-child(3) { left: 51%; top: 9%; } .sw-glove i:nth-child(4) { left: 66%; top: 15%; }
+.sw-glove .pm { left: 20%; top: 36%; width: 62%; height: 36%; border-radius: 14px; }
+.sw-glove .th { left: 6%; top: 40%; width: 24%; height: 15%; border-radius: 999px; transform: rotate(-32deg); }
+.sw-glove .cf { left: 26%; top: 70%; width: 50%; height: 19%; border-radius: 6px; }
+.rp-buck.tok { background: #a9cdf6; }
+@media (max-width: 560px) { .swag-top { grid-template-columns: 84px 1fr; } .swag-mirror { width: 84px; } .swag-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); } }
+
 /* the ten holes */
 #holes { z-index: 60; }
 .menu-hole { margin-top: 0.6vh; color: var(--amber); letter-spacing: 0.1em; }
@@ -842,12 +875,27 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <div class="modal" id="shop" role="dialog" aria-modal="true" aria-labelledby="shopTitle" hidden>
   <div class="sheet">
     <h2 id="shopTitle">The shop</h2>
-    <p class="sub" id="shopSub"></p>
-    <p class="shop-bucks"><b id="shopBucks">0</b> Safety Bucks <span>Score 95 or better on any hole to earn one. Everything costs one. You bring one item per hole.</span></p>
-    <h3>Gear you keep</h3>
-    <div class="shop-grid" id="shopGear"></div>
-    <h3>One-time items <small>(used up only on a hole where they do something)</small></h3>
-    <div class="shop-grid" id="shopOnce"></div>
+    <div class="seg shop-tabs" role="group" aria-label="Which part of the shop"><button type="button" data-shop-tab="gear">Gear</button><button type="button" data-shop-tab="swag">Swag</button></div>
+    <div id="shopGearPane">
+      <p class="sub" id="shopSub"></p>
+      <p class="shop-bucks"><b id="shopBucks">0</b> Safety Bucks <span>Score 95 or better on any hole to earn one. Everything costs one. You bring one item per hole.</span></p>
+      <h3>Gear you keep</h3>
+      <div class="shop-grid" id="shopGear"></div>
+      <h3>One-time items <small>(used up only on a hole where they do something)</small></h3>
+      <div class="shop-grid" id="shopOnce"></div>
+    </div>
+    <div id="shopSwagPane" hidden>
+      <p class="sub" id="swagWorn"></p>
+      <div class="swag-top">
+        <img class="swag-mirror" id="swagMirror" alt="Your driller as dressed now">
+        <div>
+          <p class="shop-bucks tok"><b id="swagTokens">0</b> Swag Tokens <span>Score 85 or better on any hole to earn one. Everything costs one.</span></p>
+          <p class="swag-note">Swag only changes how your driller looks. Wear one hard hat, one pair of glasses, one pair of gloves and one outfit, all at once.</p>
+          <div class="seg swag-slots" role="group" aria-label="Kind of swag"><button type="button" data-swag-slot="hat">Hard hats</button><button type="button" data-swag-slot="glasses">Glasses</button><button type="button" data-swag-slot="gloves">Gloves</button><button type="button" data-swag-slot="outfit">Outfits</button></div>
+        </div>
+      </div>
+      <div class="swag-grid" id="swagGrid"></div>
+    </div>
     <div class="go"><button type="button" class="btn-big" id="shopBack">Done</button></div>
   </div>
 </div>
@@ -945,7 +993,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <h2 id="briefTitle">Tailgate meeting</h2>
     <p class="sub" id="briefSub">07:00</p>
     <p class="safety brief-site" id="briefSite"></p>
-    <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole. From hole 3 on, expect a call from Aaron: he has another job waiting and gives you a deadline. Finish late and it costs you points. Score <b>95 or better</b> on any hole and you earn a Safety Buck for the shop, where there is gear and one-time help to buy. You bring one item per hole.</p>
+    <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole. From hole 3 on, expect a call from Aaron: he has another job waiting and gives you a deadline. Finish late and it costs you points. Score <b>95 or better</b> on any hole and you earn a Safety Buck for the shop, where there is gear and one-time help to buy. You bring one item per hole. Score <b>85 or better</b> and you earn a Swag Token: hard hats, glasses, gloves and outfits that do nothing but look good.</p>
     <div id="briefEasy">
       <p>You are the driller on a three-person sonic crew. The job: core borehole {well} to <b>{depth} ft</b>, 10 ft at a time, and leave it cased. Dale, Tess and the rig handle all the pipe. You do the drilling, with two thumb pads, and you watch the rig while you do it.</p>
       <div class="cols">
@@ -1066,6 +1114,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
 <script src="js/sites.js" charset="utf-8"></script>
 <script src="js/shop.js" charset="utf-8"></script>
+<script src="js/swag.js" charset="utf-8"></script>
 <script src="js/sim.js" charset="utf-8"></script>
 <script src="js/audio.js" charset="utf-8"></script>
 <script src="js/crew.js" charset="utf-8"></script>

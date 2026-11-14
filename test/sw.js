@@ -2,9 +2,9 @@
    The game's own files always come fresh from the web when there is a connection, so an update reaches everyone the
    next time they open the app. The saved copy is only used when the phone is offline. The 3D library and the fonts
    never change, so their saved copies are used first. */
-const CACHE = 'yhiog-5';
+const CACHE = 'yhiog-6';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
-  'js/sites.js', 'js/shop.js', 'js/sim.js', 'js/audio.js', 'js/crew.js', 'js/world.js', 'js/panel.js', 'js/hud.js', 'js/inspect.js', 'js/auto.js', 'js/easy.js',
+  'js/sites.js', 'js/shop.js', 'js/swag.js', 'js/sim.js', 'js/audio.js', 'js/crew.js', 'js/world.js', 'js/panel.js', 'js/hud.js', 'js/inspect.js', 'js/auto.js', 'js/easy.js',
   'js/well.js', 'js/toss.js', 'js/nag.js', 'js/marl.js', 'js/aaron.js', 'js/main.js',
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js'];
 self.addEventListener('install', e => {
