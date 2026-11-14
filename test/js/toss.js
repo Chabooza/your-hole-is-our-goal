@@ -73,7 +73,7 @@ window.TOSS = (() => {
   }
   function tap() {
     if (T.state !== 'aim' || APP.S.paused || !T.ready || T.t < 0.12) return;
-    T.hit = Math.abs(T.s - 1) <= TOL;
+    T.hit = Math.abs(T.s - 1) <= TOL * SHOP.tune(APP.S).ringTol;
     throwIt();
   }
   function throwIt() {
@@ -142,7 +142,7 @@ window.TOSS = (() => {
       const p = WORLD.project(h), cv = WORLD.renderer.domElement, w = cv.clientWidth, ht = cv.clientHeight;
       if ((p.front && Math.abs(p.x - w / 2) < w * 0.3 && Math.abs(p.y - ht / 2) < ht * 0.4) || T.wait > 1.4) { T.ready = true; E.zone.style.visibility = ''; }
     } else if (T.state === 'aim') {
-      T.s = R0 - (R0 - R1) * (T.t / (S.site ? S.site.tune.ring : SHRINK));
+      T.s = R0 - (R0 - R1) * (T.t / (S.site ? SHOP.tune(S).ring : SHRINK));
       E.ring.style.transform = `translate(-50%, -50%) scale(${Math.max(R1, T.s).toFixed(3)})`;
       if (T.s <= R1) { T.hit = false; throwIt(); }       // never tapped
     } else if (T.state === 'throw') {

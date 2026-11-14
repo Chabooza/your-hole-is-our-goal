@@ -30,7 +30,8 @@ window.WELL = (() => {
   const FT_PER_BAG = 3;          // roughly how much hole one bag fills
   const FT_PER_TURN = 1.1;       // how much one circle on the screen pours
   const MAX_RATE = 3.2;          // the fastest a bag can go down the hole, ft of hole per second
-  const lagAt = depth => SITES.pourLag(depth, S.site.n);        // seconds for a pour to land and show on the tape: longer the deeper, and on later holes
+  const lagAt = depth => SITES.pourLag(depth, S.site.n) * (S.item === 'tape' ? 0.75 : 1);     // the good tape from the shop reads a quarter sooner
+  const tol = () => (S.item === 'donuts' ? 1 : 0.5);             // how far off the drawing still counts as bang on: a box of donuts doubles it        // seconds for a pour to land and show on the tape: longer the deeper, and on later holes
   const COL = { bent: '#8f9189', sand: '#e3c765' };
   const WORD = { bent: 'bentonite', sand: 'sand' };
   const CIRC = 2 * Math.PI * 52;
@@ -112,6 +113,8 @@ window.WELL = (() => {
     document.body.classList.add('well-job');
     E.root.hidden = false; E.plan.hidden = true;
     for (const k in last) delete last[k];
+    if (S.item === 'donuts' && SHOP.use(S)) W.donuts = true;
+    E.root.dataset.tape = S.item === 'tape' ? '1' : '';
     crewSay(0, 'Here comes the engineer.', 2.6);
     log(`${W.name}, the engineer, is walking over with the drawing for the well.`);
   }
@@ -255,6 +258,7 @@ window.WELL = (() => {
     const st = stage(), pull = st.target < W.C - INSIDE - 0.001;
     W.phase = 'pour';
     W.pour = { rate: 0, spin: 0, called: false, from: W.fill, bags: 0, pull, mark: pull ? W.C - INSIDE : st.target };
+    if (S.item === 'beer') SHOP.use(S);
   }
   function addLayer(kind, bot, top) {
     const l = W.layers[W.layers.length - 1];
@@ -274,7 +278,7 @@ window.WELL = (() => {
     if (!W || W.phase !== 'pour' || W.pour.called || !E.plan.hidden) return;
     AUDIO.init(); W.pour.called = true; W.noteT = 0; S.sfx.push('switch');
   }
-  const judge = err => { const a = Math.abs(err); return a <= 0.5 ? ['good', 'Bang on.'] : a <= 1.5 ? ['warn', err > 0 ? 'A bit short.' : 'A bit too much.'] : ['crit', err > 0 ? 'Well short.' : 'Far too much.']; };
+  const judge = err => { const a = Math.abs(err); return a <= tol() ? ['good', 'Bang on.'] : a <= 1.5 ? ['warn', err > 0 ? 'A bit short.' : 'A bit too much.'] : ['crit', err > 0 ? 'Well short.' : 'Far too much.']; };
   function updatePour(dt) {
     const P = W.pour, st = stage();
     const inst = turnBuf / Math.max(dt, 0.001); turnBuf = 0;
@@ -290,6 +294,10 @@ window.WELL = (() => {
       pourTick -= dt; if (pourTick <= 0) { pourTick = 0.2; S.sfx.push('pour'); }
     }
     land();
+    if (S.item === 'beer' && !P.shout && !P.called && P.bags > 0.02) {       // a case of beer: the helper watches the pour for you
+      const air = W.air.reduce((a, x) => a + x.ft, 0);
+      if (W.fill - air <= P.mark + 0.12) { P.shout = true; crewSay(0, 'That is good, boss! Stop!', 2.4); note('Enough is on its way down. Stop pouring.', 'good', 2.6); S.sfx.push('yell'); }
+    }
     if (!P.called && W.spill > 0.4 && !P.spilled) { P.spilled = true; if (!P.pull) P.called = true; crewSay(1, 'It is coming out the top!', 2.4); S.sfx.push('alarm'); }
     const inside = W.C - W.fill;                  // + = fill up inside the casing, - = open hole under it
     if (P.called && !W.air.length) {             // everything has landed
@@ -335,7 +343,7 @@ window.WELL = (() => {
   };
   // How long a prompt allows and how much it asks for comes from the hole (js/sites.js): later holes are faster.
   function qNew(type, label, retry) {
-    const tn = S.site.tune, limit = type === 'mash' ? tn.mashTime : type === 'timing' ? tn.aimTime : tn.spinTime;
+    const tn = SHOP.tune(S), limit = type === 'mash' ? tn.mashTime : type === 'timing' ? tn.aimTime : tn.spinTime;
     return { type, label, state: 'ready', hold: retry ? 0.5 : 0.8, t: 0, prog: 0, turn: 0, strokes: 0, dir: 0, ext: 0, keyLast: '', taps: 0,
       limit, turns: tn.turns, need: tn.strokes, keys: tn.keys, tapsNeed: tn.taps, sweep: tn.sweep,
       zc: 0.22 + Math.random() * 0.56, zw: tn.zone, pos: 0, ph: Math.random() * 2, why: '' };
@@ -343,7 +351,7 @@ window.WELL = (() => {
   function fumble(why) {
     const q = W.q, casing = W.phase === 'pull';
     q.state = 'fail'; q.hold = 2.8; q.why = why || 'Dropped it!';
-    W.fumbles++;
+    if (!SHOP.lucky(S)) W.fumbles++;
     log(casing ? 'Fumbled a joint of casing. It went over and everybody jumped clear.' : 'Fumbled a length of PVC. It went over and everybody jumped clear.', 'warn');
     crewSay(0, 'Look out!', 2.6); crewSay(1, 'Whoa, whoa, whoa!', 2.6);
     WORLD.panic(2.8, casing ? 0.085 : 0.034, casing ? 0 : 0xf4f4ee);
@@ -409,6 +417,7 @@ window.WELL = (() => {
   const OUCH = ['Ow!', 'Sorry, boss!', 'Ow! It was the bag!', 'I am sorry!', 'Ow! Never again!', 'Not the face!'];
   function startWreck() {
     W.phase = 'wreck'; W.q = null; W.wrecks++; S.head.hz = 85;
+    if (S.item === 'kit' && SHOP.use(S)) { W.forgiven = 1; log('Spare well kit: this wreck will not cost you any points.', 'good'); }
     W.wreck = { t: 0, snapped: false, hits: 0, hop: 0, rise: 0, pvc: !!(W.pvc && W.pvc.T > 0), kind: stage().kind };
     PANEL.setHands(false);
     S.sfx.push('alarm');
@@ -493,14 +502,14 @@ window.WELL = (() => {
   // ---------- the end: the engineer has a look, and the well goes on the shift report ----------
   function finish() {
     let s = 100;
-    for (const r of W.results) { r.pen = r.info ? 0 : Math.min(35, Math.max(0, Math.abs(r.err) - 0.5) * 10); s -= r.pen; }
+    for (const r of W.results) { r.pen = r.info ? 0 : Math.min(35, Math.max(0, Math.abs(r.err) - tol()) * 10); s -= r.pen; }
     const open = W.pullLog.filter(v => v < -1).length;       // joints pulled with more than a foot of open hole left under them
-    s -= W.fumbles * 4 + W.wrecks * 12 + open * 2;
+    s -= W.fumbles * 4 + (W.wrecks - (W.forgiven || 0)) * 12 + open * 2;
     if (W.spill > 0.3) s -= 5;
     s = Math.round(clamp(s, 0, 100));
     const R = S.report;
     R.drill = R.score;
-    R.well = { score: s, engineer: W.name, plan: W.plan, results: W.results, bags: W.bags, fumbles: W.fumbles, spill: W.spill, pulls: W.pulls, clean: W.pullLog.filter(v => v >= -1 && v <= 1).length, wrecks: W.wrecks };
+    R.well = { score: s, engineer: W.name, plan: W.plan, results: W.results, bags: W.bags, fumbles: W.fumbles, spill: W.spill, pulls: W.pulls, clean: W.pullLog.filter(v => v >= -1 && v <= 1).length, wrecks: W.wrecks, forgiven: W.forgiven || 0 };
     R.score = Math.round(R.drill * 0.65 + s * 0.35);
     const A = AARON.settle(S);                   // Aaron's deadline, from hole 3 on: late costs points off the combined grade
     if (A) { R.aaron = { limit: A.limit, late: A.late, spare: A.spare, pen: A.pen }; R.score = Math.max(0, R.score - A.pen); }
@@ -587,7 +596,7 @@ window.WELL = (() => {
     switch (W.phase) {
       case 'walk':
         W.engK = Math.min(1, W.engK + dt / 3.4); W.msg = `Here comes ${W.name}, the engineer.`; W.lvl = 'info'; look = 'eng';
-        if (W.engK >= 1) { W.phase = 'talk'; W.pt = 0; W.say = pick(['Nice hole. Here is the drawing for the well.', 'Good, you are at depth. Here is what I want in it.', 'Got the install drawing for you. Have a look.']); W.sayT = 2.6; S.sfx.push('ok'); }
+        if (W.engK >= 1) { W.phase = 'talk'; W.pt = 0; W.say = W.donuts ? 'Are those donuts? You are alright. Here is the drawing.' : pick(['Nice hole. Here is the drawing for the well.', 'Good, you are at depth. Here is what I want in it.', 'Got the install drawing for you. Have a look.']); W.sayT = 2.6; S.sfx.push('ok'); }
         break;
       case 'talk':
         look = 'eng'; W.msg = '';

@@ -396,6 +396,41 @@ body.tossing .ar-timer, body.inspecting .ar-timer, body.at-menu .ar-timer, body.
 body.phone .ar-timer b { font-size: 19px; } body.phone .ar-timer { padding: 1px 10px 2px; } body.phone .ar-text { top: calc(var(--hud-top, 44px) + 50px); font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .aaron[data-state="ring"] .ar-phone, .ar-timer.pop, .ar-timer[data-lvl="low"] b { animation: none; } }
 
+/* the shop, and the item the driller brought */
+#shop { z-index: 65; }
+#shop h3 small { font-size: 12px; letter-spacing: 0.04em; text-transform: none; color: #6d6247; font-weight: 600; }
+.shop-bucks { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; background: #fde3a2; border: 3px solid #1b1710; border-radius: 10px; padding: 6px 12px; margin: 0 0 4px; font-weight: 800; max-width: none !important; }
+.shop-bucks b { font-family: var(--f-display); font-weight: 400; font-size: 28px; line-height: 1; }
+.shop-bucks span { font-size: 14px; font-weight: 600; color: #5d5240; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 13px 10px; }
+.item { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; align-items: center; background: #fffdf4; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; padding: 8px 10px; box-shadow: 0 3px 0 #1b1710; }
+.item i { grid-row: 1 / 3; font-style: normal; font-size: 28px; width: 46px; height: 46px; display: grid; place-items: center; background: #e9e2cc; border: 2px solid #1b1710; border-radius: 10px; }
+.item b { font-size: 17px; font-weight: 800; align-self: end; }
+.item .i-have { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8a4b0c; align-self: start; }
+.item .i-what { grid-column: 1 / -1; font-size: 14px; font-weight: 500; margin-top: 5px; }
+.item .i-see { grid-column: 1 / -1; font-size: 12.5px; font-weight: 600; color: #6d6247; margin-top: 2px; }
+.item .i-btns { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 8px; align-self: end; }
+.item .i-btns button { flex: 1; background: #f2b630; color: #1d1606; border: 2px solid #1b1710; border-radius: 8px; padding: 7px 8px; font: inherit; font-size: 14px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; box-shadow: 0 3px 0 #1b1710; }
+.item .i-btns button:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b1710; }
+.item .i-btns button.alt { background: #e9e2cc; }
+.item .i-btns button:disabled { opacity: 0.45; cursor: not-allowed; }
+.item.own i { background: #9bd47f; } .item.own .i-have { color: #2c8a22; }
+.item.on { outline: 4px solid #1b6fd1; outline-offset: 1px; background: #eef4fd; }
+.item em { position: absolute; top: -9px; right: 10px; font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: #1b6fd1; color: #fff; border: 2px solid #1b1710; border-radius: 6px; padding: 1px 7px; }
+.holes-item { align-self: center; font-size: 14px; font-weight: 700; color: #5d5240; }
+.item-chip { padding: 1px 6px; font-size: 16px; font-family: inherit; letter-spacing: 0; }
+.item-chip.spent { opacity: 0.45; filter: grayscale(1); }
+.item-chip.live { box-shadow: 0 0 0 2px #9df08a, 0 0 12px #9df08a; }
+.shades { position: absolute; inset: 0; pointer-events: none; display: none; background: linear-gradient(#16264a66, #4a2c0850); mix-blend-mode: multiply; }
+body.wear-shades .shades { display: block; }
+body.at-menu .shades { display: none; }
+body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
+@keyframes jit { 50% { transform: translate(1.5px, -1px); } }
+#well[data-tape="1"] .wl-tape { color: #ffd84d !important; border-color: #a8860f; }
+.aaron[data-fav="1"] .ar-screen b::after { content: ' ★'; color: #ffd84d; }
+.rp-buck { background: #f2b630; border: 2px solid #1b1710; border-radius: 6px; padding: 0 6px; font-family: inherit !important; font-size: 15px !important; font-weight: 800 !important; color: #1d1606 !important; text-transform: none !important; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { body.jitters #view { animation: none; } }
+
 /* the ten holes */
 #holes { z-index: 60; }
 .menu-hole { margin-top: 0.6vh; color: var(--amber); letter-spacing: 0.1em; }
@@ -621,6 +656,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 
 <div class="app">
   <canvas id="view" aria-label="First-person 3D view from the driller's console of a sonic drilling rig"></canvas>
+  <div class="shades" aria-hidden="true"></div>
 
   <header class="topbar">
     <div class="brand">
@@ -630,6 +666,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <div class="topctl">
       <span class="clock" id="clock" aria-label="Shift clock">07:00</span>
       <span class="clock hole-chip" id="holeChip" aria-label="Which hole">1/10</span>
+      <span class="clock item-chip" id="itemChip" aria-label="The item you brought" hidden></span>
       <div class="speed" role="group" aria-label="Game speed">
         <button type="button" data-speed="1" class="on">1×</button><button type="button" data-speed="2">2×</button><button type="button" data-speed="4">4×</button>
       </div>
@@ -787,6 +824,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <button type="button" class="btn-big" id="menuStart">Start</button>
     <button type="button" class="btn-big alt" id="menuNew" hidden>Start this hole over</button>
     <button type="button" class="btn-big alt" id="menuHoles">Pick a hole</button>
+    <button type="button" class="btn-big alt" id="menuShop">Shop</button>
     <button type="button" class="btn-big alt" id="menuSettings">Settings</button>
     <button type="button" class="btn-big alt" id="menuInstall" hidden>Install as an app</button>
   </div>
@@ -797,7 +835,20 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <h2 id="holesTitle">Pick a hole</h2>
     <p class="sub" id="holesSub"></p>
     <div class="holes-grid" id="holesGrid"></div>
-    <div class="go"><button type="button" class="btn-big alt" id="holesBack">Back</button></div>
+    <div class="go"><button type="button" class="btn-big alt" id="holesBack">Back</button><button type="button" class="btn-big alt" id="holesShop">Shop</button><span class="holes-item" id="holesItem"></span></div>
+  </div>
+</div>
+
+<div class="modal" id="shop" role="dialog" aria-modal="true" aria-labelledby="shopTitle" hidden>
+  <div class="sheet">
+    <h2 id="shopTitle">The shop</h2>
+    <p class="sub" id="shopSub"></p>
+    <p class="shop-bucks"><b id="shopBucks">0</b> Safety Bucks <span>Score 95 or better on any hole to earn one. Everything costs one. You bring one item per hole.</span></p>
+    <h3>Gear you keep</h3>
+    <div class="shop-grid" id="shopGear"></div>
+    <h3>One-time items <small>(used up only on a hole where they do something)</small></h3>
+    <div class="shop-grid" id="shopOnce"></div>
+    <div class="go"><button type="button" class="btn-big" id="shopBack">Done</button></div>
   </div>
 </div>
 
@@ -894,7 +945,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
     <h2 id="briefTitle">Tailgate meeting</h2>
     <p class="sub" id="briefSub">07:00</p>
     <p class="safety brief-site" id="briefSite"></p>
-    <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole. From hole 3 on, expect a call from Aaron: he has another job waiting and gives you a deadline. Finish late and it costs you points.</p>
+    <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole. From hole 3 on, expect a call from Aaron: he has another job waiting and gives you a deadline. Finish late and it costs you points. Score <b>95 or better</b> on any hole and you earn a Safety Buck for the shop, where there is gear and one-time help to buy. You bring one item per hole.</p>
     <div id="briefEasy">
       <p>You are the driller on a three-person sonic crew. The job: core borehole {well} to <b>{depth} ft</b>, 10 ft at a time, and leave it cased. Dale, Tess and the rig handle all the pipe. You do the drilling, with two thumb pads, and you watch the rig while you do it.</p>
       <div class="cols">
@@ -1014,6 +1065,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
 <script src="js/sites.js" charset="utf-8"></script>
+<script src="js/shop.js" charset="utf-8"></script>
 <script src="js/sim.js" charset="utf-8"></script>
 <script src="js/audio.js" charset="utf-8"></script>
 <script src="js/crew.js" charset="utf-8"></script>

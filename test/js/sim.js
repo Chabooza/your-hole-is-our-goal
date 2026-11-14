@@ -535,7 +535,8 @@ window.SIM = (() => {
       if (Math.abs(k.rpm) > L.maxRpm) hit('spun', Math.min(0.5, (Math.abs(k.rpm) - L.maxRpm) / 70));
       if (k.res < 0.25 && k.hz > 95 && L.compress >= 0.8) hit('heated', 0.12);
       if (k.hz > 8 && k.res < 0.3 && L.k >= 0.5) hit('rattled', 0.14 * (1 - k.res / 0.3));   // loose ground shaken up off resonance
-      if (S.inCobble) { q *= 0.75; n.cobble = (n.cobble || 0) + nat; if (worst < 0.25) why = 'cobble'; }
+      if (S.inCobble) { q *= S.item === 'bit' ? 0.93 : 0.75;      // the carbide bit from the shop (js/shop.js) hardly notices them
+        n.cobble = (n.cobble || 0) + nat; if (worst < 0.25) why = 'cobble'; }
       if (r.fill >= BARREL_CAP) { q = 0; n.overrun = (n.overrun || 0) + nat; why = 'overrun'; }
       const t = r.tel; t.n += nat; t.res += nat * k.res; t.push += nat * clamp(k.WOB / L.wob, 0, 3); t.rpm += nat * Math.abs(k.rpm) / L.maxRpm;
       q = clamp(q, 0, 1);
