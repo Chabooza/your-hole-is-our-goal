@@ -186,7 +186,7 @@ window.WORLD = (() => {
     put(box(1.1, 0.7, 0.06, 0x8fd0ef, 0.008), 1.2, 1.9, 1.22, tr);
     put(box(5.6, 0.25, 2.2, 0x55595d), 0, 0.3, 0, tr);
     for (const x of [-2, 2]) put(cyl(0.35, 0.35, 0.3, 0x2f3133, 0.02), x, 0.35, 1.0, tr).rotation.x = Math.PI / 2;
-    const sign = canvasTex(512, 128, (c) => { c.fillStyle = '#1f4e7a'; c.fillRect(0, 0, 512, 128); c.fillStyle = '#fff'; c.font = '700 54px "Barlow Condensed", Arial Narrow, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('SITE OFFICE · MW-01', 256, 66); });
+    const sign = canvasTex(512, 128, (c) => { c.fillStyle = '#1f4e7a'; c.fillRect(0, 0, 512, 128); c.fillStyle = '#fff'; c.font = '700 54px "Barlow Condensed", Arial Narrow, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('SITE OFFICE', 256, 66); });
     const sg = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65), new THREE.MeshBasicMaterial({ map: sign })); sg.position.set(0.6, 2.55, 1.215); tr.add(sg);
     tr.position.set(10.5, 0, 5.5); tr.rotation.y = -0.55; scene.add(tr);
     const pt = new THREE.Group();
@@ -343,7 +343,7 @@ window.WORLD = (() => {
       put(box(0.08, 0.5, 0.1, DARK), 1.72, 1.12, z, rig);
     }
     R.rackJ = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 9; i++) {          // up to 80 ft of casing, in rows of three
       const p = cyl(0.085, 0.085, 3.05, 0x7d8790, 0.008, 16); p.rotation.x = Math.PI / 2;
       put(p, 1.12 + (i % 3) * 0.2, 1.52 + Math.floor(i / 3) * 0.18, -1.55, rig); R.rackJ.push(p);
       const c = cyl(0.1, 0.1, 0.1, 0x646d76, 0.006, 16); c.position.y = 1.48; p.add(c);

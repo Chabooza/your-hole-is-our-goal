@@ -364,6 +364,28 @@ body.at-menu .topbar, body.at-menu .hud, body.at-menu .logbox, body.at-menu .vie
 .menu-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 16px; }
 .menu-btns .btn-big { font-size: clamp(18px, 3.4vh, 26px); padding: 0.5em 1.5em; min-width: 7.5em; }
 
+/* the ten holes */
+#holes { z-index: 60; }
+.menu-hole { margin-top: 0.6vh; color: var(--amber); letter-spacing: 0.1em; }
+.hole-chip { color: #ffd98a; }
+.holes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.hole { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; align-items: center; text-align: left; background: #fffdf4; color: #2a2418; border: 3px solid #1b1710; border-radius: 12px; padding: 8px 10px; cursor: pointer; box-shadow: 0 3px 0 #1b1710; font: inherit; }
+.hole:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b1710; }
+.hole i { grid-row: 1 / 3; font-style: normal; font-family: var(--f-display); font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; background: var(--amber); border: 2px solid #1b1710; border-radius: 10px; }
+.hole b { font-size: 17px; font-weight: 800; }
+.hole .h-depth { font-size: 13px; font-weight: 700; color: #6d6247; }
+.hole .h-blurb { grid-column: 1 / -1; font-size: 14px; font-weight: 500; margin-top: 4px; }
+.hole .h-best { grid-column: 1 / -1; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #8a4b0c; margin-top: 3px; }
+.hole.passed i { background: #9bd47f; } .hole.passed .h-best { color: #2c8a22; }
+.hole.cur { outline: 3px solid #1b6fd1; outline-offset: 1px; }
+.hole.locked { background: #e2dcc8; color: #6d6247; cursor: default; box-shadow: none; }
+.hole.locked i { background: #cfc8b2; color: #8b8370; }
+.rp-pass { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; border: 3px solid #1b1710; border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+.rp-pass b { font-family: var(--f-display); font-weight: 400; font-size: 22px; text-transform: uppercase; }
+.rp-pass.ok { background: #cfeebd; } .rp-pass.ok b { color: #1f6d17; }
+.rp-pass.no { background: #f6cfc9; } .rp-pass.no b { color: #a11d13; }
+.brief-site { margin: 0 0 10px; }
+
 /* pick your crew */
 .pick-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 6px; }
 .slot-driller { grid-column: 1 / -1; justify-self: center; width: min(100%, 420px); }
@@ -565,10 +587,11 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
   <header class="topbar">
     <div class="brand">
       <span class="logo">YOUR HOLE IS OUR GOAL!</span>
-      <span class="job">FS 250 sonic · MW-01 · 4×6 tooling · 10 ft runs</span>
+      <span class="job" id="jobTag">FS 250 sonic · 4×6 tooling · 10 ft runs</span>
     </div>
     <div class="topctl">
       <span class="clock" id="clock" aria-label="Shift clock">07:00</span>
+      <span class="clock hole-chip" id="holeChip" aria-label="Which hole">1/10</span>
       <div class="speed" role="group" aria-label="Game speed">
         <button type="button" data-speed="1" class="on">1×</button><button type="button" data-speed="2">2×</button><button type="button" data-speed="4">4×</button>
       </div>
@@ -600,7 +623,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 
   <aside class="hud hud-right">
     <div class="panel-box crew-box"><h3 class="side-h" id="crewH"><span>Crew<span class="no-phone"> orders</span></span> <span class="only-phone" id="crewTog">show all</span></h3><div class="crew" id="crew"></div></div>
-    <div class="panel-box" id="bhWrap"><h3 class="side-h">Borehole MW-01 <span>ft</span></h3><canvas id="section" width="200" height="330" aria-label="Borehole section"></canvas></div>
+    <div class="panel-box" id="bhWrap"><h3 class="side-h"><span id="bhTitle">Borehole MW-01 </span><span>ft</span></h3><canvas id="section" width="200" height="330" aria-label="Borehole section"></canvas></div>
   </aside>
 
   <details class="logbox panel-box"><summary>Shift log</summary><ul id="log"></ul></details>
@@ -705,13 +728,24 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <div class="menu" id="menu">
   <div>
     <h1 class="menu-title">Your hole<br>is <span>our goal!</span></h1>
-    <p class="menu-sub">Sonic drilling simulator · FS 250 rig · Borehole MW-01</p>
+    <p class="menu-sub">Sonic drilling simulator · FS 250 rig</p>
+    <p class="menu-sub menu-hole" id="menuHole"></p>
   </div>
   <div class="menu-btns">
     <button type="button" class="btn-big" id="menuStart">Start</button>
-    <button type="button" class="btn-big alt" id="menuNew" hidden>Start a new hole</button>
+    <button type="button" class="btn-big alt" id="menuNew" hidden>Start this hole over</button>
+    <button type="button" class="btn-big alt" id="menuHoles">Pick a hole</button>
     <button type="button" class="btn-big alt" id="menuSettings">Settings</button>
     <button type="button" class="btn-big alt" id="menuInstall" hidden>Install as an app</button>
+  </div>
+</div>
+
+<div class="modal" id="holes" role="dialog" aria-modal="true" aria-labelledby="holesTitle" hidden>
+  <div class="sheet">
+    <h2 id="holesTitle">Pick a hole</h2>
+    <p class="sub" id="holesSub"></p>
+    <div class="holes-grid" id="holesGrid"></div>
+    <div class="go"><button type="button" class="btn-big alt" id="holesBack">Back</button></div>
   </div>
 </div>
 
@@ -806,9 +840,11 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <div class="modal" id="brief" role="dialog" aria-modal="true" aria-labelledby="briefTitle" hidden>
   <div class="sheet">
     <h2 id="briefTitle">Tailgate meeting</h2>
-    <p class="sub">07:00 · Borehole MW-01 · Riverside terrace</p>
+    <p class="sub" id="briefSub">07:00</p>
+    <p class="safety brief-site" id="briefSite"></p>
+    <p><b>Ten holes, each harder than the last.</b> Every hole is a different site: the depth changes, the ground gets nastier, the prompts get faster and the pour reads later. A combined grade of <b>80 or better</b>, drilling and well install together, opens the next hole.</p>
     <div id="briefEasy">
-      <p>You are the driller on a three-person sonic crew. The job: core borehole MW-01 to <b>60 ft</b>, 10 ft at a time, and leave it cased. Dale, Tess and the rig handle all the pipe. You do the drilling, with two thumb pads, and you watch the rig while you do it.</p>
+      <p>You are the driller on a three-person sonic crew. The job: core borehole {well} to <b>{depth} ft</b>, 10 ft at a time, and leave it cased. Dale, Tess and the rig handle all the pipe. You do the drilling, with two thumb pads, and you watch the rig while you do it.</p>
       <div class="cols">
         <div>
           <h3>PUSH, left thumb</h3>
@@ -827,12 +863,12 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
         <li><b>Core table.</b> You walk over to see what you recovered, where core was lost and why.</li>
         <li><b>Throw a Zonnic.</b> Now and then while you core, a red button pops up for 3 seconds. Tap it, then tap again when the shrinking white ring sits on the green band. Hit, and it sticks to the helper's hard hat.</li>
       </ol>
-      <p><b>Then the well.</b> At 60 ft the engineer walks over with a drawing. You pour bentonite and sand by drawing circles, never more than 6 in. up inside the casing, then pull a joint of casing and pour again. Prompts pop up for the casing and for every length of PVC. The tape reads late, so stop early: too much in the casing and the next pull rips the well in half.</p>
+      <p><b>Then the well.</b> At {depth} ft the engineer walks over with a drawing. You pour bentonite and sand by drawing circles, never more than 6 in. up inside the casing, then pull a joint of casing and pour again. Prompts pop up for the casing and for every length of PVC. The tape reads late, so stop early: too much in the casing and the next pull rips the well in half.</p>
       <p>The view follows the work by itself. Drag anywhere on the picture to look around.</p>
       <p class="safety">Want to run every lever yourself? Settings, then Controls, then Full rig. It is best with a mouse and keyboard.</p>
     </div>
     <div id="briefFull">
-    <p>You are the driller on a three-person sonic crew, standing at the console of a truck-mounted rig modelled on the Fraste FS 250 with a sonic head. The job: core MW-01 to <b>60 ft</b> with continuous core and leave it cased for a monitoring well. Tooling is 4 × 6 in: a 4 in core barrel inside 6 in casing, cored in 10 ft runs. Nothing on this rig is automatic: you slide the head, present the casing, make and break every joint and run the winch.</p>
+    <p>You are the driller on a three-person sonic crew, standing at the console of a truck-mounted rig modelled on the Fraste FS 250 with a sonic head. The job: core {well} to <b>{depth} ft</b> with continuous core and leave it cased for a monitoring well. Tooling is 4 × 6 in: a 4 in core barrel inside 6 in casing, cored in 10 ft runs. Nothing on this rig is automatic: you slide the head, present the casing, make and break every joint and run the winch.</p>
     <div class="touch-tips">
       <p><b>On a phone or tablet.</b> Hold the phone sideways. <b>One finger</b> on a lever or knob drags it, and a tap flips a switch. One finger anywhere else turns your head.</p>
       <p><b>Two fingers:</b> pinch to zoom, drag to look around. <b>Panel</b> gives a close-up of the controls, <b>Work view</b> shows the panel with the rig above it, and <b>Levers neutral</b> stops every lever at once.</p>
@@ -876,7 +912,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
       <li><b>Barrel.</b> Head back to centre and onto the barrel. Pull it clear, TILT out 45 degrees and switch the sonic on so Tess can catch the core.</li>
       <li><b>Back in.</b> Tilt in, run the barrel down, set it in the clamp, then stands back in with the winch (torque each joint with the top clamp), the odd single with the head, and a new rod on top.</li>
     </ol>
-    <p><b>Then the well.</b> At 60 ft the engineer walks over with an installation drawing. Dale and Tess pour bentonite and sand down the casing and thread the 2 in. PVC together: you pour by drawing circles with the mouse (or hold <kbd>Space</kbd>), never more than 6 in. up inside the casing, then pull a joint of casing (<kbd>Enter</kbd>) and pour again, answering a prompt for every joint and every length of PVC. The tape reads late, and later the deeper the hole, so stop early and top it up. Too much in the casing packs solid, and the next pull rips the well in half.</p>
+    <p><b>Then the well.</b> At {depth} ft the engineer walks over with an installation drawing. Dale and Tess pour bentonite and sand down the casing and thread the 2 in. PVC together: you pour by drawing circles with the mouse (or hold <kbd>Space</kbd>), never more than 6 in. up inside the casing, then pull a joint of casing (<kbd>Enter</kbd>) and pour again, answering a prompt for every joint and every length of PVC. The tape reads late, and later the deeper the hole, so stop early and top it up. Too much in the casing packs solid, and the next pull rips the well in half.</p>
     <h3>Reading the gauges</h3>
     <div class="cols">
       <p><b>Resonance:</b> the penetration rate jumps, the rig stops shaking and the oscillation pressure dips. Every layer has its own sweet spot.</p>
@@ -915,16 +951,19 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <div class="modal" id="report" role="dialog" aria-modal="true" aria-labelledby="reportTitle" hidden>
   <div class="sheet">
     <h2 id="reportTitle">Daily driller's report</h2>
-    <p class="sub">Borehole MW-01 · FS 250 sonic · 4×6 tooling</p>
+    <p class="sub" id="reportSub">FS 250 sonic · 4×6 tooling</p>
     <div id="reportBody"></div>
     <div class="go">
-      <button type="button" class="btn-big" id="againBtn">Drill another hole</button>
+      <button type="button" class="btn-big" id="nextBtn" hidden>Next hole</button>
+      <button type="button" class="btn-big" id="againBtn">Redo this hole</button>
+      <button type="button" class="btn-big alt" id="holesBtn">Pick a hole</button>
       <button type="button" class="btn-big alt" id="reviewBtn">Look at the rig</button>
     </div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+<script src="js/sites.js" charset="utf-8"></script>
 <script src="js/sim.js" charset="utf-8"></script>
 <script src="js/audio.js" charset="utf-8"></script>
 <script src="js/crew.js" charset="utf-8"></script>

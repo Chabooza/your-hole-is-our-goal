@@ -55,7 +55,7 @@ window.HUD = (() => {
   function buildSection() {
     bh = $('section'); bhc = bh.getContext('2d');
     let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    for (const L of SIM.LAYERS) {
+    for (const L of SIM.MATS) {
       const p = document.createElement('canvas'); p.width = 40; p.height = 40; const g = p.getContext('2d');
       g.fillStyle = L.color; g.fillRect(0, 0, 40, 40); g.fillStyle = 'rgba(0,0,0,0.25)'; g.strokeStyle = 'rgba(0,0,0,0.28)';
       if (L.pat === 'dots') for (let i = 0; i < 30; i++) { g.beginPath(); g.arc(rnd() * 40, rnd() * 40, 0.9, 0, 7); g.fill(); }
@@ -72,18 +72,18 @@ window.HUD = (() => {
     const W = 200, Hh = 330;
     if (bh.width !== W * dpr) { bh.width = W * dpr; bh.height = Hh * dpr; }
     const c = bhc; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, Hh);
-    const top = 14, bot = Hh - 8, maxD = 66, k = (bot - top) / maxD, Y = d => top + d * k;
+    const top = 14, bot = Hh - 8, TD = SIM.TARGET, maxD = TD + 6, k = (bot - top) / maxD, Y = d => top + d * k;
     const x0 = 30, cw = 112, hx = 100;
     for (const L of SIM.LAYERS) {
       const a = Y(L.top), b = Y(Math.min(L.bot, maxD)); if (a >= bot) break;
       c.fillStyle = pats[L.id]; c.fillRect(x0, a, cw, b - a);
       c.font = '700 10px "Barlow Condensed", Arial Narrow, sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle';
       c.fillStyle = L.id === 'sand' || L.id === 'gravel' ? 'rgba(40,30,20,0.85)' : 'rgba(255,255,255,0.92)';
-      c.fillText(L.short.toUpperCase(), x0 + 3, (a + b) / 2);
+      if (b - a >= 9) c.fillText(L.short.toUpperCase(), x0 + 3, (a + b) / 2);
     }
     c.strokeStyle = '#111'; c.lineWidth = 1.5; c.strokeRect(x0, top, cw, bot - top);
     c.fillStyle = '#c9cdbf'; c.font = '600 10px "Barlow Condensed", Arial Narrow, sans-serif'; c.textAlign = 'right';
-    for (let d = 0; d <= 60; d += 10) { c.fillRect(x0 - 6, Y(d), 6, 1); c.fillText(String(d), x0 - 8, Y(d)); }
+    for (let d = 0; d <= TD; d += 10) { c.fillRect(x0 - 6, Y(d), 6, 1); c.fillText(String(d), x0 - 8, Y(d)); }
     const hd = s.hole.depth, cd = s.casing.depth;
     if (hd > 0.01) { c.fillStyle = '#2d2622'; c.fillRect(hx - 8, top, 16, Y(hd) - top); }
     if (cd > 0.01) {
@@ -102,8 +102,8 @@ window.HUD = (() => {
     c.setLineDash([4, 3]); c.strokeStyle = '#3ea6e6'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0, Y(SIM.WT)); c.lineTo(x0 + cw, Y(SIM.WT)); c.stroke();
     c.strokeStyle = '#ff5a48'; c.beginPath(); c.moveTo(x0, Y(SIM.TARGET)); c.lineTo(x0 + cw, Y(SIM.TARGET)); c.stroke(); c.setLineDash([]);
     c.textAlign = 'right'; c.textBaseline = 'bottom'; c.font = '800 10px "Barlow Condensed", Arial Narrow, sans-serif';
-    c.fillStyle = '#7cc8f5'; c.fillText("WT 12'", x0 + cw - 3, Y(SIM.WT) - 1);
-    c.fillStyle = '#ff8a7a'; c.fillText('TD 60', x0 + cw - 3, Y(SIM.TARGET) - 1);
+    c.fillStyle = '#7cc8f5'; c.fillText(`WT ${SIM.WT}'`, x0 + cw - 3, Y(SIM.WT) - 1);
+    c.fillStyle = '#ff8a7a'; c.fillText('TD ' + TD, x0 + cw - 3, Y(SIM.TARGET) - 1);
     const bd = conn === 'casing' ? cd : Math.max(0, s.core.bit);
     c.fillStyle = '#f2b630'; c.beginPath(); c.moveTo(x0 + cw + 2, Y(bd)); c.lineTo(x0 + cw + 9, Y(bd) - 4); c.lineTo(x0 + cw + 9, Y(bd) + 4); c.closePath(); c.fill();
     c.font = '700 10px "B612 Mono", Consolas, monospace'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#f2e7b4';
@@ -133,7 +133,7 @@ window.HUD = (() => {
     side.bar.style.width = (clamp(p, 0, 1) * 100).toFixed(1) + '%';
     side.bar.classList.toggle('over', s.phase === 'CORE_RUN' && s.run.fill >= SIM.BARREL_CAP);
     if (side.barTxt.textContent !== txt) side.barTxt.textContent = txt;
-    const L = gd.layer, lt = `${L.name} · ${L.top} to ${L.bot > 60 ? 'TD' : L.bot} ft`;
+    const L = gd.layer, lt = `${L.name} · ${L.top} to ${L.bot > SIM.TARGET ? 'TD' : L.bot} ft`;
     if (side.layer.textContent !== lt) { side.layer.textContent = lt; side.tip.textContent = L.tip; side.layer.style.setProperty('--lc', L.color); }
     const ak = s.alarms.map(a => a.join(':')).join('|');
     if (ak !== lastAlarm) {
@@ -186,16 +186,25 @@ window.HUD = (() => {
   }
 
   // ---------- shift report ----------
-  function showReport(s) {
-    const r = s.report, box = $('reportBody');
+  // res: what the career made of it (js/sites.js record): passed, whether that opened the next hole, the best grade so far
+  function showReport(s, res) {
+    const r = s.report, box = $('reportBody'), st = s.site;
+    let verdict = '';
+    if (res) {
+      const nxt = st.n < SITES.COUNT ? SITES.get(st.n + 1) : null;
+      const tail = !res.passed ? `You need ${SITES.PASS} or better, drilling and well together, to open the next hole.`
+        : res.last ? 'That was the last hole. You have drilled the lot.'
+        : res.opened ? `Hole ${nxt.n}, ${nxt.name}, is now open.` : `Hole ${nxt.n}, ${nxt.name}, is open.`;
+      verdict = `<div class="rp-pass ${res.passed ? 'ok' : 'no'}"><b>${res.passed ? 'Passed' : 'Not passed'}</b><span>Hole ${st.n} of ${SITES.COUNT} · ${st.name} · pass mark ${SITES.PASS}. ${tail}${res.record ? ' A new best for this hole.' : res.best > r.score ? ` Your best here is ${res.best}.` : ''}</span></div>`;
+    }
     const pct = v => `${Math.round(v * 100)}%`;
     const rows = s.runs.map(x => `<tr><td>${x.n}</td><td>${x.from.toFixed(1)}–${x.to.toFixed(1)}</td><td>${x.segs.filter(g => !g.slough).map(g => SIM.LAYERS.find(L => L.id === g.layer).short).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'slough'}</td><td>${x.drilled.toFixed(1)}</td><td>${x.recNet.toFixed(1)}</td><td class="${x.recovery >= 0.9 ? 'g' : x.recovery >= 0.7 ? 'a' : 'r'}">${pct(x.recovery)}</td><td>${SIM.noteKeys(x).map(k => SIM.NOTE_TEXT[k]).join('; ') || '—'}${x.slough > 0.05 ? `; ${x.slough.toFixed(1)} ft slough` : ''}</td></tr>`).join('');
     const w = r.well, f1 = v => (Math.round(v * 10) / 10).toFixed(1), dep = d => (d < -0.05 ? `${f1(-d)} ft above ground` : `${f1(Math.max(0, d))} ft`);
     const wellRows = !w ? '' : w.results.map(x => `
         <div><dt>${x.id === 'well' ? x.name : x.name + ', top'}</dt><dd class="${Math.abs(x.err) <= 0.5 ? 'g' : Math.abs(x.err) <= 1.5 ? 'a' : 'r'}">${dep(x.got)} (drawing: ${dep(x.target)})</dd></div>`).join('');
     const wear = Object.entries(s.dmg).filter(([, v]) => v > 0.005).map(([k, v]) => `${({ head: 'Sonic head', pump: 'Pump', bit: 'Bit', hyd: 'Hydraulics', clamp: 'Clamps', threads: 'Threads' })[k]} ${pct(v)}`).join(', ') || 'None';
-    box.innerHTML = `
-      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole MW-01 cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100</small>` : ''}</div></div>
+    box.innerHTML = `${verdict}
+      <div class="rp-grade"><span class="rp-letter g-${r.grade}">${r.grade}</span><div><b>${r.score} / 100</b><br>Borehole ${st.well} cored to ${s.hole.depth.toFixed(1)} ft${w ? ` and built as a monitoring well<br><small>Drilling ${r.drill} / 100 · Well install ${w.score} / 100</small>` : ''}</div></div>
       <dl class="rp-stats">
         <div><dt>Crew</dt><dd>${s.driller ? s.driller + ' drilling, with ' : ''}${s.crew[0].name} and ${s.crew[1].name}</dd></div>
         <div><dt>Core recovery</dt><dd>${pct(r.recovery)} (${r.rec.toFixed(1)} of ${r.drilled.toFixed(1)} ft)</dd></div>

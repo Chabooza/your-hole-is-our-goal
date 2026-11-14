@@ -14,7 +14,7 @@ window.TOSS = (() => {
   const FIRST = [40, 70];        // seconds of drilling before the first one
   const EVERY = [60, 120];       // and between the rest
   const R0 = 3, R1 = 0.2;        // the shrinking ring: starting and finishing size, as a multiple of the target
-  const SHRINK = 1.6;            // seconds it takes to shrink all the way
+  const SHRINK = 1.6;            // seconds it takes to shrink all the way on hole 1 (later holes are quicker: js/sites.js)
   const TOL = 0.15;              // how close to the target counts as a hit (the green band is this wide)
 
   const LAUGH = ['HA HA HA HA!', 'HAHAHAHA!', 'BAHAHAHA!', 'HA! HA HA HA!', 'AHAHAHAHA!'];           // the driller only laughs. He never says anything
@@ -142,7 +142,7 @@ window.TOSS = (() => {
       const p = WORLD.project(h), cv = WORLD.renderer.domElement, w = cv.clientWidth, ht = cv.clientHeight;
       if ((p.front && Math.abs(p.x - w / 2) < w * 0.3 && Math.abs(p.y - ht / 2) < ht * 0.4) || T.wait > 1.4) { T.ready = true; E.zone.style.visibility = ''; }
     } else if (T.state === 'aim') {
-      T.s = R0 - (R0 - R1) * (T.t / SHRINK);
+      T.s = R0 - (R0 - R1) * (T.t / (S.site ? S.site.tune.ring : SHRINK));
       E.ring.style.transform = `translate(-50%, -50%) scale(${Math.max(R1, T.s).toFixed(3)})`;
       if (T.s <= R1) { T.hit = false; throwIt(); }       // never tapped
     } else if (T.state === 'throw') {

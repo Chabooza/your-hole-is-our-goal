@@ -1,7 +1,7 @@
 'use strict';
 /* Sonic Driller 3D: game loop, mouse and touch (look around + work the controls), keyboard, menus, phone layout. */
 (() => {
-  const APP = window.APP = { S: SIM.newGame(), speed: 1, reportShown: false, seenRuns: 0, away: false, freeze: false, phone: false, menu: false, fly: false, briefed: false, easy: false };
+  const APP = window.APP = { hole: SITES.career.last, nextHole: SITES.career.last, S: SIM.newGame(undefined, SITES.career.last), speed: 1, reportShown: false, seenRuns: 0, away: false, freeze: false, phone: false, menu: false, fly: false, briefed: false, easy: false };
   const $ = id => document.getElementById(id);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -37,8 +37,9 @@
     dropPointers(); PANEL.setHover(null); HUD.tooltip(null); PANEL.setHands(false);
     if (!APP.S.paused) setPaused(true);
     const mid = APP.S.t > 0 && !APP.S.done;
-    $('menuStart').textContent = mid ? 'Back to the shift' : 'Start';
+    $('menuStart').textContent = mid ? 'Back to the shift' : `Start hole ${APP.S.done ? APP.nextHole : APP.hole}`;
     $('menuNew').hidden = !mid;
+    showSite();
     WORLD.setDrone(true, instant);
   }
   function leaveMenu() {
@@ -67,7 +68,8 @@
     S.crew[1].name = c.name; S.crew[1].hat = hex(c.look.hat);
     WORLD.setCrew({ driller: d.look, lead: l.look, core: c.look });
     if (!briefSrc) briefSrc = { briefEasy: $('briefEasy').innerHTML, briefFull: $('briefFull').innerHTML };
-    for (const id in briefSrc) $(id).innerHTML = SIM.nm(S, briefSrc[id]);
+    for (const id in briefSrc) $(id).innerHTML = SIM.nm(S, briefSrc[id]).replace(/\{well\}/g, S.site.well).replace(/\{depth\}/g, S.site.depth);
+    showSite();
   }
   // The rule: only a driller can take the driller's seat. A driller may fill a helper's spot. A helper never drills.
   const canDo = (p, job) => job !== 'driller' || p.trade === 'driller';
@@ -181,10 +183,13 @@
     // Start on a fresh hole: pick the crew, then the briefing (first time), then fly down
     $('menuStart').addEventListener('click', () => {
       AUDIO.init();
-      if (APP.S.t > 0) leaveMenu();
+      if (APP.S.t > 0 && !APP.S.done) leaveMenu();
+      else if (APP.S.done) holeFromMenu(APP.nextHole);          // the last hole is finished: on to the next one (or the same again)
       else openPick(() => { applyCrew(); HUD.reset(); if (!APP.briefed) openBrief(true); else leaveMenu(); });
     });
-    $('menuNew').addEventListener('click', () => { AUDIO.init(); openPick(() => { newHole(); setPaused(true); leaveMenu(); }); });
+    $('menuNew').addEventListener('click', () => { AUDIO.init(); holeFromMenu(APP.hole); });
+    $('menuHoles').addEventListener('click', () => { AUDIO.init(); openHoles(); });
+    $('holesBack').addEventListener('click', () => { $('holes').hidden = true; });
     $('pickGo').addEventListener('click', () => closePick(true));
     $('pickBack').addEventListener('click', () => closePick(false));
   }
@@ -240,8 +245,58 @@
     INSPECT.close(); APP.freeze = false;
     WORLD.walkTo(false, () => { APP.away = false; PANEL.setHands(true); document.body.classList.remove('inspecting'); });
   }
-  function newHole() {
-    APP.S = SIM.newGame();
+  // ---------- the career: ten holes, each harder than the last (js/sites.js) ----------
+  // the bits of the screen that name the hole
+  function showSite() {
+    const st = APP.S.site, at = APP.S.done && APP.menu ? SITES.get(APP.nextHole) : st;
+    $('jobTag').textContent = `Hole ${st.n} of ${SITES.COUNT} · ${st.name} · ${st.depth} ft · pass mark ${SITES.PASS}`;
+    $('holeChip').textContent = `${st.n}/${SITES.COUNT}`;
+    $('holeChip').title = `Hole ${st.n} of ${SITES.COUNT}: ${st.name}`;
+    $('bhTitle').textContent = `Borehole ${st.well} `;
+    $('menuHole').textContent = `Hole ${at.n} of ${SITES.COUNT}: ${at.name} · ${at.depth} ft`;
+    $('briefSub').textContent = `07:00 · Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
+    $('briefSite').innerHTML = `<b>Today: ${st.name}.</b> ${st.depth} ft, water at ${st.wt} ft. ${st.blurb}`;
+    $('reportSub').textContent = `Hole ${st.n} of ${SITES.COUNT} · ${st.name} · borehole ${st.well}`;
+  }
+  // the list of holes: tap an open one to drill it
+  function openHoles() {
+    const grid = $('holesGrid'), C = SITES.career, cur = APP.S.site.n;
+    grid.innerHTML = '';
+    for (let n = 1; n <= SITES.COUNT; n++) {
+      const st = SITES.get(n), open = SITES.isOpen(n), best = C.best[n];
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'hole' + (open ? '' : ' locked') + (best >= SITES.PASS ? ' passed' : '') + (n === cur ? ' cur' : '');
+      b.disabled = !open;
+      b.innerHTML = `<i>${n}</i><b></b><span class="h-depth">${st.depth} ft · water at ${st.wt} ft</span><span class="h-blurb"></span><span class="h-best">${!open ? 'Locked' : best == null ? 'Not drilled yet' : `Best: ${best}${best >= SITES.PASS ? ' · passed' : ''}`}</span>`;
+      b.querySelector('b').textContent = st.name;
+      b.querySelector('.h-blurb').textContent = open ? st.blurb : `Grade ${SITES.PASS} or better on hole ${n - 1} to open it.`;
+      if (open) b.addEventListener('click', () => { $('holes').hidden = true; if (APP.menu) holeFromMenu(n); else newHole(n); });
+      grid.append(b);
+    }
+    const done = Object.keys(C.best).filter(k => C.best[k] >= SITES.PASS).length;
+    $('holesSub').textContent = `${done} of ${SITES.COUNT} passed · grade ${SITES.PASS} or better opens the next hole`;
+    $('holes').hidden = false;
+  }
+  // from the main menu: pick the crew, read the briefing the first time, then fly down to a fresh hole
+  function holeFromMenu(n) {
+    openPick(() => { newHole(n); setPaused(true); if (!APP.briefed) openBrief(true); else leaveMenu(); });
+  }
+  // the well is built and signed off: keep the grade, open the next hole on a pass, and show the report
+  function endHole(S) {
+    const n = S.site.n, res = SITES.record(n, S.report.score), more = n < SITES.COUNT && SITES.isOpen(n + 1);
+    APP.nextHole = res.passed && more ? n + 1 : n;
+    SITES.setLast(APP.nextHole);
+    HUD.showReport(S, res);
+    $('nextBtn').hidden = !more;
+    if (more) $('nextBtn').textContent = `Next hole: ${SITES.get(n + 1).name}`;
+    $('againBtn').textContent = res.passed ? 'Redo this hole' : 'Try this hole again';
+    $('nextBtn').classList.toggle('alt', !res.passed); $('againBtn').classList.toggle('alt', res.passed && more);
+    S.sfx.push(res.passed ? 'done' : 'stub');
+  }
+  function newHole(n) {
+    if (n) APP.hole = n;
+    APP.nextHole = APP.hole; SITES.setLast(APP.hole);
+    APP.S = SIM.newGame(undefined, APP.hole);
     WELL.reset();
     TOSS.reset();
     NAG.reset();
@@ -453,7 +508,8 @@
   }
 
   function start(data) {
-    if (data && data.S && data.S.ctl && data.S.winch && data.S.tc) { APP.S = data.S; APP.speed = data.speed || 1; }
+    if (/unlock/.test(location.hash)) SITES.openAll();          // for play testing: an address ending in #unlock opens every hole
+    if (data && data.S && data.S.ctl && data.S.winch && data.S.tc) { APP.S = data.S; APP.speed = data.speed || 1; APP.S.site = SIM.useSite(APP.S.site ? APP.S.site.n : 4); APP.hole = APP.nextHole = APP.S.site.n; }
     if (coarse || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
     WORLD.init($('view'));
     PANEL.build(APP);
@@ -481,7 +537,9 @@
     });
     $('btnBore').addEventListener('click', () => { $('bhWrap').hidden = !$('bhWrap').hidden; $('btnBore').setAttribute('aria-pressed', String(!$('bhWrap').hidden)); });
     $('briefGo').addEventListener('click', closeBrief);
-    $('againBtn').addEventListener('click', newHole);
+    $('againBtn').addEventListener('click', () => newHole());
+    $('nextBtn').addEventListener('click', () => newHole(Math.min(SITES.COUNT, APP.S.site.n + 1)));
+    $('holesBtn').addEventListener('click', openHoles);
     $('reviewBtn').addEventListener('click', () => { $('report').hidden = true; });
     document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
     document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { if (!APP.away) WORLD.preset(b.dataset.view); }));
@@ -534,7 +592,7 @@
     // the hole is finished: the engineer walks over and the crew builds the well. The shift report comes after that
     if (S.done && !APP.away && !APP.menu && !APP.fly) {
       if (!S.well) WELL.start(S);
-      else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => HUD.showReport(S), 700); }
+      else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => endHole(S), 700); }
     }
     requestAnimationFrame(frame);
   }
@@ -545,6 +603,7 @@
   window.addEventListener('keydown', e => {
     if (!$('install').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { $('install').hidden = true; e.preventDefault(); } return; }
     if (!$('settings').hidden) { if (e.key === 'Escape') { closeSettings(); e.preventDefault(); } return; }
+    if (!$('holes').hidden) { if (e.key === 'Escape') { $('holes').hidden = true; e.preventDefault(); } return; }
     if (!$('pick').hidden) { if (e.key === 'Escape') { closePick(false); e.preventDefault(); } return; }
     if (!$('brief').hidden || !$('report').hidden) { if (e.key === 'Escape' && !$('brief').hidden) closeBrief(); return; }
     if (APP.menu || APP.fly) return;
