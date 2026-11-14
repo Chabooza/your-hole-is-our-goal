@@ -415,6 +415,7 @@
     SITES.setLast(APP.nextHole);
     HUD.showReport(S, res);
     S.sfx.push(res.passed ? 'done' : 'stub');
+    GREG.grade(S.report.score);                   // a pass under 90: old Greg phones to say how they did it in his day
   }
   function newHole(n) {
     if (n) APP.hole = n;
@@ -426,6 +427,7 @@
     NAG.reset();
     MARL.reset();
     AARON.reset();
+    GREG.reset();
     APP.reportShown = false; APP.seenRuns = 0;
     $('report').hidden = true;
     applyCrew();
@@ -653,6 +655,7 @@
     NAG.init(APP);
     MARL.init(APP);
     AARON.init(APP);
+    GREG.init(APP);
     APP.seenRuns = APP.S.runs.length;
     WORLD.setInsets(freeArea);
     $('inspBack').addEventListener('click', leaveInspect);
@@ -716,6 +719,7 @@
     NAG.update(S, dt);
     MARL.update(S, dt);
     AARON.update(S, dt);
+    GREG.update(dt);
     syncSmoke();
     if (AUDIO.ready()) AUDIO.update(S, dt); else S.sfx.length = 0;
     if (S.runs.length > APP.seenRuns && !APP.away && !APP.menu) { APP.seenRuns = S.runs.length; goInspect(S.runs.length - 1, true); }
@@ -732,6 +736,7 @@
   // [ ] flow, C bottom clamp, X top clamp, , . break-out, J/L head slide, K side switch, U/Y casing arm, Q tilt,
   // T/G throttle, E engine, H horn, V look at panel, I inspect core, B light a smoke, Esc pause, 1/2/4 speed
   window.addEventListener('keydown', e => {
+    if (GREG.key(e)) { e.preventDefault(); return; }           // Greg is on the phone, over the report: Enter answers and moves him on
     if (!$('install').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { $('install').hidden = true; e.preventDefault(); } return; }
     if (!$('settings').hidden) { if (e.key === 'Escape') { closeSettings(); e.preventDefault(); } return; }
     if (!$('shop').hidden) { if (e.key === 'Escape') { closeShop(); e.preventDefault(); } return; }

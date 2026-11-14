@@ -427,6 +427,16 @@ body.at-menu .shades { display: none; }
 body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 @keyframes jit { 50% { transform: translate(1.5px, -1px); } }
 #well[data-tape="1"] .wl-tape { color: #ffd84d !important; border-color: #a8860f; }
+/* Greg's call comes over the shift report, on an older phone */
+.aaron[data-who="greg"] { z-index: 60; }
+.aaron[data-who="greg"] .ar-phone { background: #2b2620; }
+.aaron[data-who="greg"] .ar-screen { background: linear-gradient(#6a5a34, #241d10); }
+.aaron[data-who="greg"] .ar-screen span { color: #e8d9a8; }
+.aaron[data-who="greg"] .ar-face { background-color: #e6dcc0; }
+.ar-bubble[data-me="1"] { background: #dff0ff; }
+.ar-bubble[data-me="1"]::after { display: none; }
+.ar-bubble[data-me="1"] small { visibility: hidden; }
+.ar-bubble[data-me="1"] span::before { content: 'You: '; color: #1b6fd1; }
 .aaron[data-fav="1"] .ar-screen b::after { content: ' ★'; color: #ffd84d; }
 .rp-buck { background: #f2b630; border: 2px solid #1b1710; border-radius: 6px; padding: 0 6px; font-family: inherit !important; font-size: 15px !important; font-weight: 800 !important; color: #1d1606 !important; text-transform: none !important; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { body.jitters #view { animation: none; } }
@@ -837,7 +847,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
   <div class="ar-phone">
     <div class="ar-screen">
       <div class="ar-face" id="arFace">A</div>
-      <b>Aaron</b>
+      <b id="arName">Aaron</b>
       <span id="arStatus">calling…</span>
       <button type="button" class="ar-answer" id="arAnswer">Answer</button>
     </div>
@@ -1129,6 +1139,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <script src="js/nag.js" charset="utf-8"></script>
 <script src="js/marl.js" charset="utf-8"></script>
 <script src="js/aaron.js" charset="utf-8"></script>
+<script src="js/greg.js" charset="utf-8"></script>
 <script src="js/main.js" charset="utf-8"></script>
 <script>
 // On its own web address the game can be installed as an app and started with no signal (see sw.js).
