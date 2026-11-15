@@ -12,12 +12,20 @@
         and round under pressure. One helper holds the nozzle.
      4. The other helper pours: cement first, then bentonite gel. Hold to tip the bag. The longer it is held the faster
         it pours, and the pump can only mix so much: pour too fast and it clumps in the pump.
+        The gel is about twice as hard as the cement. Its marker is how fast it is going in, and it has to be kept in a
+        small green band: too fast and it clumps, too slow and it balls up on top of the water. Stopping is too slow.
         A clump while the helper pours: the driller hooks the helper to the winch, sends them to the top of the tower
         (crying, arms and legs going) and takes over the pouring. A clump while the driller pours: the helper comes
         back down, the driller eats his words, and the helper pours again.
      5. The hose goes on the PVC and the grout is pumped to the bottom of the hole. It fills from the bottom up. The
         player stops the pump when it reaches the top. One drum fills 60 ft of hole.
      6. The PVC comes out and the hole is topped off with bentonite. A helper still up the tower is let down.
+
+   Two mistakes get a little scene of their own (the words are here, the acting is in js/world.js, setGag):
+     - the drum runs over: the engineer storms in and slaps the driller, a slap for every word of "we have to keep a
+       clean job site";
+     - grout comes out the top of the hole: a deer licks it and dies, and the environmental police take the driller away
+       in the paddy wagon. Aaron pays the bail.
 
    S.grout keeps how it went, with a grade out of 100 that is W_GROUT of the hole's grade (js/main.js, closeOut). */
 window.GROUT = (() => {
@@ -38,13 +46,35 @@ window.GROUT = (() => {
   const BATCH_FT = 60;           // ft of hole one drum of grout fills
   const STICK = 5;               // ft of PVC left above the ground
   const POUR = 0.25;             // a bag tipped right over empties in 1 / POUR seconds
-  const CLUMP_IN = { cement: 6, gel: 9 };      // how fast each one builds toward a clump: the gel is the touchy one
+  const CLUMP_IN = 6;            // how fast the cement builds toward a clump
+  // The gel is the touchy one. Its marker is how fast it is going in, and it has to stay in the green.
+  const GEL_LO = 0.10, GEL_HI = 0.38;                     // the green, as a share of the bar: slower balls up, faster clumps
+  const GEL_UP = [0.8, 1.1], GEL_DOWN = [0.65, 0.9];      // how fast the marker climbs while held and falls when let go: on hole 1, and on the hardest hole
+  const GEL_GRACE = [0.9, 0.75], GEL_EASE = 1.5;          // seconds out of the green before the batch is ruined (hole 1, hardest); seconds in the green to be forgiven
+  const GEL_START = 0.6;         // the marker starts at the bottom: this long after the bag is first tipped before "too slow" counts
   const SAFE = 0.4;              // the share of a full pour the pump can keep mixing for ever, on hole 1
   const UP_YOU_GO = ['That is it. You plugged my pump. Up you go.', 'Clumped. Right. You are going up the tower.', 'Look at my pump. LOOK AT IT. Hook on.', 'How hard is it to pour slow? Up the tower with you.'];
   const WAAH = ['WAAAH!', 'Let me down!', 'I am sorry!', 'I can see my house from here!', 'It was the bag!', 'I want my mom!', 'WAAAAAH!', 'Never again, boss!'];
   const EAT_IT = ['Well. I guess you were not that useless after all. Come down.', 'Fine. It is harder than it looks. Come down.', 'Not a word. Get down here and pour.', 'Okay. Maybe the bag is the problem. Come down.'];
   const BACK = ['Not so easy, is it, boss?', 'Told you it was the bag.', 'Slow and steady, boss. Watch.', 'I am never forgiving you for that.'];
   const DOWN = ['Job is done. Lower away.', 'Alright. You can come down now.', 'Grout is in. Let them down.'];
+  // the engineer's slap (the drum ran over), and the deer (grout out the top of the hole)
+  const SLAP_WORDS = ['WE', 'HAVE', 'TO', 'KEEP', 'A', 'CLEAN', 'JOB', 'SITE!'];
+  const SLAP_HEY = ['HEY! Who flooded my site?! Driller! Get over here!', 'WATER! All over my site! Driller! Down here. Now.', 'Is that water running across MY site? Driller! Here!'];
+  const SLAP_MOP = ['Now mop it up.', 'Good. Now get a shovel.', 'And I am writing this down.'];
+  const SLAP_OW = ['Clean job site. Got it. Ow.', 'Yes. Clean. Understood. Ow.', 'I think you loosened a filling.'];
+  const SLAP_HA = ['Right in the chops, boss.', 'I felt that from over here.', 'Lovely clean site we keep, boss.'];
+  const DEER_SEE = ['Uh, boss? There is a deer.', 'Boss. Deer. Coming this way.', 'Hey, look. A little deer.'];
+  const DEER_NO = ['No, no, no! Do not lick that!', 'Shoo! That is not for licking!', 'Hey! Get out of it! That is grout!'];
+  const DEER_FINE = ['Relax. A little grout never hurt anybody.', 'Leave it. It is only cement and clay.', 'It is fine. It is basically a salt lick.'];
+  const DEER_DEAD = ['...It is dead, boss.', '...Boss. I do not think it is getting up.', '...Well. That hurt somebody.'];
+  const COP_HALT = ['ENVIRONMENTAL POLICE! Step away from the grout!', 'ENVIRONMENTAL POLICE! Nobody touch that deer!', 'ENVIRONMENTAL POLICE! Hands where I can see them!'];
+  const COP_CHARGE = ['One deer. Deceased. Cause of death: YOUR grout.', 'That deer had a family. And that is YOUR grout.', 'Grout on the ground, deer on its back. I have seen enough.'];
+  const COP_CUFF = ['Hands behind your back, driller.', 'Turn around. You are coming with us.', 'You are under arrest. Hands.'];
+  const DEER_PLEA = ['It was only a little bit over!', 'The pump runs on! Everybody knows the pump runs on!', 'Tell Aaron I will be late!'];
+  const DEER_BYE = ['We will finish the hole, boss. Probably.', 'Bye, boss. We will tell Aaron.', 'Do they let you have your phone in there, boss?'];
+  const DEER_BACK = ['Welcome back, boss. Aaron paid your bail. He wants a word.', 'You are out. Aaron paid. It is coming off your cheque.', 'Back already? Aaron paid the bail. Do not mention deer to him.'];
+  const GAG_SKIP = 1.0;          // seconds before one of these scenes can be skipped
 
   let APP, E = null, S = null, G = null, g = null, cw = 0, ch = 0, hold = false, onDone = null;
   const faces = new Map(), last = {};
@@ -53,14 +83,14 @@ window.GROUT = (() => {
   function init(app) {
     APP = app;
     E = { root: $('spt'), cv: $('sptCv'), title: $('sptTitle'), step: $('sptStep'), q: $('sptQ'), qTitle: $('sptQTitle'), qHow: $('sptQHow'), zone: $('sptZone'), mark: $('sptMark'), time: $('sptTime'),
-      talk: $('sptTalk'), face: $('sptFace'), who: $('sptWho'), say: $('sptSay'), ask: $('sptAsk'), go: $('sptGo'), chat: $('sptChat'), cap: $('sptCap') };
+      talk: $('sptTalk'), face: $('sptFace'), who: $('sptWho'), say: $('sptSay'), ask: $('sptAsk'), go: $('sptGo'), chat: $('sptChat'), cap: $('sptCap'), card: $('gagCard') };
     g = E.cv.getContext('2d');
     E.root.addEventListener('pointerdown', e => { if (!G || e.target.closest('button')) return; AUDIO.init(); hold = true; tap(); });
     for (const ev of ['pointerup', 'pointercancel', 'blur']) window.addEventListener(ev, () => { hold = false; });
     window.addEventListener('keyup', e => { if (e.code === 'Space') hold = false; });
     E.go.addEventListener('click', () => { if (G) { AUDIO.init(); call(); } });
   }
-  function reset() { G = null; hold = false; onDone = null; if (E) E.go.textContent = 'Start the hammer'; }
+  function reset() { G = null; hold = false; onDone = null; if (E) { E.go.textContent = 'Start the hammer'; E.card.hidden = true; WORLD.setGag(null); } }
   function faceOf(look, key) {
     if (!look) return '';
     if (!faces.has(key)) { let src = ''; try { src = WORLD.portraits([look], 160, 180)[0] || ''; } catch (e) { src = ''; } faces.set(key, src); }
@@ -79,7 +109,11 @@ window.GROUT = (() => {
     G = { phase: 'pvc', t: 0, k, D, T: 0, who: people(), pvc: 0, fit: false, q: null, fumbles: 0,
       water: 0, fillRate: lerp(1 / 6.5, 1 / 4.2, k), lag: 0, called: false, over: false, hose: '', jet: false,
       A: 0, U: 0, rate: 0, pourer: 'helper', clumps: 0, mixed: 0, mixRate: POUR * SAFE * lerp(1, 0.75, k), ramp: lerp(1.3, 2.1, k),
-      cut: null, up: 0, meK: 0, level: D, pumping: false, spilled: 0, short: 0, cap: 0, sayT: 0, cry: '', cryT: 0.5, splash: 0 };
+      tr: 0, gelOn: 0, warn: '', gelUp: lerp(GEL_UP[0], GEL_UP[1], k), gelDown: lerp(GEL_DOWN[0], GEL_DOWN[1], k), gelGrace: lerp(GEL_GRACE[0], GEL_GRACE[1], k),
+      cut: null, up: 0, meK: 0, level: D, pumping: false, spilled: 0, short: 0, cap: 0, sayT: 0, cry: '', cryT: 0.5, splash: 0, slapped: false, deer: false };
+    const eng = WELL.engineer(S);                   // the two who only turn up when it goes wrong
+    G.who.eng = { name: eng.name, look: eng.look };
+    G.who.cop = { name: 'Officer Fern', look: WORLD.GAG.cop };
     hold = false;
     for (const key in last) delete last[key];
     document.body.classList.add('spt-job');
@@ -128,22 +162,24 @@ window.GROUT = (() => {
     if (phase === 'fit') G.q = newQ('timing', 'Screw the fitting on the PVC');
     else if (phase === 'hose') { G.hose = 'truck'; say(G.who.nozzle.name, 'Pump is hooked to the water truck. Say when, boss.', 3.2); S.sfx.push('clank'); }
     else if (phase === 'swap') { G.hose = 'drum'; S.sfx.push('clank'); }
-    else if (phase === 'cement' || phase === 'gel') { G.A = 0; G.U = 0; G.rate = 0; hold = false; say(G.who[G.pourer].name, phase === 'cement' ? 'Cement first. Nice and slow.' : 'Now the gel. Slower still: it clumps if you look at it wrong.', 3); }
+    else if (phase === 'cement' || phase === 'gel') { G.A = 0; G.U = 0; G.rate = 0; G.tr = 0; G.gelOn = 0; G.warn = ''; hold = false; say(G.who[G.pourer].name, phase === 'cement' ? 'Cement first. Nice and slow.' : 'Now the gel. Steady: too fast and it clumps, too slow and it balls up.', 3.4); }
     else if (phase === 'mixed') { say(G.who.nozzle.name, 'That is grout. Hose is going on the PVC.', 2.6); S.sfx.push('done'); }
     else if (phase === 'pump') { G.hose = 'pvc'; G.jet = false; G.called = false; }
     else if (phase === 'top') G.q = newQ('mash', 'Top it off with bentonite');
     else if (phase === 'done') { G.cap = 1; S.sfx.push('done'); if (G.up > 0.01) { G.cut = { kind: 'down', t: 0 }; say(G.who.driller.name, pick(DOWN), 2.6); } }
   }
   // the player says "that is full" (the drum) or "stop the pump" (the grout)
-  function call() {
-    if (!G || S.paused || G.called || G.cut) return;
+  function call(soft) {
+    if (!G || S.paused) return;
+    if (G.cut && WORLD.GAG[G.cut.kind]) { if (!soft && G.cut.t > GAG_SKIP) endGag(); return; }      // one of the little scenes: the button (or Enter) skips it
+    if (G.called || G.cut) return;
     if (G.phase === 'fill' && G.t > 0.8) { G.called = true; G.lag = 0.16 + 0.14 * G.k; S.sfx.push('switch'); }
     else if (G.phase === 'pump' && G.pumping) { G.called = true; G.lag = 0.2 + 0.12 * G.k; S.sfx.push('switch'); }
   }
-  function clumped() {
-    G.clumps++; G.rate = 0; G.U = 0; hold = false; G.jet = false;
+  function clumped(slow) {
+    G.clumps++; G.rate = 0; G.U = 0; G.tr = 0; G.gelOn = 0; G.warn = ''; hold = false; G.jet = false;
     S.sfx.push('alarm'); S.sfx.push('clank');
-    log(`${G.who[G.pourer].name} poured the ${G.phase === 'gel' ? 'gel' : 'cement'} too fast and it clumped up in the pump.`, 'crit');
+    log(slow ? `${G.who[G.pourer].name} poured the gel too slow: it balled up on top of the water and plugged the pump.` : `${G.who[G.pourer].name} poured the ${G.phase === 'gel' ? 'gel' : 'cement'} too fast and it clumped up in the pump.`, 'crit');
     if (G.pourer === 'helper') { G.cut = { kind: 'hoist', t: 0 }; say(G.who.driller.name, pick(UP_YOU_GO), 3.4); }
     else { G.cut = { kind: 'lower', t: 0 }; say(G.who.driller.name, pick(EAT_IT), 3.6); }
   }
@@ -162,7 +198,74 @@ window.GROUT = (() => {
     } else if (c.kind === 'down') {
       if (c.t > 0.8) G.up = clamp(1 - (c.t - 0.8) / 2.0, 0, 1);
       if (c.t > 3.0) { G.cut = null; G.up = 0; }
+    } else updateGag(c);
+  }
+
+  // ---------- when it goes wrong: the engineer's slap, and the deer ----------
+  // Two little scenes with nobody at the controls. js/world.js acts them out from how far in they are: WORLD.GAG has
+  // the times and both files go by it. This says the words, makes the noises, and carries on with the job after.
+  function gagScript(kind) {
+    const T = WORLD.GAG[kind], L = [], add = (at, who, text, dur, sfx) => L.push({ at, who, text, dur, sfx });
+    if (kind === 'slap') {
+      add(1.5, 'eng', pick(SLAP_HEY), 2.3);
+      for (let i = 0; i < T.N; i++) add(T.SLAP0 + i * T.EVERY, 'eng', SLAP_WORDS.slice(0, i + 1).join(' '), i === T.N - 1 ? 1.5 : 1, 'slap');
+      add(T.E_OUT - 0.3, 'eng', pick(SLAP_MOP), 1.5);
+      add(T.ME_BACK - 0.2, 'driller', pick(SLAP_OW), 1.8);
+    } else {
+      add(2.4, 'helper', pick(DEER_SEE), 2.2);
+      add(T.LICK + 0.2, 'nozzle', pick(DEER_NO), 1.6);
+      add(T.LICK + 1.7, 'driller', pick(DEER_FINE), 2.2);
+      for (let t = T.LICK + 0.1; t < T.SICK - 0.2; t += 0.45) add(t, '', '', 0, 'slurp');
+      add(T.SICK + 0.3, 'The deer', '*hic*', 1.0, 'hic');
+      add(T.SICK + 0.9, '', '', 0, 'hic');
+      add(T.SICK + 1.4, 'The deer', '*HIC*', 0.8, 'hic');
+      add(T.DOWN - 0.1, '', '', 0, 'thud');
+      add(T.DOWN + 0.4, 'helper', pick(DEER_DEAD), 2.0);
+      for (let t = T.CAM2 + 0.2; t < T.W_AT + 0.2; t += 0.85) add(t, '', '', 0, 'siren');
+      add(T.OUT, '', '', 0, 'clank');
+      add(T.OUT + 0.1, 'cop', pick(COP_HALT), 2.2);
+      add(T.OUT + 2.4, 'cop', pick(COP_CHARGE), 2.3);
+      add(T.CUFF - 0.6, 'cop', pick(COP_CUFF), 1.5);
+      add(T.CUFF, '', '', 0, 'clamp');
+      add(T.CUFF + 0.9, 'driller', pick(DEER_PLEA), 1.9);
+      add(T.MARCH + 1.6, 'helper', pick(DEER_BYE), 2.4);
+      add(T.SHUT, '', '', 0, 'clamp');
+      add(T.W_OUT - 0.3, '', '', 0, 'clank');
+      for (let t = T.W_OUT; t < T.RESET; t += 0.85) add(t, '', '', 0, 'siren');
     }
+    return L.sort((a, b) => a.at - b.at);
+  }
+  function startGag(kind, then) {
+    hold = false;
+    G.cut = { kind, t: 0, then, i: 0, lines: gagScript(kind) };
+    if (kind === 'deer') G.spilled = Math.max(G.spilled, 1.1);      // a proper puddle, whatever the stop was like
+    log(kind === 'slap' ? `Water is running across the site, and ${G.who.eng.name}, the engineer, has seen it.` : 'Grout is all over the ground at the hole. Something in the trees has noticed.', 'crit');
+  }
+  function updateGag(c) {
+    const T = WORLD.GAG[c.kind];
+    while (c.i < c.lines.length && c.t >= c.lines[c.i].at) {
+      const L = c.lines[c.i++];
+      if (L.text) say(G.who[L.who] ? G.who[L.who].name : L.who, L.text, L.dur);
+      if (L.sfx) S.sfx.push(L.sfx);
+    }
+    if (c.kind === 'deer') {                        // "one bail hearing later": the screen goes black while everything is put back
+      const k = clamp((c.t - T.CARD) / 0.6, 0, 1) * clamp((T.END - c.t) / 0.5, 0, 1);
+      E.card.hidden = k <= 0; E.card.style.opacity = k.toFixed(2);
+    }
+    if (c.t >= T.END) endGag();
+  }
+  // the scene is over, or was skipped: either way the job carries on from the same place
+  function endGag() {
+    const c = G.cut;
+    G.cut = null; E.card.hidden = true; WORLD.setGag(null);
+    if (c.kind === 'deer') {
+      G.deer = true; say(G.who.nozzle.name, pick(DEER_BACK), 3.6); S.sfx.push('ok');
+      log('A deer licked the grout and died. The environmental police took the driller away in the paddy wagon. Aaron paid the bail.', 'crit');
+    } else {
+      G.slapped = true; say(G.who.helper.name, pick(SLAP_HA), 2.6); S.sfx.push('laugh');
+      log(`${G.who.eng.name}, the engineer: "We have to keep a clean job site." One slap for every word.`, 'warn');
+    }
+    if (c.then) enter(c.then);
   }
   function updateJob(dt) {
     G.t += dt; G.T += dt;
@@ -187,19 +290,24 @@ window.GROUT = (() => {
           say(G.who.nozzle.name, G.over ? 'It is running over, boss! Shutting it off.' : w < AIM - 0.1 ? 'That is a bit shy, boss. It will be thick.' : w > AIM + 0.08 ? 'That is a lot of water, boss. Not much room left.' : 'About 80. That will do nicely.', 2.8);
           if (G.over) { S.sfx.push('alarm'); G.splash = 1.2; }
           log(`The drum was filled to ${Math.round(w * 100)}%${G.over ? ': it ran over' : ''}. The aim is about ${Math.round(AIM * 100)}%.`, Math.abs(w - AIM) <= AIM_TOL ? 'good' : 'warn');
-          enter('swap');
+          if (G.over) startGag('slap', 'swap'); else enter('swap');      // water all over the site: the engineer has something to say
         }
         break;
       case 'swap': if (G.t > 1.3) G.jet = true; if (G.t > 2.6) enter('cement'); break;
       case 'cement': case 'gel': {
-        const amt = G.phase === 'gel' ? 0.45 : 1;                 // the gel is a smaller bag
-        G.rate = hold && G.A < amt ? Math.min(1, G.rate + G.ramp * dt) : Math.max(0, G.rate - 3.2 * dt);
+        const gel = G.phase === 'gel', amt = gel ? 0.45 : 1;      // the gel is a smaller bag
+        if (gel) {                                                // the gel: the marker is how fast it is going in. Hold and it climbs, let go and it falls
+          G.rate = clamp(G.rate + (hold && G.A < amt ? G.gelUp : -G.gelDown) * dt, 0, 1);
+          if (hold || G.gelOn > 0) G.gelOn += dt;
+          G.warn = G.A >= amt - 1e-6 ? '' : G.rate > GEL_HI ? 'fast' : G.rate < GEL_LO && G.gelOn > GEL_START ? 'slow' : '';
+          G.tr = clamp(G.tr + (G.warn ? dt / G.gelGrace : -dt / GEL_EASE), 0, 1);      // out of the green it is going wrong; back in the green it comes right
+        } else G.rate = hold && G.A < amt ? Math.min(1, G.rate + G.ramp * dt) : Math.max(0, G.rate - 3.2 * dt);
         const dA = Math.min(amt - G.A, G.rate * POUR * dt);       // what went in the drum this moment
         G.A += dA;
-        G.U = Math.max(0, G.U + dA * CLUMP_IN[G.phase] - G.mixRate * CLUMP_IN.cement * dt);
-        G.mixed = (G.phase === 'gel' ? 1 : 0) * 0.7 + (G.A / amt) * (G.phase === 'gel' ? 0.3 : 0.7);
-        if (G.U >= 1) { clumped(); break; }
-        if (G.A >= amt - 1e-6 && G.rate <= 0.02) { if (G.phase === 'cement') enter('gel'); else enter('mixed'); }
+        if (!gel) G.U = Math.max(0, G.U + dA * CLUMP_IN - G.mixRate * CLUMP_IN * dt);
+        G.mixed = (gel ? 1 : 0) * 0.7 + (G.A / amt) * (gel ? 0.3 : 0.7);
+        if (gel ? G.tr >= 1 : G.U >= 1) { clumped(gel && G.warn === 'slow'); break; }
+        if (G.A >= amt - 1e-6 && (gel || G.rate <= 0.02)) { G.rate = gel ? 0 : G.rate; if (G.phase === 'cement') enter('gel'); else enter('mixed'); }
         break;
       }
       case 'mixed': if (G.t > 2.2) enter('pump'); break;
@@ -212,8 +320,8 @@ window.GROUT = (() => {
           if ((G.called && G.lag <= 0) || G.spilled > 1.1) {
             G.pumping = false; G.called = false; G.short = Math.max(0, G.level);
             say(G.who.nozzle.name, G.spilled > 0.05 ? 'It is coming out the top! Shut it off!' : G.short > 2.5 ? `That is ${G.short.toFixed(0)} ft short, boss. The bentonite will have to make it up.` : 'Grout at surface. Good.', 2.8);
-            if (G.spilled > 0.05) S.sfx.push('alarm');
-            enter('pull');
+            if (G.spilled > 0.05) { S.sfx.push('alarm'); startGag('deer', 'pull'); }      // grout on the ground: something comes for a taste
+            else enter('pull');
           }
         }
         break;
@@ -231,13 +339,14 @@ window.GROUT = (() => {
     return Math.round(clamp(100 - fill - o.clumps * CLUMP_PEN - o.fumbles * FUMBLE_PEN - pump, 0, 100));
   }
   function finish() {
-    const o = { fill: G.water, over: G.over, clumps: G.clumps, fumbles: G.fumbles, spilled: G.spilled, short: G.short, pourer: G.pourer, helper: G.who.helper.name, driller: G.who.driller.name, depth: G.D, drums: Math.ceil(G.D / BATCH_FT) };
+    const o = { fill: G.water, over: G.over, clumps: G.clumps, fumbles: G.fumbles, spilled: G.spilled, short: G.short, pourer: G.pourer, helper: G.who.helper.name, driller: G.who.driller.name, depth: G.D, drums: Math.ceil(G.D / BATCH_FT),
+      slapped: G.slapped, deer: G.deer, engineer: G.who.eng.name };
     o.score = score(o);
     S.grout = o;
     log(`${S.site.well} is grouted to surface and topped off with bentonite.`, 'good');
     const cb = onDone;
     G = null; onDone = null; hold = false;
-    E.chat.hidden = true; WORLD.setJob(null);
+    E.chat.hidden = true; E.card.hidden = true; WORLD.setGag(null); WORLD.setJob(null);
     E.go.textContent = 'Start the hammer'; E.go.hidden = true; E.q.hidden = true; E.talk.hidden = true;
     if (cb) cb();
   }
@@ -249,7 +358,7 @@ window.GROUT = (() => {
     S = S_;
     const off = APP.away || APP.menu || APP.fly;
     E.root.hidden = off;
-    if (off) { hold = false; return; }
+    if (off) { hold = false; E.card.hidden = true; return; }
     if (!S.paused) updateJob(dt);
     if (G) show();
   }
@@ -257,7 +366,7 @@ window.GROUT = (() => {
   function key(e) {
     if (!G) return false;
     if (e.code === 'Escape') return false;
-    if (e.code === 'Space') { hold = true; if (!e.repeat) { tap(); call(); } return true; }
+    if (e.code === 'Space') { hold = true; if (!e.repeat) { tap(); call(true); } return true; }
     if (e.code === 'Enter' && !e.repeat) { tap(); call(); }
     return true;
   }
@@ -266,18 +375,23 @@ window.GROUT = (() => {
   const set = (k, v, fn) => { if (last[k] !== v) { last[k] = v; fn(v); } };
   const STEPS = { pvc: '1 in. PVC goes down in 10 ft lengths until it sits on bottom, with 5 ft of stick-up.', fit: 'Tap when the marker is in the green to screw the fitting on.', hose: 'The pump is hooked to the water truck.',
     fill: 'Fill the drum to about 80%. Leave room for the cement and the gel. The pump runs on a moment after you call it.', swap: 'Suction hose into the drum, nozzle on the pump: now the water goes round under pressure.',
-    cement: 'Hold to tip the bag. The longer you hold, the faster it pours. Too fast and it clumps in the pump.', gel: 'Hold to tip the bag. The gel clumps much sooner than the cement: short pours.', mixed: 'Mixed. One drum fills 60 ft of hole.',
+    cement: 'Hold to tip the bag. The longer you hold, the faster it pours. Too fast and it clumps in the pump.', gel: 'Keep the marker in the green. Hold and the gel pours faster; let go and it slows. Too fast and it clumps. Too slow and it balls up.', mixed: 'Mixed. One drum fills 60 ft of hole.',
     pump: 'The grout goes down the PVC and fills the hole from the bottom. Stop the pump when it reaches the top.', pull: 'The PVC comes out.', top: 'Tap fast to top the hole off with bentonite.', done: 'The hole is grouted.' };
   function show() {
-    const q = G.q, pour = (G.phase === 'cement' || G.phase === 'gel') && !G.cut;
-    set('step', G.cut ? (G.cut.kind === 'hoist' ? 'The pump is clumped solid. Somebody is going up the tower.' : G.cut.kind === 'lower' ? 'Clumped again. This time it was the driller.' : 'Down they come.') : STEPS[G.phase] || '', v => { E.step.textContent = v; });
-    set('q', pour ? 'pour' + G.phase + G.pourer : q ? q.type + q.label + q.state : '', () => {
+    const q = G.q, c = G.cut, pour = (G.phase === 'cement' || G.phase === 'gel') && !c, gel = pour && G.phase === 'gel', gag = !!c && !!WORLD.GAG[c.kind];
+    const cutStep = !c ? '' : c.kind === 'hoist' ? 'The pump is clumped solid. Somebody is going up the tower.' : c.kind === 'lower' ? 'Clumped again. This time it was the driller.'
+      : c.kind === 'slap' ? 'The drum ran over and the water is all over the site. The engineer saw it.'
+      : c.kind === 'deer' ? (c.t < WORLD.GAG.deer.CAM2 ? 'Grout came out the top of the hole. Something has come for a taste.' : 'Somebody phoned the environmental police.') : 'Down they come.';
+    set('step', c ? cutStep : STEPS[G.phase] || '', v => { E.step.textContent = v; });
+    set('q', pour ? 'pour' + G.phase + G.pourer + (gel ? G.warn : '') : q ? q.type + q.label + q.state : '', () => {
       E.q.hidden = !(q || pour);
+      E.q.dataset.pour = pour ? G.phase : ''; E.q.dataset.warn = gel ? G.warn : '';
       if (pour) {
         E.q.dataset.type = 'pour'; E.q.dataset.state = 'go';
-        E.qTitle.textContent = `${G.who[G.pourer].name} pours the ${G.phase === 'gel' ? 'gel' : 'cement'}`;
-        E.qHow.textContent = APP.phone ? 'Hold to pour. Keep the marker out of the red.' : 'Hold the mouse button or Space to pour. Keep the marker out of the red.';
-        E.zone.style.left = '0'; E.zone.style.width = '62%';
+        E.qTitle.textContent = gel && G.warn === 'fast' ? 'Too fast! Ease off!' : gel && G.warn === 'slow' ? 'Too slow! Keep it coming!' : `${G.who[G.pourer].name} pours the ${gel ? 'gel' : 'cement'}`;
+        E.qHow.textContent = gel ? (APP.phone ? 'Hold to pour faster, let go to slow down. Keep the marker in the green.' : 'Hold the mouse button or Space to pour faster, let go to slow down. Keep the marker in the green.')
+          : APP.phone ? 'Hold to pour. Keep the marker out of the red.' : 'Hold the mouse button or Space to pour. Keep the marker out of the red.';
+        E.zone.style.left = gel ? (GEL_LO * 100) + '%' : '0'; E.zone.style.width = gel ? ((GEL_HI - GEL_LO) * 100) + '%' : '62%';
       } else if (q) {
         E.q.dataset.type = q.type; E.q.dataset.state = q.state;
         E.qTitle.textContent = q.state === 'fail' ? q.why : q.state === 'done' ? 'Got it!' : q.label;
@@ -285,9 +399,10 @@ window.GROUT = (() => {
         if (q.type === 'timing') { E.zone.style.left = ((q.zc - q.zw / 2) * 100).toFixed(1) + '%'; E.zone.style.width = (q.zw * 100).toFixed(1) + '%'; }
       }
     });
+    set('tr', gel ? G.tr.toFixed(2) : '0', v => { E.q.style.setProperty('--tr', v); });      // the gel going wrong: a red edge that grows
     if (pour) {
-      E.mark.style.left = (clamp(G.U, 0, 1) * 100).toFixed(1) + '%';
-      E.time.style.width = (G.A / (G.phase === 'gel' ? 0.45 : 1) * 100).toFixed(1) + '%';
+      E.mark.style.left = (clamp(gel ? G.rate : G.U, 0, 1) * 100).toFixed(1) + '%';
+      E.time.style.width = (G.A / (gel ? 0.45 : 1) * 100).toFixed(1) + '%';
     } else if (q) {
       if (q.type === 'timing') E.mark.style.left = (q.pos * 100).toFixed(1) + '%';
       else { E.zone.style.left = '0'; E.zone.style.width = (q.prog * 100).toFixed(1) + '%'; E.mark.style.left = '-20px'; }
@@ -302,7 +417,7 @@ window.GROUT = (() => {
       E.who.textContent = G.sayWho; E.say.textContent = G.sayText;
     });
     set('chat', G.cry || '', v => { E.chat.hidden = !v; if (v) E.chat.textContent = `${G.who.helper.name}, up the tower: "${v}"`; });
-    const btn = G.cut ? '' : G.phase === 'fill' && G.t > 0.8 && !G.called ? 'That is full' : G.phase === 'pump' && G.pumping && !G.called ? 'Stop the pump' : '';
+    const btn = c ? (gag && c.t > GAG_SKIP ? 'Skip' : '') : G.phase === 'fill' && G.t > 0.8 && !G.called ? 'That is full' : G.phase === 'pump' && G.pumping && !G.called ? 'Stop the pump' : '';
     set('go', btn, v => { E.go.hidden = !v; if (v) E.go.textContent = v; });
     scene3d();
     draw();
@@ -321,13 +436,15 @@ window.GROUT = (() => {
   function scene3d() {
     const c = G.cut, ph = G.phase, pourPh = ph === 'cement' || ph === 'gel';
     const station = ph === 'hose' || ph === 'fill' || ph === 'swap' || pourPh || ph === 'mixed';
+    const who = G.who, talk = G.sayT <= 0 ? '' : G.sayWho === who.driller.name ? 'me' : G.sayWho === who.helper.name ? 'lead' : G.sayWho === who.nozzle.name ? 'core' : G.sayWho === who.eng.name ? 'eng' : G.sayWho === who.cop.name ? 'cop' : '';
     const topFt = G.pvc > 0.05 ? (ph === 'pvc' || ph === 'pull' ? STICK + (1 - G.pvc / G.D) * 9 : STICK) : -99;
     const drained = ph === 'pump' || ph === 'pull' || ph === 'top' || ph === 'done' ? clamp((G.D - G.level) / BATCH_FT, 0, 1) : 0;
     WORLD.setJob({ kind: 'grout', cine: true, far: G.up > 0.02 || (!!c && c.kind === 'hoist' && c.t > 1.0), station,
       pvcTop: topFt, fit: G.fit, water: G.water + 0.08 * G.mixed, mixed: G.mixed, drained, hose: G.hose, jet: G.jet && G.hose === 'drum', splash: G.splash > 0 && station,
-      pour: pourPh && !c ? ph : '', rate: G.rate, pourer: G.pourer, up: G.up, meK: G.meK, meArm: !!c && (c.kind === 'hoist' ? c.t > 1.3 && c.t < 3.9 : c.t > 0.3 && c.t < 3.2),
+      pour: pourPh && !c ? ph : '', rate: G.rate, pourer: G.pourer, up: G.up, meK: G.meK, meArm: !!c && (c.kind === 'hoist' ? c.t > 1.3 && c.t < 3.9 : (c.kind === 'lower' || c.kind === 'down') && c.t > 0.3 && c.t < 3.2),
       cap: G.cap > 0, spill: ph === 'done' ? 0 : G.spilled, hold: ph === 'pvc' || ph === 'fit' || ph === 'pull' || ph === 'top', work: !!G.q && G.q.state === 'go',
-      talk: G.sayT > 0 ? (G.sayWho === G.who.driller.name ? 'me' : G.sayWho === G.who.helper.name ? 'lead' : 'core') : '' });
+      cross: G.deer || (!!c && c.kind === 'deer' && c.t >= WORLD.GAG.deer.RESET), talk });
+    WORLD.setGag(c && WORLD.GAG[c.kind] ? { kind: c.kind, t: c.t, eng: G.who.eng.look, talk } : null);
   }
 
   // the hole from the side: the ground, the PVC, the grout coming up from the bottom, the bentonite on top
@@ -359,5 +476,8 @@ window.GROUT = (() => {
     if (S.paused) { g.fillStyle = '#0b0f0d99'; g.fillRect(0, 0, cw, ch); label('PAUSED', cw / 2, ch / 2, 44, '#fffdf4', 'center', 800); }
   }
 
-  return { init, reset, start, update, key, parTime, W_GROUT, AIM, get busy() { return !!G; }, get state() { return G; } };
+  return { init, reset, start, update, key, parTime, W_GROUT, AIM, get busy() { return !!G; }, get state() { return G; },
+    get gagging() { return !!G && !!G.cut && !!WORLD.GAG[G.cut.kind]; },      // one of the little scenes is on: Aaron's clock waits
+    gag(kind) { if (G && WORLD.GAG[kind] && !G.cut) startGag(kind, null); } };      // for testing: GROUT.gag('slap') or GROUT.gag('deer') while the grouting is on
+
 })();

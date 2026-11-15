@@ -446,6 +446,15 @@ body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 .spt-q .q-time { width: 100%; }
 .spt-q[data-type="pour"] .spt-bar { background: linear-gradient(90deg, #1b201d 0 62%, #e0a020 62% 86%, #d8362b 86% 100%); }
 .spt-q[data-type="pour"] .spt-bar i { opacity: 0.9; }
+/* the gel: a small green band with red either side of it, and a red edge on the box that grows while it is going wrong */
+.spt-q[data-pour="gel"] .spt-bar { background: linear-gradient(90deg, #d8362b 0 10%, #1b201d 10% 38%, #d8362b 38% 100%); }
+.spt-q[data-type="pour"] { box-shadow: 0 0 0 calc(var(--tr, 0) * 8px) #d8362b; }
+.spt-q[data-warn="fast"] b, .spt-q[data-warn="slow"] b { color: #ff8a7a; }
+/* "one bail hearing later": the screen goes black while the driller is brought back (js/grout.js) */
+.gag-card { position: fixed; inset: 0; z-index: 28; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: #0b0f0d; color: #fffdf4; pointer-events: none; }
+.gag-card[hidden] { display: none; }
+.gag-card b { font-family: var(--f-display); font-weight: 400; font-size: clamp(26px, 6vh, 48px); letter-spacing: 0.05em; }
+body.at-menu .gag-card { display: none; }
 .spt-q[data-state="ready"] .q-time i { background: #9ba495; }
 .spt-q[data-state="fail"] .spt-bar, .spt-q[data-state="done"] .spt-bar, .spt-q[data-state="fail"] .q-time, .spt-q[data-state="done"] .q-time { visibility: hidden; }
 .spt-talk { display: flex; gap: 9px; align-items: center; background: #fffdf4; color: #2a2320; border: 3px solid #1b1710; border-radius: 14px; padding: 7px 10px; box-shadow: 0 4px 0 #0006; }
@@ -947,6 +956,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <div class="ar-timer" id="arTimer" data-lvl="ok" role="timer" hidden><small id="arLabel">Aaron's deadline</small><b id="arTime">0:00</b></div>
 <div class="ar-text" id="arText" role="status" hidden><b>Aaron</b><span id="arTextSay"></span></div>
 <button class="ar-skip" id="arSkip" type="button" hidden>Skip</button>
+<div class="gag-card" id="gagCard" aria-hidden="true" hidden><b>One bail hearing later…</b></div>
 
 <div class="menu" id="menu">
   <div>

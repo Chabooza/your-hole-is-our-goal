@@ -328,7 +328,7 @@ window.AARON = (() => {
     let d = dS;                                   // game time that went by on the rig
     if (!d && !S.paused && !off && !st) {         // the rig is held still: a prompt, a breakdown, a throw, or the well install
       if (S.done) { const W = S.well; if (W && WELL.active && $('plan').hidden && /^(pour|pull|wreck|pvc|result)$/.test(W.phase)) d = dt; }
-      else if ((APP.easy && AUTO.st.qte) || TOSS.busy || NAG.busy || MARL.busy || SPT.testing) d = dt;
+      else if ((APP.easy && AUTO.st.qte) || TOSS.busy || NAG.busy || MARL.busy || (SPT.testing && !GROUT.gagging)) d = dt;
     }
     A.left -= d;
     if (!A.half && A.left <= A.limit / 2 && A.left > 150) { A.half = true; text(pick(HALF)); }
