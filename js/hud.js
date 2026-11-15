@@ -254,9 +254,11 @@ ${r.spt ? `
 ${r.grout ? `
       <h3>Grouting</h3>
       <dl class="rp-stats">
-        <div><dt>Drum filled to</dt><dd class="${Math.abs(r.grout.fill - GROUT.AIM) <= 0.045 ? 'g' : Math.abs(r.grout.fill - GROUT.AIM) <= 0.12 ? 'a' : 'r'}">${Math.round(r.grout.fill * 100)}%${r.grout.over ? ', and it ran over' : ''} (aim: about ${Math.round(GROUT.AIM * 100)}%)</dd></div>
+        <div><dt>Drum filled to</dt><dd class="${Math.abs(r.grout.fill - GROUT.AIM) <= 0.045 ? 'g' : Math.abs(r.grout.fill - GROUT.AIM) <= 0.12 ? 'a' : 'r'}">${Math.round(r.grout.fill * 100)}%${r.grout.over ? ', and it ran over' : ''} (aim: about ${Math.round(GROUT.AIM * 100)}%)</dd></div>${r.grout.slapped ? `
+        <div><dt>Clean job site</dt><dd class="r">No. ${r.grout.engineer || 'The engineer'} slapped the driller for it</dd></div>` : ''}
         <div><dt>Clumped up the pump</dt><dd class="${r.grout.clumps ? 'r' : 'g'}">${r.grout.clumps ? `${r.grout.clumps} time${r.grout.clumps === 1 ? '' : 's'}. ${r.grout.helper} went up the tower` : 'Never: a clean pour'}</dd></div>
-        <div><dt>Grout in the hole</dt><dd class="${r.grout.spilled > 0.05 ? 'r' : r.grout.short > 2.5 ? 'a' : 'g'}">${r.grout.spilled > 0.05 ? 'Pumped out over the top' : r.grout.short > 2.5 ? `Stopped ${f1(r.grout.short)} ft short of the top` : 'To surface'}, topped off with bentonite</dd></div>${r.grout.fumbles ? `
+        <div><dt>Grout in the hole</dt><dd class="${r.grout.spilled > 0.05 ? 'r' : r.grout.short > 2.5 ? 'a' : 'g'}">${r.grout.spilled > 0.05 ? 'Pumped out over the top' : r.grout.short > 2.5 ? `Stopped ${f1(r.grout.short)} ft short of the top` : 'To surface'}, topped off with bentonite</dd></div>${r.grout.deer ? `
+        <div><dt>Wildlife</dt><dd class="r">1 deer, deceased. Driller arrested; Aaron paid the bail</dd></div>` : ''}${r.grout.fumbles ? `
         <div><dt>Fitting cross-threaded</dt><dd class="a">${r.grout.fumbles}</dd></div>` : ''}
       </dl>` : ''}
       <h3>Boring log</h3>

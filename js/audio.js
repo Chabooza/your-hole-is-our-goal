@@ -95,6 +95,9 @@ window.AUDIO = (() => {
       case 'cough': burst(150, 0.7, 0.7, 'lowpass'); for (let i = 0; i < 4; i++) setTimeout(() => blip(260 - i * 45, 0.16, 0.2), i * 150); break;
       case 'knock': blip(170, 0.09, 0.3); burst(650, 0.06, 0.45, 'lowpass'); break;
       case 'slap': burst(2100, 0.07, 0.8); burst(520, 0.11, 0.45, 'lowpass'); break;
+      case 'slurp': burst(700 + Math.random() * 500, 0.16, 0.5, 'lowpass'); setTimeout(() => blip(520 + Math.random() * 120, 0.05, 0.08), 90); break;      // the deer at the grout
+      case 'hic': blip(620, 0.05, 0.2); setTimeout(() => blip(980, 0.07, 0.2), 60); break;
+      case 'siren': blip(760, 0.4, 0.13); setTimeout(() => blip(570, 0.4, 0.13), 420); break;      // the paddy wagon: two notes, over and over
       case 'yell': burst(320, 0.28, 0.55, 'lowpass'); blip(150, 0.3, 0.16); setTimeout(() => blip(120, 0.22, 0.14), 160); break;
     }
   }

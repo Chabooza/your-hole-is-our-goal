@@ -1231,7 +1231,8 @@ window.WORLD = (() => {
     let P = CINE_POS, A = CINE_AT, F = 46;
     if (job || (jCam.live && !wj.on)) {
       if (job) {                                    // two places to watch from: close on the drum, or back far enough to see the top of the tower
-        const T = jb.far ? JOB_FAR : JOB_NEAR, kk = jCam.live ? 1 - Math.exp(-dt * 2.4) : 1;
+        const T = gg.on && gg.cam ? gg.cam : jb.far ? JOB_FAR : JOB_NEAR, cutTo = gg.on && T !== jCam.T, kk = jCam.live && !cutTo ? 1 - Math.exp(-dt * 2.4) : 1;      // ...or wherever one of the little scenes is (see setGag): those cut, they do not pan
+        jCam.T = T;
         jCam.p.lerp(T.p, kk); jCam.a.lerp(T.a, kk); jCam.f += (T.f - jCam.f) * kk; jCam.live = true;
       }
       P = jCam.p; A = jCam.a; F = jCam.f;
@@ -1508,6 +1509,9 @@ window.WORLD = (() => {
     R.gBagMesh = M(new THREE.BoxGeometry(0.34, 0.5, 0.15), 0, 0.006, toon(0xb9bcb6)); R.gBag.add(R.gBagMesh);
     R.gCap = cyl(0.11, 0.11, 0.05, 0xc9b79a, 0.005, 16); g.add(R.gCap);
     R.gSpill = cyl(0.5, 0.5, 0.02, 0x9a9c94, 0, 20); g.add(R.gSpill);
+    R.gCross = new THREE.Group(); R.gCross.position.set(-0.7, 0, 1.0); g.add(R.gCross);      // a marker for the deer, near where it fell and where it can be seen for the rest of the job (see setGag)
+    put(box(0.05, 0.46, 0.04, 0x8a6a45, 0.005), 0, 0.23, 0, R.gCross); put(box(0.28, 0.05, 0.04, 0x8a6a45, 0.005), 0, 0.33, 0, R.gCross);
+    for (const [x, c] of [[-0.14, 0xe0362b], [0.13, 0xffd23f], [0.02, 0xfdfdf8]]) put(sph(0.035, c, 0.004, 8, 6), x, 0.04, 0.09, R.gCross);
   }
   function setJob(o) {
     if (!o) {
@@ -1520,7 +1524,7 @@ window.WORLD = (() => {
     if (!R.jobG) buildJob();
     if (o.eng) ensureEng(o.eng);
     Object.assign(jb, { kind: '', cine: false, far: false, eng: null, talk: '', hold: false, work: false, back: false, piece: null, rodTop: -99, anvil: 0, hamK: 0, lift: 0, hits: 0, marks: 0, sink: 0, flash: 0,
-      station: false, pvcTop: -99, fit: false, water: 0, mixed: 0, drained: 0, hose: '', jet: false, splash: false, pour: '', rate: 0, pourer: 'helper', up: 0, meK: 0, meArm: false, cap: false, spill: 0 }, o);
+      station: false, pvcTop: -99, fit: false, water: 0, mixed: 0, drained: 0, hose: '', jet: false, splash: false, pour: '', rate: 0, pourer: 'helper', up: 0, meK: 0, meArm: false, cap: false, spill: 0, cross: false }, o);
     jb.on = true;
   }
   function jobHoses(key, pvcTop) {
@@ -1549,6 +1553,7 @@ window.WORLD = (() => {
     R.awRod.visible = R.awNew.visible = R.anvil.visible = R.hammer.visible = R.markFlash.visible = false;
     R.marks.forEach(m => { m.visible = false; });
     R.gPvc.visible = R.gFit.visible = R.gBag.visible = R.gCap.visible = R.gSpill.visible = false;
+    R.gCross.visible = gr && !!jb.cross;
     R.drum.visible = R.pump.visible = R.hoseSuck.visible = R.hoseOut.visible = gr;
     jb.hookOn = false;
     if (spt) {
@@ -1599,7 +1604,7 @@ window.WORLD = (() => {
         if (jb.rate > 0.03 && live > 0) { const n = 1 + Math.round(jb.rate * 3); for (let i = 0; i < n; i++) drop(V(D.x - 0.12 + (Math.random() - 0.5) * 0.06, DRUM_H + 0.3, D.z + (Math.random() - 0.5) * 0.06), V((Math.random() - 0.5) * 0.3, -0.6, (Math.random() - 0.5) * 0.3), jb.pour === 'gel' ? 0xd9c38a : 0x8f918b, 0.32); }
       }
       if (jb.cap) { R.gCap.visible = true; R.gCap.position.set(0, Math.max(casTop, 0.02) + 0.02, 0); }
-      if (jb.spill > 0.02) { R.gSpill.visible = true; R.gSpill.position.set(0, 0.012, 0.3); R.gSpill.scale.set(1 + jb.spill * 0.8, 1, 1 + jb.spill * 0.8); }
+      if (jb.spill > 0.02) { R.gSpill.visible = true; R.gSpill.position.set(0, 0.022, 0.3); R.gSpill.scale.set(1 + jb.spill * 0.8, 1, 1 + jb.spill * 0.8); }
       // the driller, seen from outside: at the console, or walked round to the drum to pour
       if (cine.k > 0 || jb.cine) {
         const Me = R.me, u = clamp(jb.meK, 0, 1), walking = u > 0.001 && u < 0.999, back = u < (R.meKPrev == null ? u : R.meKPrev) - 1e-6; R.meKPrev = u;
@@ -1620,10 +1625,323 @@ window.WORLD = (() => {
       }
     }
   }
+  // ---------- when the grouting goes wrong (js/grout.js runs it) ----------
+  // Purely for show: two little scenes, acted out from how far in they are. GAG has the times, in seconds, and
+  // js/grout.js goes by the same ones for the words and the noises. setGag() is called every frame while one is on.
+  //   slap: the drum ran over. The engineer storms in and slaps the driller with the clipboard, once for every word.
+  //   deer: grout came out the top of the hole. A deer licks it, goes green and dies. The environmental police turn
+  //         up in the paddy wagon, cuff the driller and drive him away. The screen goes black, and then he is back.
+  const COP = { suit: 0x3f6b3a, suitDark: 0x2c4f2a, torso: 0xc9b77a, arms: 0xc9b77a, hat: 0x3f6b3a, hatTrim: 0x2c4f2a, hatStyle: 'cowboy', skin: 0xe6b48c, nose: 0xd9a37b,
+    plain: true, extras: ['star', 'belt', 'tie'], tie: 0x2c4f2a, belt: 0x17181b, brow: 0x5a3d26, hair: 0x5a3d26, stache: 0x5a3d26, stacheStyle: 'medium', lens: ['#101214', '#30353b', '#101214'], frame: 0x0e0f11, build: 1.05, height: 1 };
+  const COP2 = Object.assign({}, COP, { skin: 0xa9744a, nose: 0x9a663e, brow: 0x17120f, hair: 0x17120f, stache: null, stacheStyle: null, build: 1.14 });
+  const GAG = {
+    slap: { CAM: 0.5, E_IN: 0.7, E_AT: 3.0, ME_GO: 2.0, ME_AT: 3.1, SLAP0: 3.8, EVERY: 0.4, N: 8, E_OUT: 7.7, ME_BACK: 8.6, END: 10.4 },
+    deer: { CAM: 0.5, D_IN: 1.4, D_AT: 4.4, LICK: 4.6, SICK: 7.6, FALL: 9.4, DOWN: 10.0, GHOST: 10.2, CAM2: 11.0, W_IN: 11.4, W_AT: 13.6, OUT: 13.8, ME_GO: 14.6, ME_AT: 15.7,
+      CUFF: 18.3, MARCH: 19.0, REAR: 21.3, HOP: 21.8, SHUT: 21.9, W_OUT: 23.2, CARD: 24.4, RESET: 26.0, END: 28.0 },
+    cop: COP };
+  const gg = { on: false, kind: '', t: 0, talk: '', cam: null, focus: null, back: false, pose: { dale: '', tess: '' }, hit: -1, thud: false };
+  const GAG_CAM = { slap: { p: V(0.95, 2.05, 6.8), a: V(0.95, 1.15, 3.8), f: 40 }, deer: { p: V(-3.8, 2.9, 3.6), a: V(-0.2, 0.95, 0.3), f: 48 }, wagon: { p: V(3.1, 2.4, 10.2), a: V(3.2, 1.0, 3.2), f: 50 } };      // slap: side on, in front of the console. deer: over the pipe rack. wagon: from out in front, looking back at the rig
+  GAG.cams = GAG_CAM;
+  const SLAP_E = V(0.36, 0, 3.8), SLAP_D = V(1.08, 0, 3.8), SLAP_FROM = V(-4.8, 0, 7.6);      // where the engineer and the driller stand for it, and where the engineer comes in from
+  // The deer comes in from the lead hand's side, clear of the pipe rack, and is watched from behind it: the crew are the far side of the hole, facing us
+  const LICK_AT = V(-1.15, 0, 0.35), DEER_PATH = [V(-9, 0, 1.0), V(-4.2, 0, 0.5), LICK_AT], GAG_BACK = { dale: V(0.95, 0, 0.8), tess: V(1.35, 0, -0.3) };
+  const WAGON_X = 4.9, WAGON_Z = 3.9, ARREST_D = V(2.45, 0, 3.05), ARREST_C = V(3.15, 0, 3.05), REAR_AT = V(5.2, 0, 5.95);      // where the wagon pulls up (nose away from us), where the arrest is made, and the back door
+  const COP_A0 = V(4.0, 0, 3.4), COP_A1 = V(4.0, 0, 6.3), COP_B0 = V(5.95, 0, 4.2), COP_B1 = V(6.2, 0, 5.7);
+  const gSm = k => { k = clamp(k, 0, 1); return k * k * (3 - 2 * k); }, gSpan = (x, a, b) => clamp((x - a) / (b - a), 0, 1);
+  function buildGag() {
+    const g = new THREE.Group(); scene.add(g); R.gagG = g;
+    // the deer: a small one, spots and all. It faces +z, like the people. Its coat has a colour of its own, so it can go green
+    const fur = new THREE.MeshToonMaterial({ color: 0xc98d4f, gradientMap: grad }), d = { g: new THREE.Group(), legs: [], eyes: [], dead: [], fur, gy: null };
+    R.furC = new THREE.Color(0xc98d4f); R.sickC = new THREE.Color(0x86bd45);
+    d.body = new THREE.Group(); d.body.position.y = 0.5; d.g.add(d.body);
+    const trunk = M(new THREE.CapsuleGeometry(0.15, 0.4, 6, 12), 0, 0.012, fur); trunk.rotation.x = Math.PI / 2; d.body.add(trunk);
+    put(sph(0.1, 0xf3e3c3, 0, 12, 8), 0, -0.075, 0, d.body).scale.set(1, 0.6, 2.2);
+    for (const [x, y, z] of [[0.07, 0.132, 0.1], [-0.08, 0.126, 0], [0.05, 0.14, -0.14], [-0.05, 0.14, -0.22], [0.11, 0.1, -0.05], [-0.11, 0.1, 0.16]]) put(sph(0.024, 0xfff6e0, 0, 8, 6), x, y, z, d.body).scale.y = 0.4;
+    put(sph(0.05, 0xfffdf4, 0.006, 10, 8), 0, 0.08, -0.36, d.body);
+    for (const sz of [1, -1]) for (const sx of [-1, 1]) {      // the front pair, then the back pair
+      const hip = new THREE.Group(); hip.position.set(sx * 0.085, -0.08, sz * 0.2); d.body.add(hip);
+      put(M(new THREE.CylinderGeometry(0.03, 0.022, 0.4, 8), 0, 0.006, fur), 0, -0.2, 0, hip);
+      put(cyl(0.026, 0.03, 0.05, 0x2b211a, 0.004, 8), 0, -0.4, 0, hip);
+      d.legs.push(hip);
+    }
+    d.neck = new THREE.Group(); d.neck.position.set(0, 0.08, 0.27); d.body.add(d.neck);
+    put(M(new THREE.CylinderGeometry(0.05, 0.07, 0.3, 10), 0, 0.008, fur), 0, 0.14, 0, d.neck);
+    d.head = new THREE.Group(); d.head.position.set(0, 0.3, 0); d.neck.add(d.head);
+    put(M(new THREE.SphereGeometry(0.095, 14, 10), 0, 0.008, fur), 0, 0.02, 0.02, d.head);
+    const sn = M(new THREE.CylinderGeometry(0.045, 0.062, 0.14, 10), 0, 0.006, fur); sn.rotation.x = Math.PI / 2; put(sn, 0, -0.005, 0.12, d.head);
+    put(sph(0.028, 0x1b1710, 0, 8, 6), 0, 0.005, 0.195, d.head);
+    for (const sx of [-1, 1]) {
+      const ear = M(new THREE.ConeGeometry(0.04, 0.13, 8), 0, 0.005, fur); ear.scale.z = 0.45; put(ear, sx * 0.09, 0.115, -0.01, d.head).rotation.z = -sx * 0.75;
+      put(cyl(0.008, 0.011, 0.07, 0x8a6a45, 0, 6), sx * 0.035, 0.135, 0, d.head).rotation.z = -sx * 0.25;
+      d.eyes.push(put(sph(0.021, 0x1b1710, 0, 8, 6), sx * 0.068, 0.045, 0.075, d.head));
+      const x = new THREE.Group();                    // the eyes it ends up with
+      for (const r of [0.8, -0.8]) { const b = box(0.055, 0.012, 0.008, 0x1b1710, 0); b.rotation.z = r; x.add(b); }
+      x.position.set(sx * 0.076, 0.045, 0.082); x.rotation.y = sx * 0.85; d.head.add(x); d.dead.push(x);
+    }
+    d.tongue = put(box(0.035, 0.012, 0.1, 0xf08fa4, 0.003), 0, -0.052, 0.17, d.head);
+    g.add(d.g); R.deer = d;
+    // ...and what leaves it
+    const gm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, depthWrite: false }), gh = new THREE.Group();
+    const gb = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.26, 4, 10), gm); gb.rotation.x = Math.PI / 2; gh.add(gb);
+    const ghd = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), gm); ghd.position.set(0, 0.2, 0.22); gh.add(ghd);
+    for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 6), gm); e.position.set(sx * 0.06, 0.3, 0.2); gh.add(e); }
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.014, 6, 20), new THREE.MeshBasicMaterial({ color: 0xffd84d })); halo.rotation.x = Math.PI / 2; halo.position.set(0, 0.43, 0.22); gh.add(halo);
+    g.add(gh); R.deerGhost = gh; R.deerGhostMat = gm;
+    // the paddy wagon: a white van with a green stripe, bars on the back windows and lights on the roof. Its nose is +z
+    const w = new THREE.Group(); g.add(w); R.wagon = w;
+    const WHITE = 0xf4f4ee, GRN = 0x3f8a4a, GLASS = 0x2c4f6e;
+    put(box(1.36, 1.2, 2.2, WHITE), 0, 1.1, -0.25, w);
+    put(box(1.36, 0.95, 0.75, WHITE), 0, 0.975, 1.2, w);
+    put(box(1.38, 0.26, 2.96, GRN, 0), 0, 0.72, 0.1, w);
+    put(box(1.2, 0.36, 0.04, GLASS, 0.006), 0, 1.2, 1.585, w);
+    for (const sx of [-1, 1]) put(box(0.04, 0.32, 0.5, GLASS, 0.006), sx * 0.685, 1.2, 1.2, w);
+    for (const z of [1.6, -1.38]) put(box(1.42, 0.14, 0.12, 0x39424a, 0.006), 0, 0.42, z, w);
+    for (const sx of [-1, 1]) put(cyl(0.07, 0.07, 0.04, 0xffe9a0, 0.004, 12), sx * 0.5, 0.75, 1.585, w).rotation.x = Math.PI / 2;
+    R.wagonWheels = [];
+    for (const z of [-0.8, 1.05]) for (const sx of [-1, 1]) {
+      const wh = new THREE.Group(), tyre = cyl(0.3, 0.3, 0.2, 0x2a2c2e, 0.01, 18); tyre.rotation.z = Math.PI / 2; wh.add(tyre);
+      wh.add(box(0.21, 0.34, 0.07, 0xb9bec2, 0));     // a bar across the hub, so it can be seen turning
+      put(wh, sx * 0.62, 0.3, z, w); R.wagonWheels.push(wh);
+    }
+    put(box(0.8, 0.07, 0.2, 0x39424a, 0.004), 0, 1.735, 1.1, w);
+    R.wagonLights = [-1, 1].map(sx => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.16), new THREE.MeshBasicMaterial({ color: 0x555555 })); m.position.set(sx * 0.22, 1.83, 1.1); w.add(m); return m; });
+    const sign = canvasTex(512, 128, (c) => { c.fillStyle = '#f4f4ee'; c.fillRect(0, 0, 512, 128); c.fillStyle = '#2f7a3c'; c.font = '800 70px "Barlow Condensed", "Arial Narrow", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('ENVIRO POLICE', 256, 68); });
+    for (const sx of [-1, 1]) { const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 0.44), new THREE.MeshBasicMaterial({ map: sign })); sg.position.set(sx * 0.684, 1.3, -0.25); sg.rotation.y = sx * Math.PI / 2; w.add(sg); }
+    const door = (parent, cx) => {                    // a back door: its barred window looks out behind
+      put(box(0.64, 1.12, 0.04, WHITE, 0.006), cx, 1.1, -0.02, parent);
+      put(box(0.38, 0.3, 0.02, 0x1b2630, 0), cx, 1.36, -0.045, parent);
+      for (const x of [-0.11, 0, 0.11]) put(cyl(0.012, 0.012, 0.3, 0xcfd4d8, 0, 6), cx + x, 1.36, -0.06, parent);
+      put(box(0.05, 0.12, 0.03, 0x39424a, 0), cx - Math.sign(cx) * 0.24, 1.0, -0.05, parent);
+    };
+    R.wagonDoor = new THREE.Group(); R.wagonDoor.position.set(-0.66, 0, -1.36); w.add(R.wagonDoor);      // this one opens
+    door(R.wagonDoor, 0.33);
+    const fixed = new THREE.Group(); fixed.position.set(0, 0, -1.36); w.add(fixed); door(fixed, 0.33);
+    R.wagonIn = new THREE.Group(); fixed.add(R.wagonIn);     // somebody looking out through the bars
+    for (const sx of [-1, 1]) {
+      put(sph(0.034, 0xfffdf4, 0, 10, 8), 0.33 + sx * 0.055, 1.4, -0.05, R.wagonIn); put(sph(0.015, 0x1b1710, 0, 8, 6), 0.33 + sx * 0.055, 1.392, -0.08, R.wagonIn);
+      put(sph(0.032, GLOVE, 0.004, 8, 6), 0.33 + sx * 0.14, 1.25, -0.075, R.wagonIn);
+    }
+    d.g.visible = gh.visible = w.visible = false;
+  }
+  function setGag(o) {
+    if (!o) {
+      if (!gg.on) return;
+      gg.on = false; gg.cam = null; gg.focus = null; gg.back = false; gg.pose.dale = gg.pose.tess = ''; gg.hit = -1; gg.thud = false;
+      if (R.gagG) { R.deer.g.visible = R.deerGhost.visible = R.wagon.visible = false; R.deer.gy = null; }
+      if (R.cops) for (const c of R.cops) { c.g.visible = false; c.gy = null; }
+      if (R.eng) { R.eng.gy = null; if (!jb.eng && !wj.on && !vis.on) R.eng.g.visible = false; }
+      gagMeReset(R.me); R.me.gy = null;
+      return;
+    }
+    if (!R.gagG) buildGag();
+    if (o.eng) ensureEng(o.eng);
+    gg.kind = o.kind; gg.t = o.t; gg.talk = o.talk || ''; gg.on = true;
+  }
+  // a place along a line of points (k: 0 at the first, 1 at the last). Gives back which way it is heading there
+  function pathAt(pts, k, out) {
+    let tot = 0, i = 1;
+    for (let j = 1; j < pts.length; j++) tot += pts[j].distanceTo(pts[j - 1]);
+    let d = clamp(k, 0, 1) * tot;
+    for (; i < pts.length - 1; i++) { const L = pts[i].distanceTo(pts[i - 1]); if (d <= L) break; d -= L; }
+    const a = pts[i - 1], b = pts[i], L = a.distanceTo(b);
+    out.lerpVectors(a, b, L > 1e-6 ? Math.min(1, d / L) : 1);
+    return Math.atan2(b.x - a.x, b.z - a.z);
+  }
+  // walk somebody along a line of points, legs and arms going. face: which way they turn once they have stopped
+  function gagWalk(P, pts, k, dt, face) {
+    const moving = k > 0.001 && k < 0.999, hd = pathAt(pts, k, P.g.position), yw = moving || face == null ? hd : face;
+    if (P.gy == null) P.gy = P.g.rotation.y;
+    P.gy += Math.atan2(Math.sin(yw - P.gy), Math.cos(yw - P.gy)) * (1 - Math.exp(-dt * 10));
+    P.g.rotation.order = 'YXZ'; P.g.rotation.set(0, P.gy, 0);
+    const w = moving ? Math.sin(t * 10) : 0;
+    P.legs[0].rotation.set(w * 0.55, 0, 0); P.legs[1].rotation.set(-w * 0.55, 0, 0);
+    P.shins[0].rotation.x = Math.max(0, w) * 0.85; P.shins[1].rotation.x = Math.max(0, -w) * 0.85;
+    P.g.position.y = moving ? Math.abs(w) * 0.03 : 0;
+    P.arms[0].rotation.set(-w * 0.5, 0, 0); P.arms[1].rotation.set(w * 0.5, 0, 0);
+    P.fores[0].rotation.x = P.fores[1].rotation.x = moving ? -0.45 : -0.18;
+    P.head.rotation.set(moving ? 0.05 : 0, 0, 0); P.mouth.scale.y = 1;
+    if (P.rod) P.rod.visible = false;
+    return moving;
+  }
+  function gagTalk(P, who) { if (gg.talk === who) P.mouth.scale.y = 1 + 2.5 * Math.abs(Math.sin(t * 11)); }
+  function gagMeReset(Me) {
+    Me.head.rotation.y = Me.head.rotation.z = 0; Me.g.rotation.z = 0; Me.g.scale.setScalar(1);
+    Me.arms[0].rotation.z = Me.arms[1].rotation.z = 0;
+    if (Me.cuffs) Me.cuffs.visible = false;
+  }
+  function updateGag(dt) {
+    if (!gg.on) return;
+    const T = GAG[gg.kind];
+    R.deer.g.visible = R.deerGhost.visible = R.wagon.visible = false;
+    if (R.cops) for (const c of R.cops) c.g.visible = false;
+    gagMeReset(R.me);
+    if (gg.kind === 'slap') gagSlap(T, gg.t, dt); else gagDeer(T, gg.t, dt);
+  }
+  // the drum ran over: "WE. HAVE. TO. KEEP. A. CLEAN. JOB. SITE."
+  function gagSlap(T, tt, dt) {
+    const E = R.eng, Me = R.me;
+    gg.cam = tt > T.CAM && tt < T.END - 0.5 ? GAG_CAM.slap : null;
+    gg.focus = SLAP_D; gg.back = false;
+    const ph = (tt - T.SLAP0) / T.EVERY, slapping = ph >= -0.5 && ph < T.N - 0.5, hitN = clamp(Math.floor(ph), -1, T.N - 1), since = hitN >= 0 ? (ph - hitN) * T.EVERY : 9;
+    const out = tt >= T.E_OUT, back = tt >= T.ME_BACK, dizzy = !slapping && ph > 0 && !back;
+    gg.pose.dale = gg.pose.tess = slapping && hitN >= 0 ? 'gasp' : back ? 'laugh' : '';
+    if (E) {                                        // the engineer: in at a march, one hand on a hip, and the clipboard does the talking
+      E.g.visible = tt >= T.E_IN && tt < T.END - 0.1; R.engPaper.visible = true;
+      const moving = gagWalk(E, out ? [SLAP_E, SLAP_FROM] : [SLAP_FROM, SLAP_E], out ? gSpan(tt, T.E_OUT + 0.3, T.END) : gSm(gSpan(tt, T.E_IN, T.E_AT)), dt, out ? null : Math.PI / 2);
+      if (!moving && !out) {
+        E.arms[0].rotation.x = -0.15; E.fores[0].rotation.x = -1.5;
+        if (slapping) { E.g.rotation.y = Math.PI / 2 + Math.sin(Math.PI * ph) * 0.6; E.arms[1].rotation.x = -1.5; E.fores[1].rotation.x = -0.12; E.head.rotation.x = 0.1; }      // forehand, backhand, forehand...
+        else if (gg.talk === 'eng') { E.arms[1].rotation.x = -1.25 + Math.sin(t * 9) * 0.12; E.fores[1].rotation.x = -0.9; }
+        else { E.arms[1].rotation.x = -0.3; E.fores[1].rotation.x = -1.2; }
+      }
+      gagTalk(E, 'eng');
+    }
+    // the driller: down off the rig to take it, and back up holding his face
+    const k = back ? 1 - gSpan(tt, T.ME_BACK, T.END - 0.4) : gSpan(tt, T.ME_GO, T.ME_AT);
+    if (k > 0) {
+      ME_AT.set(EYE.x - R.fwd.x * 0.14, 0, EYE.z - R.fwd.z * 0.14);
+      const moving = gagWalk(Me, back ? [SLAP_D, ME_AT] : [ME_AT, SLAP_D], back ? 1 - k : k, dt, back ? BASE_YAW + Math.PI : -Math.PI / 2);
+      Me.g.position.y += 0.25 * (1 - Math.min(1, k * 5));
+      gagTalk(Me, 'me');
+      if (!moving && !back) {
+        if (slapping && hitN >= 0) {                  // his head goes one way, then the other
+          const dir = hitN % 2 ? 1 : -1, e = Math.exp(-since * 5.5);
+          Me.head.rotation.y = dir * 1.05 * e; Me.head.rotation.z = dir * 0.2 * e; Me.g.rotation.z = -dir * 0.14 * e;
+          Me.arms[0].rotation.set(-0.3 - 0.8 * e, 0, -0.25 - 0.7 * e); Me.arms[1].rotation.set(-0.3 - 0.8 * e, 0, 0.25 + 0.7 * e);
+          Me.mouth.scale.y = 1 + 2.6 * e;
+        } else if (dizzy) {                           // seeing stars
+          Me.g.rotation.z = Math.sin(t * 5) * 0.09; Me.head.rotation.z = Math.sin(t * 5 + 1) * 0.22; Me.head.rotation.y = Math.sin(t * 3.3) * 0.3;
+          Me.arms[0].rotation.z = -0.3; Me.arms[1].rotation.z = 0.3;
+          if (dt > 0 && Math.random() < 0.6) { Me.head.getWorldPosition(pB); const a = t * 8; drop(V(pB.x + Math.cos(a) * 0.24, pB.y + 0.22, pB.z + Math.sin(a) * 0.24), V(0, 0.6, 0), 0xffe14a, 0.3); }
+        }
+      }
+      if (back) { Me.arms[1].rotation.x = -2.25; Me.fores[1].rotation.x = -2.1; Me.head.rotation.x = 0.25; }
+    }
+    if (hitN !== gg.hit) {                          // every slap: stars
+      if (hitN > gg.hit && dt > 0) { Me.head.getWorldPosition(pB); for (let i = 0; i < 7; i++) drop(V(pB.x, pB.y + 0.05, pB.z), V((Math.random() - 0.5) * 2.4, 0.8 + Math.random() * 1.4, (Math.random() - 0.5) * 2.4), 0xffe14a, 0.5); }
+      gg.hit = hitN;
+    }
+  }
+  // grout out the top of the hole: the deer, and then the environmental police
+  function gagDeer(T, tt, dt) {
+    const D = R.deer, Me = R.me, W = R.wagon, live = tt < T.RESET, rnd2 = () => Math.random() - 0.5;
+    gg.cam = tt > T.CAM && live ? (tt < T.CAM2 ? GAG_CAM.deer : GAG_CAM.wagon) : null;
+    gg.back = live;
+    gg.focus = tt < T.W_IN ? LICK_AT : tt < T.MARCH ? ARREST_D : REAR_AT;
+    gg.pose.dale = !live ? '' : tt > T.D_IN + 0.8 && tt < T.D_AT ? 'point' : tt >= T.LICK && tt < T.GHOST + 1 ? 'gasp' : tt >= T.OUT + 0.2 && tt < T.OUT + 2.2 ? 'up' : tt >= T.MARCH + 1 ? 'bye' : '';
+    gg.pose.tess = !live ? '' : tt >= T.LICK && tt < T.SICK ? 'wave' : tt >= T.SICK && tt < T.GHOST + 1 ? 'gasp' : tt >= T.OUT + 0.2 && tt < T.OUT + 2.2 ? 'up' : '';
+    // the deer: trots in, has a good lick, goes green, hiccups, and tips over onto its back with its legs in the air
+    D.g.visible = tt >= T.D_IN && live;
+    if (D.g.visible) {
+      const kIn = gSpan(tt, T.D_IN, T.D_AT), trot = kIn > 0 && kIn < 1;
+      const hd = pathAt(DEER_PATH, kIn, D.g.position), yw = trot ? hd : Math.atan2(-LICK_AT.x, 0.3 - LICK_AT.z);
+      if (D.gy == null) D.gy = hd;
+      D.gy += Math.atan2(Math.sin(yw - D.gy), Math.cos(yw - D.gy)) * (1 - Math.exp(-dt * 8));
+      const down = gSm(gSpan(tt, T.D_AT, T.LICK)) * (1 - gSm(gSpan(tt, T.SICK, T.SICK + 0.4)));      // its head down at the grout
+      const licking = tt >= T.LICK && tt < T.SICK, sick = gSpan(tt, T.SICK, T.FALL), fall = gSm(gSpan(tt, T.FALL, T.DOWN)), dead = tt >= T.DOWN;
+      const w = trot ? Math.sin(t * 15) : 0, bob = licking ? Math.sin(t * 14) * 0.07 : 0;
+      let hic = 0;
+      for (const h of [0.3, 0.9, 1.4]) { const d = tt - T.SICK - h; if (d > 0) hic += Math.exp(-d * 9); }
+      D.g.rotation.order = 'YXZ';
+      D.g.rotation.set(0, D.gy, fall * 2.95 + (1 - fall) * Math.sin(t * 9) * 0.13 * sick);
+      D.g.position.y = (trot ? Math.abs(w) * 0.05 : 0) + hic * 0.09 * (1 - fall) + fall * 0.66;
+      D.body.rotation.x = down * 0.3;
+      D.legs.forEach((L, i) => {
+        let rx = w * 0.7 * (i === 0 || i === 3 ? 1 : -1), rz = 0;
+        if (i < 2) rx -= down * 0.55;                 // front feet out in front while its head is down
+        if (sick > 0 && !dead) rz = (i % 2 ? 1 : -1) * 0.3 * sick * (1 - fall);      // legs going from under it
+        if (dead) rx = Math.sin(t * 34 + i) * 0.22 * Math.exp(-(tt - T.DOWN) * 2.5);  // a last twitch
+        L.rotation.set(rx, 0, rz);
+      });
+      D.neck.rotation.set(dead ? 1.45 : 0.45 + down * 1.75 + bob + sick * (1 - fall) * Math.sin(t * 7) * 0.2, 0, dead ? 0 : sick * (1 - fall) * Math.sin(t * 5.5) * 0.25);
+      D.head.rotation.x = dead ? 0.2 : -0.3 + down * 0.85;
+      D.tongue.visible = licking || dead || sick > 0.5;
+      D.tongue.position.set(dead ? 0.03 : 0, -0.052, 0.17 + (licking ? 0.03 + Math.sin(t * 14) * 0.03 : 0.02)); D.tongue.rotation.z = dead ? 0.6 : 0;
+      D.eyes.forEach(e => { e.visible = !dead; }); D.dead.forEach(e => { e.visible = dead; });
+      D.fur.color.copy(R.furC).lerp(R.sickC, gSm(sick * 1.6));
+      if (dt > 0) {
+        D.head.getWorldPosition(pB);
+        if (licking && Math.random() < 0.35) drop(V(pB.x, 0.06, pB.z), V(rnd2() * 0.8, 0.5 + Math.random() * 0.5, rnd2() * 0.8), 0x9a9c94, 0.4);
+        if (sick > 0 && !dead && Math.random() < 0.3) drop(V(pB.x, pB.y + 0.1, pB.z), V(rnd2() * 0.3, 0.8 + Math.random() * 0.4, rnd2() * 0.3), 0x9fd06a, 0.6);
+        if (dead && !gg.thud) for (let i = 0; i < 12; i++) drop(V(D.g.position.x + rnd2() * 0.5, 0.05, D.g.position.z + rnd2() * 0.5), V(rnd2() * 2, 0.4 + Math.random() * 0.7, rnd2() * 2), 0xb9a27c, 0.5);
+      }
+      gg.thud = dead;
+    }
+    const gk = gSpan(tt, T.GHOST, T.GHOST + 2.8);
+    R.deerGhost.visible = gk > 0 && gk < 1 && live;
+    if (R.deerGhost.visible) { R.deerGhost.position.set(LICK_AT.x + Math.sin(t * 2.2) * 0.12, 0.45 + gk * 2.9, LICK_AT.z); R.deerGhost.rotation.y = (D.gy || 0) + Math.sin(t * 1.7) * 0.3; R.deerGhostMat.opacity = 0.75 * (1 - gk * gk); }
+    // the paddy wagon: in fast and hard on the brakes, and away again with the driller looking out of the back
+    W.visible = tt >= T.W_IN && live;
+    if (W.visible) {
+      let z = WAGON_Z;
+      if (tt < T.W_AT) { const k = 1 - gSpan(tt, T.W_IN, T.W_AT); z = WAGON_Z + 12.5 * k * k; }
+      else if (tt >= T.W_OUT) { const k = tt - T.W_OUT; z = WAGON_Z - 0.6 * k - 2.6 * k * k; }
+      const dip = tt >= T.W_AT ? Math.exp(-(tt - T.W_AT) * 5) * Math.sin((tt - T.W_AT) * 14) : 0;
+      W.position.set(WAGON_X, 0, z); W.rotation.set(dip * 0.035, Math.PI, 0);
+      for (const wh of R.wagonWheels) wh.rotation.x = z / 0.3;
+      const fl = Math.floor(t * 7) % 2;
+      R.wagonLights[0].material.color.setHex(fl ? 0xff2a2a : 0x4a1010); R.wagonLights[1].material.color.setHex(fl ? 0x10204a : 0x2a6bff);
+      R.wagonDoor.rotation.y = gSm(gSpan(tt, T.REAR - 0.9, T.REAR - 0.4)) * (1 - gSm(gSpan(tt, T.SHUT - 0.1, T.SHUT + 0.1))) * 1.9;
+      R.wagonIn.visible = tt >= T.SHUT;
+      if (dt > 0 && tt >= T.W_OUT && Math.random() < 0.5) smoke.push({ p: V(WAGON_X - 0.4, 0.3, z + 1.4), v: V(0, 0.5, 0.6), life: 1.0 });
+    }
+    // the two officers: one makes the arrest, the other gets the door
+    if (!R.cops) R.cops = [COP, COP2].map(l => { const p = makePerson(l); p.g.visible = false; return p; });
+    const A = R.cops[0], B = R.cops[1], here = tt >= T.OUT && tt < T.W_OUT - 0.2;
+    A.g.visible = B.g.visible = here;
+    const turned = tt >= T.CUFF - 0.5;              // the driller has been told to turn round
+    if (here) {
+      if (tt < T.MARCH) {
+        const m = gagWalk(A, [COP_A0, ARREST_C], gSpan(tt, T.OUT + 0.2, T.OUT + 1.7), dt, -Math.PI / 2);
+        if (m || tt < T.OUT + 0.2) { A.arms[1].rotation.x = -1.5; A.fores[1].rotation.x = -0.1; }       // in at a march, one arm out in front
+        else if (turned && tt < T.CUFF + 0.4) { A.arms[0].rotation.x = A.arms[1].rotation.x = -1.2 + Math.sin(t * 16) * 0.08; A.fores[0].rotation.x = A.fores[1].rotation.x = -0.5; A.head.rotation.x = 0.25; }      // the cuffs go on
+        else if (gg.talk === 'cop' && !turned) { A.arms[1].rotation.x = -1.5; A.fores[1].rotation.x = -0.08; A.arms[0].rotation.x = -0.15; A.fores[0].rotation.x = -1.5; }      // pointing past him, at what is left of the deer
+        else { A.arms[0].rotation.x = A.arms[1].rotation.x = -0.15; A.fores[0].rotation.x = A.fores[1].rotation.x = -1.5; }
+      } else if (tt < T.SHUT) {
+        gagWalk(A, [ARREST_C, V(3.0, 0, 4.7), COP_A1], gSpan(tt, T.MARCH + 0.3, T.REAR + 0.3), dt, 1.85);
+        A.arms[1].rotation.x = -1.3; A.fores[1].rotation.x = -0.3;      // a hand on the driller's shoulder
+      } else gagWalk(A, [COP_A1, COP_A0], gSpan(tt, T.SHUT + 0.1, T.W_OUT - 0.3), dt, null);
+      gagTalk(A, 'cop');
+      if (tt < T.SHUT + 0.2) {
+        const m = gagWalk(B, [COP_B0, COP_B1], gSpan(tt, T.OUT + 0.4, T.OUT + 1.9), dt, -1.3);
+        if (!m && tt >= T.REAR - 0.9) { B.arms[0].rotation.x = -1.3; B.fores[0].rotation.x = -0.2; }      // holding the door
+        else if (!m) { B.arms[0].rotation.x = B.arms[1].rotation.x = -0.15; B.fores[0].rotation.x = B.fores[1].rotation.x = -1.5; }
+      } else gagWalk(B, [COP_B1, COP_B0], gSpan(tt, T.SHUT + 0.2, T.W_OUT - 0.3), dt, null);
+    }
+    // the driller: hands up, cuffed, marched round the back, and in
+    const atDrum = jb.meK > 0.5, go = atDrum ? T.OUT + 0.4 : T.ME_GO;      // he was at the console, or at the drum pouring
+    if (live && tt >= T.OUT + 0.3 && Me.g.visible) {
+      if (tt >= go) {
+        if (tt < T.MARCH) {
+          ME_AT.set(EYE.x - R.fwd.x * 0.14, 0, EYE.z - R.fwd.z * 0.14);
+          const k = gSpan(tt, go, T.ME_AT);
+          gagWalk(Me, atDrum ? [POUR_AT, ME_WP, V(1.6, 0, 3.6), ARREST_D] : [ME_AT, ARREST_D], k, dt, turned ? -Math.PI / 2 : Math.PI / 2);
+          if (!atDrum) Me.g.position.y += 0.25 * (1 - Math.min(1, k * 5));
+        } else if (tt < T.REAR) gagWalk(Me, [ARREST_D, V(3.3, 0, 5.2), V(4.6, 0, 6.3), REAR_AT], gSpan(tt, T.MARCH, T.REAR), dt, Math.PI);
+        else if (tt < T.HOP) {                        // up and in
+          const k = gSpan(tt, T.REAR, T.HOP);
+          gagWalk(Me, [REAR_AT, V(REAR_AT.x, 0, WAGON_Z + 0.9)], k, dt, Math.PI);
+          Me.g.position.y = Math.sin(k * Math.PI) * 0.22 + k * 0.5; Me.g.scale.setScalar(1 - 0.3 * k);
+        } else Me.g.visible = false;
+      }
+      if (!turned) {                                  // hands up
+        Me.arms[0].rotation.set(-2.9 + Math.sin(t * 19) * 0.05, 0, -0.25); Me.arms[1].rotation.set(-2.9 - Math.sin(t * 19) * 0.05, 0, 0.25);
+        Me.fores[0].rotation.x = Me.fores[1].rotation.x = -0.2; Me.head.rotation.x = -0.1; Me.mouth.scale.y = 2;
+      } else {                                        // hands behind his back, head down, and the tears start
+        Me.arms[0].rotation.set(0.6, 0, 0.25); Me.arms[1].rotation.set(0.6, 0, -0.25); Me.fores[0].rotation.x = Me.fores[1].rotation.x = -0.15; Me.head.rotation.x = 0.42;
+        if (tt >= T.CUFF) {
+          if (!Me.cuffs) Me.cuffs = put(box(0.2, 0.05, 0.07, 0x9aa3ab, 0.004), 0, 0.98, -0.3, Me.g);
+          Me.cuffs.visible = true;
+          if (dt > 0 && Me.g.visible && Math.random() < 0.5) { Me.head.getWorldPosition(pB); drop(V(pB.x + rnd2() * 0.14, pB.y + 0.05, pB.z + rnd2() * 0.14), V(rnd2() * 1.1, 0.5 + Math.random() * 0.7, rnd2() * 1.1), 0x4ab0f0, 0.9); }
+        }
+      }
+      gagTalk(Me, 'me');
+    }
+  }
   // where the two helpers are and what their arms are doing, on these jobs. Called from the crew part of update()
   function jobCrew(m, P, pos, dt) {
     const lead = m.id === 'dale', station = jb.kind === 'grout' && jb.station;
-    const at = station ? (lead ? POUR_AT : NOZ_AT) : jb.back ? JOB_BACK[m.id] : HANDS[m.id], face = station ? DRUM_AT : ORIGIN;
+    const at = gg.on && gg.back ? GAG_BACK[m.id] : station ? (lead ? POUR_AT : NOZ_AT) : jb.back ? JOB_BACK[m.id] : HANDS[m.id], face = gg.on && gg.focus ? gg.focus : station ? DRUM_AT : ORIGIN;
     if (!P.jp) P.jp = pos.clone();                  // they walk from wherever they were to where the job wants them
     tmp.copy(at).sub(P.jp);
     const dist = tmp.length(), going = dist > 0.03;
@@ -1642,6 +1960,13 @@ window.WORLD = (() => {
       if (station && lead && jb.pour && jb.pourer === 'helper') { const q = jb.rate > 0 ? Math.sin(t * 13) * 0.05 : 0; b0 = b1 = -1.0 + q; f0 = f1 = -0.8; hd = 0.3; }      // tipping the bag
       else if (station && !lead && jb.hose === 'drum') { b0 = b1 = -1.05 + (jb.jet ? Math.sin(t * 17) * 0.03 : 0); f0 = f1 = -0.6; hd = 0.28; }                        // on the nozzle
       else if (!station && jb.hold) { const q = jb.work ? Math.sin(t * 10 + (lead ? 0 : 2)) * 0.22 : 0; b0 = -1.45 + q; b1 = -1.45 - q; f0 = f1 = -0.8; hd = -0.12; }  // hands on the pipe
+      const ps = gg.on ? gg.pose[m.id] : '';          // one of the little scenes: what they make of it
+      if (ps === 'gasp') { b0 = b1 = -2.75; f0 = f1 = -1.9; hd = -0.1; }                                                                     // hands on their head
+      else if (ps === 'wave') { const q = Math.sin(t * 12) * 0.28; b0 = -2.8 + q; b1 = -2.8 - q; f0 = f1 = -0.3; hd = -0.1; }                // both arms: no, no, no
+      else if (ps === 'point') { b1 = -1.5; f1 = -0.1; }
+      else if (ps === 'up') { b0 = b1 = -2.95; f0 = f1 = -0.15; }                                                                             // hands up
+      else if (ps === 'bye') { b1 = -2.7; f1 = -0.5 + Math.sin(t * 9) * 0.4; }
+      else if (ps === 'laugh') { b0 = b1 = -0.5; f0 = f1 = -1.6; hd = -0.2 + Math.abs(Math.sin(t * 12)) * 0.16; }                             // holding their sides
     }
     P.arms[0].rotation.set(b0, 0, 0); P.arms[1].rotation.set(b1, 0, 0); P.fores[0].rotation.x = f0; P.fores[1].rotation.x = f1;
     P.head.rotation.x = hd; P.rod.visible = false;
@@ -2105,6 +2430,7 @@ window.WORLD = (() => {
     // crew
     updateWell(S, dt, casTop);
     updateJob(S, dt, casTop);
+    updateGag(S.paused ? 0 : dt);
     updateBoss(S.paused ? 0 : dt);
     updateVisit(S.paused ? 0 : dt);
     const panicking = updatePanic(dt);
@@ -2327,7 +2653,7 @@ window.WORLD = (() => {
 
   return {
     init, update, render, resize, lookDrag, zoom, zoomBy, preset, project, crewHead, shoulder, walkTo, setInspectCore, smoke: lightUp, cigStyle,
-    setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell, setJob, setBoss,
+    setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell, setJob, setBoss, setGag, GAG,
     engHead() { return R.eng ? R.eng.g.position.clone().add(V(0, 2.15 * (R.engLook.height || 1), 0)) : V(0, 2, 0); },
     sadden(id, sec) { sad[id] = sec; sad.len = sec; },
     setVisit, throwSonic, laugh(sec) { laughFx.t = laughFx.dur = sec; }, annoy(id, sec) { mad[id] = sec; mad.len = sec; }, get tossing() { return toss.on && toss.state === 'fly'; },
