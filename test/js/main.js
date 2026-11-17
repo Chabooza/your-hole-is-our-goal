@@ -81,7 +81,7 @@
   function choose(p) {
     const cr = settings.crew, had = JOBS.find(j => cr[j[0]] === p.id);
     pickMsg = '';
-    if (locked(p)) { pickMsg = `Locked. ${POON.HINT}`; return; }
+    if (locked(p)) { pickMsg = 'Locked.'; return; }
     if (!canDo(p, pickJob)) { pickMsg = `${p.name} is a helper. Only a driller can take the driller's seat.`; return; }
     if (had && had[0] === pickJob) return;
     if (had) {                                   // this person already has a job: the two swap, if the other one is allowed to
@@ -110,10 +110,9 @@
       slots.append(b);
     }
     for (const p of ROSTER) {
-      if (locked(p)) {                           // a black shape that says LOCKED, a hint, and how close the best hole got
+      if (locked(p)) {                           // a black shape that says LOCKED, and nothing else: who it is stays a surprise
         const b = document.createElement('button'); b.type = 'button'; b.className = 'card locked';
-        const rows = Object.keys(POON.LISTS).map(k => `<span class="ticks">${POON.LISTS[k].map((x, i) => `<i class="${i < (POON.best[k] || 0) ? 'on' : ''}"></i>`).join('')}</span>`).join('');
-        b.innerHTML = `<img alt="" src="${face(p.id)}"><b>LOCKED</b><span class="trade">???</span><small class="hint">${POON.HINT}</small>${rows}`;
+        b.innerHTML = `<img alt="" src="${face(p.id)}"><b>LOCKED</b>`;
         b.addEventListener('click', () => { choose(p); drawPick(); });
         grid.append(b);
         continue;
