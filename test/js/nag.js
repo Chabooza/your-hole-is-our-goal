@@ -71,6 +71,7 @@ window.NAG = (() => {
     } else if (st === 'tap' || st === 'talk') {  // a tap on the shoulder, the driller turns, and gets an earful
       if (st === 'tap' && t >= TAP) {
         st = 'talk'; t = 0;
+        POON.mark(S, 'nag');
         if (!bag.length) { bag = LINES.slice(); for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; } }
         const line = bag.pop().replace(/\{pct\}/g, pending.pct);
         E.bub.firstChild.textContent = line;

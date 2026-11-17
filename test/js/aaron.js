@@ -326,7 +326,7 @@ window.AARON = (() => {
     if (E.timer.hidden === show) E.timer.hidden = !show;
     if (!A || A.done) return;
     let d = dS;                                   // game time that went by on the rig
-    if (!d && !S.paused && !off && !st) {         // the rig is held still: a prompt, a breakdown, a throw, or the well install
+    if (!d && !S.paused && !off && !st && !POON.busy) {      // ...but not while Poon Daddy walks in (js/poon.js)         // the rig is held still: a prompt, a breakdown, a throw, or the well install
       if (S.done) { const W = S.well; if (W && WELL.active && $('plan').hidden && /^(pour|pull|wreck|pvc|result)$/.test(W.phase)) d = dt; }
       else if ((APP.easy && AUTO.st.qte) || TOSS.busy || NAG.busy || MARL.busy || (SPT.testing && !GROUT.gagging)) d = dt;
     }

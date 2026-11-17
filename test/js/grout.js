@@ -129,17 +129,19 @@ window.GROUT = (() => {
   // ---------- the prompts: the fitting (tap in the green), the bentonite (tap fast) ----------
   function newQ(type, label, retry) {
     const tn = SHOP.tune(S);
-    return { type, label, state: 'ready', hold: retry ? 0.5 : 0.7, t: 0, prog: 0, taps: 0, limit: type === 'mash' ? tn.mashTime : tn.aimTime, need: tn.taps, sweep: tn.sweep, zc: 0.22 + Math.random() * 0.56, zw: tn.zone, pos: 0, ph: Math.random() * 2, why: '' };
+    const auto = POON.helps(S);                  // the fitting and the bentonite are a helper's job: with Poon Daddy on it, they do themselves
+    return { type, label: auto ? 'Poon Daddy has got it' : label, auto, state: 'ready', hold: retry ? 0.5 : 0.7, t: 0, prog: 0, taps: 0, limit: type === 'mash' ? tn.mashTime : tn.aimTime, need: tn.taps, sweep: tn.sweep, zc: 0.22 + Math.random() * 0.56, zw: tn.zone, pos: 0, ph: Math.random() * 2, why: '' };
   }
   function failQ() {
     const q = G.q;
+    if (q.auto) return;
     q.state = 'fail'; q.hold = 1.3; S.sfx.push('clank');
-    if (q.type === 'timing') { q.why = 'Cross-threaded it!'; if (!SHOP.lucky(S)) G.fumbles++; } else q.why = 'Again!';
+    if (q.type === 'timing') { q.why = 'Cross-threaded it!'; POON.mark(S, 'fit'); if (!SHOP.lucky(S)) G.fumbles++; } else q.why = 'Again!';
   }
   function tap() {
     if (!G || S.paused) return;
     const q = G.q;
-    if (!q || q.state !== 'go') return;
+    if (!q || q.state !== 'go' || q.auto) return;
     if (q.type === 'mash') { q.taps++; q.prog = clamp(q.taps / q.need, 0, 1); S.sfx.push('switch'); }
     else if (Math.abs(q.pos - q.zc) <= q.zw / 2) q.prog = 1; else failQ();
   }
@@ -149,6 +151,7 @@ window.GROUT = (() => {
     else if (q.state === 'go') {
       q.t += dt;
       if (q.type === 'timing') { const u = (q.ph + q.t * q.sweep) % 2; q.pos = u < 1 ? u : 2 - u; }
+      if (q.auto) { q.prog = Math.min(1, q.prog + dt * 2.4); if (q.type === 'timing') q.pos = q.zc; }      // Poon Daddy's job: it does itself (js/poon.js)
       if (q.prog >= 1) { q.state = 'done'; q.hold = 0.35; S.sfx.push('ok'); }
       else if (q.t >= q.limit) failQ();
     } else if (q.state === 'fail') { q.hold -= dt; if (q.hold <= 0) G.q = newQ(q.type, q.label, true); }
@@ -177,6 +180,7 @@ window.GROUT = (() => {
     else if (G.phase === 'pump' && G.pumping) { G.called = true; G.lag = 0.2 + 0.12 * G.k; S.sfx.push('switch'); }
   }
   function clumped(slow) {
+    POON.mark(S, 'clump');
     G.clumps++; G.rate = 0; G.U = 0; G.tr = 0; G.gelOn = 0; G.warn = ''; hold = false; G.jet = false;
     S.sfx.push('alarm'); S.sfx.push('clank');
     log(slow ? `${G.who[G.pourer].name} poured the gel too slow: it balled up on top of the water and plugged the pump.` : `${G.who[G.pourer].name} poured the ${G.phase === 'gel' ? 'gel' : 'cement'} too fast and it clumped up in the pump.`, 'crit');
@@ -237,6 +241,7 @@ window.GROUT = (() => {
   }
   function startGag(kind, then) {
     hold = false;
+    POON.mark(S, kind);
     G.cut = { kind, t: 0, then, i: 0, lines: gagScript(kind) };
     if (kind === 'deer') G.spilled = Math.max(G.spilled, 1.1);      // a proper puddle, whatever the stop was like
     log(kind === 'slap' ? `Water is running across the site, and ${G.who.eng.name}, the engineer, has seen it.` : 'Grout is all over the ground at the hole. Something in the trees has noticed.', 'crit');
@@ -296,7 +301,9 @@ window.GROUT = (() => {
       case 'swap': if (G.t > 1.3) G.jet = true; if (G.t > 2.6) enter('cement'); break;
       case 'cement': case 'gel': {
         const gel = G.phase === 'gel', amt = gel ? 0.45 : 1;      // the gel is a smaller bag
-        if (gel) {                                                // the gel: the marker is how fast it is going in. Hold and it climbs, let go and it falls
+        const auto = G.pourer === 'helper' && POON.helps(S);      // Poon Daddy pours it himself, and it goes in perfect
+        if (auto) { G.rate = G.A < amt ? (gel ? 0.24 : clamp(G.mixRate / POUR * 0.97, 0.05, 1)) : 0; G.warn = ''; G.tr = 0; G.U = 0; }
+        else if (gel) {                                                // the gel: the marker is how fast it is going in. Hold and it climbs, let go and it falls
           G.rate = clamp(G.rate + (hold && G.A < amt ? G.gelUp : -G.gelDown) * dt, 0, 1);
           if (hold || G.gelOn > 0) G.gelOn += dt;
           G.warn = G.A >= amt - 1e-6 ? '' : G.rate > GEL_HI ? 'fast' : G.rate < GEL_LO && G.gelOn > GEL_START ? 'slow' : '';
@@ -304,9 +311,9 @@ window.GROUT = (() => {
         } else G.rate = hold && G.A < amt ? Math.min(1, G.rate + G.ramp * dt) : Math.max(0, G.rate - 3.2 * dt);
         const dA = Math.min(amt - G.A, G.rate * POUR * dt);       // what went in the drum this moment
         G.A += dA;
-        if (!gel) G.U = Math.max(0, G.U + dA * CLUMP_IN - G.mixRate * CLUMP_IN * dt);
+        if (!gel && !auto) G.U = Math.max(0, G.U + dA * CLUMP_IN - G.mixRate * CLUMP_IN * dt);
         G.mixed = (gel ? 1 : 0) * 0.7 + (G.A / amt) * (gel ? 0.3 : 0.7);
-        if (gel ? G.tr >= 1 : G.U >= 1) { clumped(gel && G.warn === 'slow'); break; }
+        if (!auto && (gel ? G.tr >= 1 : G.U >= 1)) { clumped(gel && G.warn === 'slow'); break; }
         if (G.A >= amt - 1e-6 && (gel || G.rate <= 0.02)) { G.rate = gel ? 0 : G.rate; if (G.phase === 'cement') enter('gel'); else enter('mixed'); }
         break;
       }
@@ -356,6 +363,7 @@ window.GROUT = (() => {
   function update(S_, dt) {
     if (!G) return;
     S = S_;
+    if (POON.arriving) { E.root.hidden = true; return; }      // Poon Daddy is walking in: everything waits (js/poon.js)
     const off = APP.away || APP.menu || APP.fly;
     E.root.hidden = off;
     if (off) { hold = false; E.card.hidden = true; return; }
@@ -389,13 +397,13 @@ window.GROUT = (() => {
       if (pour) {
         E.q.dataset.type = 'pour'; E.q.dataset.state = 'go';
         E.qTitle.textContent = gel && G.warn === 'fast' ? 'Too fast! Ease off!' : gel && G.warn === 'slow' ? 'Too slow! Keep it coming!' : `${G.who[G.pourer].name} pours the ${gel ? 'gel' : 'cement'}`;
-        E.qHow.textContent = gel ? (APP.phone ? 'Hold to pour faster, let go to slow down. Keep the marker in the green.' : 'Hold the mouse button or Space to pour faster, let go to slow down. Keep the marker in the green.')
+        E.qHow.textContent = G.pourer === 'helper' && POON.helps(S) ? 'Sit back. Poon Daddy has got it.' : gel ? (APP.phone ? 'Hold to pour faster, let go to slow down. Keep the marker in the green.' : 'Hold the mouse button or Space to pour faster, let go to slow down. Keep the marker in the green.')
           : APP.phone ? 'Hold to pour. Keep the marker out of the red.' : 'Hold the mouse button or Space to pour. Keep the marker out of the red.';
         E.zone.style.left = gel ? (GEL_LO * 100) + '%' : '0'; E.zone.style.width = gel ? ((GEL_HI - GEL_LO) * 100) + '%' : '62%';
       } else if (q) {
         E.q.dataset.type = q.type; E.q.dataset.state = q.state;
         E.qTitle.textContent = q.state === 'fail' ? q.why : q.state === 'done' ? 'Got it!' : q.label;
-        E.qHow.textContent = q.state === 'ready' ? 'Get ready…' : q.type === 'mash' ? (APP.phone ? 'Tap as fast as you can' : 'Tap, or hammer the Space bar') : (APP.phone ? 'Tap when the marker is in the green' : 'Tap, or press Space, when the marker is in the green');
+        E.qHow.textContent = q.auto ? 'Sit back. He never misses.' : q.state === 'ready' ? 'Get ready…' : q.type === 'mash' ? (APP.phone ? 'Tap as fast as you can' : 'Tap, or hammer the Space bar') : (APP.phone ? 'Tap when the marker is in the green' : 'Tap, or press Space, when the marker is in the green');
         if (q.type === 'timing') { E.zone.style.left = ((q.zc - q.zw / 2) * 100).toFixed(1) + '%'; E.zone.style.width = (q.zw * 100).toFixed(1) + '%'; }
       }
     });
@@ -476,7 +484,13 @@ window.GROUT = (() => {
     if (S.paused) { g.fillStyle = '#0b0f0d99'; g.fillRect(0, 0, cw, ch); label('PAUSED', cw / 2, ch / 2, 44, '#fffdf4', 'center', 800); }
   }
 
-  return { init, reset, start, update, key, parTime, W_GROUT, AIM, get busy() { return !!G; }, get state() { return G; },
+  // Poon Daddy has turned up: the helper and the man on the nozzle are both him now, and nobody is left up the tower
+  function recrew() {
+    if (!G) return;
+    const p = people(); G.who.helper = p.helper; G.who.nozzle = p.nozzle; G.up = 0; G.cry = '';
+  }
+  return { init, reset, start, update, key, parTime, W_GROUT, AIM, recrew, get busy() { return !!G; }, get state() { return G; },
+    get calm() { return !!G && !G.cut && !G.q && !/^(fill|cement|gel|pump)$/.test(G.phase) && !S.paused; },
     get gagging() { return !!G && !!G.cut && !!WORLD.GAG[G.cut.kind]; },      // one of the little scenes is on: Aaron's clock waits
     gag(kind) { if (G && WORLD.GAG[kind] && !G.cut) startGag(kind, null); } };      // for testing: GROUT.gag('slap') or GROUT.gag('deer') while the grouting is on
 

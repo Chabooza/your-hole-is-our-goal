@@ -344,12 +344,15 @@ window.WELL = (() => {
   // How long a prompt allows and how much it asks for comes from the hole (js/sites.js): later holes are faster.
   function qNew(type, label, retry) {
     const tn = SHOP.tune(S), limit = type === 'mash' ? tn.mashTime : type === 'timing' ? tn.aimTime : tn.spinTime;
-    return { type, label, state: 'ready', hold: retry ? 0.5 : 0.8, t: 0, prog: 0, turn: 0, strokes: 0, dir: 0, ext: 0, keyLast: '', taps: 0,
+    const auto = W.phase === 'pvc' && POON.helps(S);      // the PVC is a helper's job: with Poon Daddy on it, it does itself
+    return { type, label: auto ? 'Poon Daddy has got it' : label, auto, state: 'ready', hold: retry ? 0.5 : 0.8, t: 0, prog: 0, turn: 0, strokes: 0, dir: 0, ext: 0, keyLast: '', taps: 0,
       limit, turns: tn.turns, need: tn.strokes, keys: tn.keys, tapsNeed: tn.taps, sweep: tn.sweep,
       zc: 0.22 + Math.random() * 0.56, zw: tn.zone, pos: 0, ph: Math.random() * 2, why: '' };
   }
   function fumble(why) {
     const q = W.q, casing = W.phase === 'pull';
+    if (q.auto) return;                          // Poon Daddy does not drop things
+    POON.mark(S, 'pipe');
     q.state = 'fail'; q.hold = 2.8; q.why = why || 'Dropped it!';
     if (!SHOP.lucky(S)) W.fumbles++;
     log(casing ? 'Fumbled a joint of casing. It went over and everybody jumped clear.' : 'Fumbled a length of PVC. It went over and everybody jumped clear.', 'warn');
@@ -363,6 +366,7 @@ window.WELL = (() => {
     else if (q.state === 'go') {
       q.t += dt;
       if (q.type === 'timing') { const u = (q.ph + q.t * q.sweep) % 2; q.pos = u < 1 ? u : 2 - u; }
+      if (q.auto) { q.prog = Math.min(1, q.prog + dt * 2.4); if (q.type === 'timing') q.pos = q.zc; }      // Poon Daddy's job: it does itself (js/poon.js)
       if (q.prog >= 1) { q.state = 'done'; q.hold = 0.5; S.sfx.push('ok'); }
       else if (q.t >= q.limit) fumble();
     } else if (q.state === 'fail') {
@@ -417,6 +421,7 @@ window.WELL = (() => {
   const OUCH = ['Ow!', 'Sorry, boss!', 'Ow! It was the bag!', 'I am sorry!', 'Ow! Never again!', 'Not the face!'];
   function startWreck() {
     W.phase = 'wreck'; W.q = null; W.wrecks++; S.head.hz = 85;
+    POON.mark(S, 'wreck');
     if (S.item === 'kit' && SHOP.use(S)) { W.forgiven = 1; log('Spare well kit: this wreck will not cost you any points.', 'good'); }
     W.wreck = { t: 0, snapped: false, hits: 0, hop: 0, rise: 0, pvc: !!(W.pvc && W.pvc.T > 0), kind: stage().kind };
     PANEL.setHands(false);
@@ -524,7 +529,7 @@ window.WELL = (() => {
   function padDown(e) {
     if (!W || S.paused) return;
     const q = W.q;
-    if (q && q.state === 'go') {
+    if (q && q.state === 'go' && !q.auto) {
       if (q.type === 'mash') { q.taps++; q.prog = clamp(q.taps / q.tapsNeed, 0, 1); }
       else if (q.type === 'timing') { if (Math.abs(q.pos - q.zc) <= q.zw / 2) q.prog = 1; else fumble(W.phase === 'pull' ? 'Missed it!' : 'Cross-threaded it!'); }
     }
@@ -587,6 +592,8 @@ window.WELL = (() => {
     if (!S.paused) for (const m of S.crew) if (m.sayT > 0) m.sayT -= dt;      // the drilling model has stopped, so talk is timed here
     W = S.well || null;
     if (!W) return;
+    if (POON.arriving) { E.root.hidden = true; W.poonHid = true; return; }      // Poon Daddy is walking in: everything waits (js/poon.js)
+    if (W.poonHid) { W.poonHid = false; if (W.phase !== 'over') E.root.hidden = false; }
     const busy = W.phase !== 'over';
     if (S.paused || APP.away || APP.menu || APP.fly || !E.plan.hidden) { turnBuf = 0; keyPour = keySlow = false; show(); return; }
     if (busy) { W.t += dt; W.pt += dt; S.t += dt * 0.5; }
@@ -709,7 +716,7 @@ window.WELL = (() => {
       }
       set(E.icon, 'icon', T.icon);
       set(E.qTitle, 'qt', q.state === 'fail' ? q.why : q.state === 'done' ? 'Nice one!' : q.label);
-      set(E.qHow, 'qh', q.state === 'fail' ? 'The crew is getting set to try again.' : q.state === 'done' ? '' : touch() ? T.how : `${T.how}, ${T.keys}`);
+      set(E.qHow, 'qh', q.auto ? 'Sit back. He never misses.' : q.state === 'fail' ? 'The crew is getting set to try again.' : q.state === 'done' ? '' : touch() ? T.how : `${T.how}, ${T.keys}`);
       set(E.tape, 'tape', '');
       E.prog.style.strokeDashoffset = (CIRC * (1 - (q.state === 'done' ? 1 : q.prog))).toFixed(1);
       E.timeI.style.width = (clamp(1 - q.t / q.limit, 0, 1) * 100).toFixed(1) + '%';
@@ -768,5 +775,7 @@ window.WELL = (() => {
     c.beginPath(); for (let yy = Math.max(yTop, yScr) + 2; yy < yBot - 1; yy += 3) { c.moveTo(x - 2.5, yy); c.lineTo(x + 2.5, yy); } c.stroke();
   }
 
-  return { init, start, reset, update, key, engineer, get active() { return !!W && W.phase !== 'over'; }, get finished() { return !!W && W.finished; }, get state() { return W; } };
+  return { init, start, reset, update, key, engineer, get active() { return !!W && W.phase !== 'over'; },
+    get calm() { return !!W && !W.q && /^(pour|pvc|result)$/.test(W.phase) && !WORLD.panicking && !S.paused; },      // somewhere Poon Daddy can walk in without cutting anything off
+    get finished() { return !!W && W.finished; }, get state() { return W; } };
 })();
