@@ -79,7 +79,7 @@ window.SPT = (() => {
   // what the helper says he counted
   function helperSays(real, k, r) {
     const ok = lerp(HELPER_OK[0], HELPER_OK[1], k), u = r();
-    if (u < ok) return real.slice();
+    if (u < ok || POON.helps(S)) return real.slice();      // Poon Daddy never loses count
     let out;
     if (u < ok + (1 - ok) * (1 - LOST)) {          // he slipped on one or two of them
       out = real.slice();
@@ -150,12 +150,15 @@ window.SPT = (() => {
   // ---------- the prompts: tap in the green (rod joints), tap fast (the anvil) ----------
   function newQ(type, label, retry) {
     const tn = SHOP.tune(S);
-    return { type, label, state: 'ready', hold: retry ? 0.5 : 0.75, t: 0, prog: 0, taps: 0, limit: type === 'mash' ? tn.mashTime : tn.aimTime, need: tn.taps, sweep: tn.sweep, zc: 0.22 + Math.random() * 0.56, zw: tn.zone, pos: 0, ph: Math.random() * 2 };
+    const auto = POON.helps(S);                  // the rods and the anvil are a helper's job: with Poon Daddy on it, they do themselves
+    return { type, label: auto ? 'Poon Daddy has got it' : label, auto, state: 'ready', hold: retry ? 0.5 : 0.75, t: 0, prog: 0, taps: 0, limit: type === 'mash' ? tn.mashTime : tn.aimTime, need: tn.taps, sweep: tn.sweep, zc: 0.22 + Math.random() * 0.56, zw: tn.zone, pos: 0, ph: Math.random() * 2 };
   }
   function failQ() {
     const q = P.q;
+    if (q.auto) return;
     if (q.type === 'mash') { q.state = 'fail'; q.hold = 1.3; q.why = 'It slid off. Again!'; S.sfx.push('clank'); return; }
     // a rod joint missed: the whole string goes down the hole
+    POON.mark(S, 'rods');
     P.q = null; P.phase = 'drop'; P.t = 0; P.piece = false; P.low = 1; P.lowTo = 1; P.up = -STICK;
     if (!SHOP.lucky(S)) P.drops++;
     say(P.helper, pick(['Look out! There they go!', 'Dropped them! Sorry, boss!', 'Whoa! Rods are down the hole!']), 2.6, 'lead');
@@ -166,7 +169,7 @@ window.SPT = (() => {
     if (F) { if (F.t > F.capT + 0.4) endFinale(); return; }
     if (!P || S.paused) return;
     const q = P.q;
-    if (!q || q.state !== 'go') return;
+    if (!q || q.state !== 'go' || q.auto) return;
     if (q.type === 'mash') { q.taps++; q.prog = clamp(q.taps / q.need, 0, 1); S.sfx.push('switch'); }
     else if (Math.abs(q.pos - q.zc) <= q.zw / 2) q.prog = 1; else failQ();
   }
@@ -177,6 +180,7 @@ window.SPT = (() => {
     else if (q.state === 'go') {
       q.t += dt;
       if (q.type === 'timing') { const u = (q.ph + q.t * q.sweep) % 2; q.pos = u < 1 ? u : 2 - u; }
+      if (q.auto) { q.prog = Math.min(1, q.prog + dt * 2.4); if (q.type === 'timing') q.pos = q.zc; }      // Poon Daddy's job: it does itself (js/poon.js)
       if (q.prog >= 1) { q.state = 'done'; q.hold = 0.35; S.sfx.push('ok'); }
       else if (q.t >= q.limit) failQ();
     } else if (q.state === 'fail') { q.hold -= dt; if (q.hold <= 0) P.q = newQ(q.type, q.label, true); }
@@ -433,7 +437,7 @@ window.SPT = (() => {
       if (!q) return;
       E.q.dataset.type = q.type; E.q.dataset.state = q.state;
       E.qTitle.textContent = q.state === 'fail' ? q.why : q.state === 'done' ? 'Got it!' : q.label;
-      E.qHow.textContent = q.state === 'ready' ? 'Get ready…' : q.type === 'mash' ? (APP.phone ? 'Tap as fast as you can' : 'Tap, or hammer the Space bar') : (APP.phone ? 'Tap when the marker is in the green' : 'Tap, or press Space, when the marker is in the green');
+      E.qHow.textContent = q.auto ? 'Sit back. He never misses.' : q.state === 'ready' ? 'Get ready…' : q.type === 'mash' ? (APP.phone ? 'Tap as fast as you can' : 'Tap, or hammer the Space bar') : (APP.phone ? 'Tap when the marker is in the green' : 'Tap, or press Space, when the marker is in the green');
       if (q.type === 'timing') { E.zone.style.left = ((q.zc - q.zw / 2) * 100).toFixed(1) + '%'; E.zone.style.width = (q.zw * 100).toFixed(1) + '%'; }
     });
     if (q) {

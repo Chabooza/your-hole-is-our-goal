@@ -98,6 +98,7 @@ window.AUDIO = (() => {
       case 'slurp': burst(700 + Math.random() * 500, 0.16, 0.5, 'lowpass'); setTimeout(() => blip(520 + Math.random() * 120, 0.05, 0.08), 90); break;      // the deer at the grout
       case 'hic': blip(620, 0.05, 0.2); setTimeout(() => blip(980, 0.07, 0.2), 60); break;
       case 'siren': blip(760, 0.4, 0.13); setTimeout(() => blip(570, 0.4, 0.13), 420); break;      // the paddy wagon: two notes, over and over
+      case 'fanfare': [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, i === 3 ? 0.55 : 0.13, 0.17), i * 120)); setTimeout(() => blip(1319, 0.5, 0.1), 480); break;      // Poon Daddy
       case 'yell': burst(320, 0.28, 0.55, 'lowpass'); blip(150, 0.3, 0.16); setTimeout(() => blip(120, 0.22, 0.14), 160); break;
     }
   }

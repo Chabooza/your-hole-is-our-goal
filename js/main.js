@@ -60,7 +60,7 @@
   ];
   const person = id => ROSTER.find(p => p.id === id) || ROSTER[0];
   const hex = n => '#' + n.toString(16).padStart(6, '0');
-  let pickJob = 'driller', pickAfter = null, faces = null, briefSrc = null;
+  let pickJob = 'driller', pickAfter = null, faces = null, facesPoon = false, briefSrc = null;
   // put the chosen people into the game: their names in the drilling model, their models on the site
   function applyCrew() {
     const S = APP.S, d = person(settings.crew.driller), l = person(settings.crew.lead), c = person(settings.crew.core);
@@ -77,9 +77,11 @@
   // The rule: only a driller can take the driller's seat. A driller may fill a helper's spot. A helper never drills.
   const canDo = (p, job) => job !== 'driller' || p.trade === 'driller';
   let pickMsg = '';
+  const locked = p => p.look.secret && !POON.unlocked;      // Poon Daddy, until he is unlocked (js/poon.js)
   function choose(p) {
     const cr = settings.crew, had = JOBS.find(j => cr[j[0]] === p.id);
     pickMsg = '';
+    if (locked(p)) { pickMsg = 'Locked.'; return; }
     if (!canDo(p, pickJob)) { pickMsg = `${p.name} is a helper. Only a driller can take the driller's seat.`; return; }
     if (had && had[0] === pickJob) return;
     if (had) {                                   // this person already has a job: the two swap, if the other one is allowed to
@@ -108,6 +110,13 @@
       slots.append(b);
     }
     for (const p of ROSTER) {
+      if (locked(p)) {                           // a black shape that says LOCKED, and nothing else: who it is stays a surprise
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'card locked';
+        b.innerHTML = `<img alt="" src="${face(p.id)}"><b>LOCKED</b>`;
+        b.addEventListener('click', () => { choose(p); drawPick(); });
+        grid.append(b);
+        continue;
+      }
       const job = JOBS.find(j => settings.crew[j[0]] === p.id), ok = canDo(p, pickJob);
       const b = document.createElement('button'); b.type = 'button'; b.className = 'card' + (job ? ' used' : '') + (ok ? '' : ' no');
       b.setAttribute('aria-disabled', String(!ok));
@@ -121,7 +130,8 @@
   }
   function openPick(after) {
     pickAfter = after; pickJob = 'driller'; pickMsg = '';
-    if (!faces) faces = WORLD.portraits(ROSTER.map(p => p.look), 240, 270);
+    if (faces && facesPoon !== POON.unlocked) faces = null;      // he has just been unlocked: draw his face for real
+    if (!faces) { faces = WORLD.portraits(ROSTER.map(p => (locked(p) ? Object.assign({}, p.look, { shadow: true }) : p.look)), 240, 270); facesPoon = POON.unlocked; }
     drawPick();
     $('pick').hidden = false;
   }
@@ -144,7 +154,7 @@
       if (['low', 'medium', 'high'].includes(o.gfx)) settings.gfx = o.gfx;
       if (['easy', 'full'].includes(o.controls)) settings.controls = o.controls;
       const cr = o.crew, ids = cr && [cr.driller, cr.lead, cr.core];
-      if (ids && ids.every(id => ROSTER.some(p => p.id === id)) && new Set(ids).size === 3 && ROSTER.find(p => p.id === cr.driller).trade === 'driller') settings.crew = { driller: cr.driller, lead: cr.lead, core: cr.core };
+      if (ids && ids.every(id => ROSTER.some(p => p.id === id)) && !(ids.includes(POON.ID) && !POON.unlocked) && new Set(ids).size === 3 && ROSTER.find(p => p.id === cr.driller).trade === 'driller') settings.crew = { driller: cr.driller, lead: cr.lead, core: cr.core };
     } catch (e) { /* no saved settings, or storage is blocked */ }
     if (!settings.gfx) settings.gfx = isPhone() ? 'medium' : 'high';
     if (!settings.controls) settings.controls = isPhone() || coarse ? 'easy' : 'full';
@@ -469,6 +479,7 @@
     AARON.reset();
     GREG.reset();
     SPT.reset();
+    POON.reset();
     APP.reportShown = false; APP.seenRuns = 0;
     $('report').hidden = true;
     applyCrew();
@@ -698,6 +709,7 @@
     AARON.init(APP);
     GREG.init(APP);
     SPT.init(APP);
+    POON.init(APP);
     APP.seenRuns = APP.S.runs.length;
     WORLD.setInsets(freeArea);
     $('inspBack').addEventListener('click', leaveInspect);
@@ -763,6 +775,7 @@
     MARL.update(S, dt);
     AARON.update(S, dt);
     GREG.update(dt);
+    POON.update(S, dt);
     syncSmoke();
     if (AUDIO.ready()) AUDIO.update(S, dt); else S.sfx.length = 0;
     if (S.runs.length > APP.seenRuns && !APP.away && !APP.menu) { APP.seenRuns = S.runs.length; goInspect(S.runs.length - 1, true); }
@@ -772,8 +785,8 @@
     if (S.done && !APP.away && !APP.menu && !APP.fly) {
       if (S.site.job === 'well') {
         if (!S.well) WELL.start(S);
-        else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => endHole(S), 700); }
-      } else if (!APP.reportShown) { APP.reportShown = true; closeOut(S); setTimeout(() => endHole(S), 900); }
+        else if (WELL.finished && !APP.reportShown) { APP.reportShown = true; setTimeout(() => POON.finale(S, () => endHole(S)), 700); }
+      } else if (!APP.reportShown) { APP.reportShown = true; closeOut(S); setTimeout(() => POON.finale(S, () => endHole(S)), 900); }      // Poon Daddy turned up this hole: the unlock comes first (js/poon.js)
     }
     requestAnimationFrame(frame);
   }
@@ -782,6 +795,7 @@
   // [ ] flow, C bottom clamp, X top clamp, , . break-out, J/L head slide, K side switch, U/Y casing arm, Q tilt,
   // T/G throttle, E engine, H horn, V look at panel, I inspect core, B light a smoke, Esc pause, 1/2/4 speed
   window.addEventListener('keydown', e => {
+    if (POON.key(e)) { e.preventDefault(); return; }           // Poon Daddy's arrival, or his unlock: Enter skips or closes it
     if (GREG.key(e)) { e.preventDefault(); return; }           // Greg is on the phone, over the report: Enter answers and moves him on
     if (!$('install').hidden) { if (e.key === 'Escape' || e.key === 'Enter') { $('install').hidden = true; e.preventDefault(); } return; }
     if (!$('settings').hidden) { if (e.key === 'Escape') { closeSettings(); e.preventDefault(); } return; }

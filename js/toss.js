@@ -79,6 +79,7 @@ window.TOSS = (() => {
   function throwIt() {
     T.state = 'throw'; T.t = 0;
     E.aim.dataset.state = T.hit ? 'hit' : 'miss';
+    if (!T.hit) POON.mark(APP.S, 'zmiss');
     E.title.textContent = T.hit ? 'Right on!' : 'Off target!';
     E.how.textContent = '';
     WORLD.throwSonic(T.id, T.hit);

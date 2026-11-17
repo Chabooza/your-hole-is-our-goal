@@ -453,6 +453,41 @@ body.jitters:not(.at-menu) #view { animation: jit 0.24s steps(2) infinite; }
 /* "one bail hearing later": the screen goes black while the driller is brought back (js/grout.js) */
 .gag-card { position: fixed; inset: 0; z-index: 28; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: #0b0f0d; color: #fffdf4; pointer-events: none; }
 .gag-card[hidden] { display: none; }
+/* Poon Daddy (js/poon.js): his arrival and his unlock */
+.poon { position: fixed; inset: 0; z-index: 27; pointer-events: none; }
+.poon[hidden], .poon.away { display: none; }
+.poon-title { position: absolute; left: 0; right: 0; top: 9vh; text-align: center; }
+.poon-title[hidden] { display: none; }
+.poon-title b { display: inline-block; font-family: var(--f-display); font-weight: 400; font-size: clamp(44px, 13vh, 120px); letter-spacing: 0.04em; color: #ffd84d;
+  -webkit-text-stroke: 3px #1b1710; paint-order: stroke fill; text-shadow: 0 6px 0 #1b1710, 0 0 34px rgba(255, 216, 77, 0.85); animation: poonIn 0.55s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes poonIn { from { transform: scale(2.4) rotate(-6deg); opacity: 0; } to { transform: scale(1) rotate(-3deg); opacity: 1; } }
+.poon-say { position: absolute; left: 50%; bottom: 7vh; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: min(560px, 92vw);
+  background: #fffdf4; color: #1b1710; border: 3px solid #1b1710; border-radius: 14px; padding: 8px 16px 8px 10px; box-shadow: 0 4px 0 #1b1710; }
+.poon-say[hidden] { display: none; }
+.poon-say img { width: 52px; height: 58px; border-radius: 8px; background: #bfe3f5; object-fit: cover; }
+.poon-say img[hidden] { display: none; }
+.poon-say b { display: block; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8a6a1c; }
+.poon-say span { display: block; font-size: clamp(18px, 3.4vh, 26px); font-weight: 800; line-height: 1.15; }
+.poon-skip { position: absolute; right: 16px; bottom: 16px; pointer-events: auto; font: 800 15px/1 var(--f-ui); padding: 10px 16px; border-radius: 10px; border: 3px solid #1b1710; background: #fffdf4; color: #1b1710; box-shadow: 0 3px 0 #1b1710; cursor: pointer; }
+.poon-skip[hidden] { display: none; }
+.poon[data-mode="shot"] { background: radial-gradient(ellipse 30% 58% at 50% 42%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 60%, rgba(6, 6, 10, 0.82) 100%); pointer-events: auto; }
+.poon[data-mode="shot"]::before { content: ''; position: absolute; inset: -40%; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 232, 140, 0.07) 0deg 6deg, rgba(255, 232, 140, 0) 6deg 20deg);
+  animation: poonSpin 22s linear infinite; mix-blend-mode: screen; }
+@keyframes poonSpin { to { transform: rotate(360deg); } }
+.poon-unlock { position: absolute; left: 0; right: 0; bottom: 3vh; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; pointer-events: auto; }
+.poon-unlock[hidden] { display: none; }
+.poon-unlock small { font: 800 clamp(15px, 2.6vh, 20px)/1 var(--f-ui); letter-spacing: 0.3em; text-transform: uppercase; color: #fffdf4; text-shadow: 0 2px 0 #1b1710; }
+.poon-unlock b { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 8vh, 78px); letter-spacing: 0.04em; color: #ffd84d; -webkit-text-stroke: 3px #1b1710; paint-order: stroke fill;
+  text-shadow: 0 5px 0 #1b1710, 0 0 30px rgba(255, 216, 77, 0.9); animation: poonIn 0.6s cubic-bezier(.2, 1.6, .4, 1) both; }
+.poon-unlock span { font: 700 clamp(14px, 2.4vh, 18px)/1.2 var(--f-ui); color: #fffdf4; text-shadow: 0 2px 0 #1b1710; }
+.poon-unlock button { margin-top: 8px; font: 800 17px/1 var(--f-ui); padding: 11px 26px; border-radius: 12px; border: 3px solid #1b1710; background: #ffd84d; color: #1b1710; box-shadow: 0 4px 0 #1b1710; cursor: pointer; }
+.poon-unlock button[hidden] { visibility: hidden; display: inline-block; }
+body.poon-on #spt, body.poon-on .gag-card { display: none !important; }
+body.poon-on #well, body.poon-on .well-ui { visibility: hidden; }
+body.at-menu /* his card on the crew screen while he is locked */
+.card.locked { background: #24262b; color: #ffd84d; cursor: help; }
+.card.locked img { background: #3a3d45; }
+.card.locked b { letter-spacing: 0.12em; }
 .gag-card b { font-family: var(--f-display); font-weight: 400; font-size: clamp(26px, 6vh, 48px); letter-spacing: 0.05em; }
 body.at-menu .gag-card { display: none; }
 .spt-q[data-state="ready"] .q-time i { background: #9ba495; }
@@ -957,6 +992,12 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <div class="ar-text" id="arText" role="status" hidden><b>Aaron</b><span id="arTextSay"></span></div>
 <button class="ar-skip" id="arSkip" type="button" hidden>Skip</button>
 <div class="gag-card" id="gagCard" aria-hidden="true" hidden><b>One bail hearing later…</b></div>
+<div class="poon" id="poon" aria-live="polite" hidden>
+  <div class="poon-title" id="poonTitle" hidden><b>POON DADDY</b></div>
+  <div class="poon-say" id="poonSay" hidden><img alt="" id="poonFace" hidden><div><b id="poonWho"></b><span id="poonLine"></span></div></div>
+  <div class="poon-unlock" id="poonUnlock" hidden><small>Unlocked</small><b>POON DADDY</b><span>He is on the crew list now. He never misses.</span><button type="button" id="poonGo">Continue</button></div>
+  <button type="button" class="poon-skip" id="poonSkip" hidden>Skip</button>
+</div>
 
 <div class="menu" id="menu">
   <div>
@@ -1256,6 +1297,7 @@ body.phone .btn-big { font-size: 16px; padding: 9px 16px; }
 <script src="js/marl.js" charset="utf-8"></script>
 <script src="js/aaron.js" charset="utf-8"></script>
 <script src="js/greg.js" charset="utf-8"></script>
+<script src="js/poon.js" charset="utf-8"></script>
 <script src="js/main.js" charset="utf-8"></script>
 <script>
 // On its own web address the game can be installed as an app and started with no signal (see sw.js).

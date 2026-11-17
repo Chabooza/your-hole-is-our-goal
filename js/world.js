@@ -771,7 +771,7 @@ window.WORLD = (() => {
         const cd = put(box(0.006, 0.19, 0.006, 0x1a1c1f, 0), sx * 0.066, 1.455, 0.2 * W, g); cd.rotation.z = sx * 0.2; cd.rotation.x = 0.42;
       }
     }
-    if (o.chain) { const ch = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.0065, 6, 24), toon(0xd9dde2)); ch.position.set(0, 1.535, 0.02); ch.rotation.x = Math.PI / 2 - 0.45; g.add(ch); }
+    if (o.chain) { const ch = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.0065, 6, 24), toon(o.chainCol || 0xd9dde2)); ch.position.set(0, 1.535, 0.02); ch.rotation.x = Math.PI / 2 - 0.45; g.add(ch); }
     if (o.hood) {
       put(sph(0.14, o.hood, 0.01, 14, 10), 0, 1.565, -0.125, g).scale.set(1.3, 0.6, 0.82);
       put(cyl(0.092, 0.118, 0.05, o.hood, 0.006, 16), 0, 1.528, 0.012, g);
@@ -1186,7 +1186,12 @@ window.WORLD = (() => {
       const back = look.frameBack || (look.hatStyle === 'cowboy' && !look.hatKit ? 1.16 : 1);          // step back to fit a wide brim or a tall hat in
       if (full) { cam.position.set(1.0, 1.25, 5.0); cam.lookAt(0, 1.0 + (back - 1) * 0.4, 0); }
       else { cam.position.set(0.42 * back, hy + 0.02, 1.72 * back); cam.lookAt(0, hy - 0.03 + (back - 1) * 0.25, 0); }
-      r.render(sc, cam); out.push(cv.toDataURL('image/png'));
+      r.render(sc, cam);
+      if (look.shadow) {                          // a locked card: the same picture, filled in black
+        const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
+        const x = c2.getContext('2d'); x.drawImage(cv, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#0d0e10'; x.fillRect(0, 0, w, h);
+        out.push(c2.toDataURL('image/png'));
+      } else out.push(cv.toDataURL('image/png'));
       sc.remove(p.g);
     }
     r.dispose(); if (r.forceContextLoss) r.forceContextLoss();
@@ -1224,7 +1229,7 @@ window.WORLD = (() => {
   const SPANK_H = V(-0.45, 0, 1.3), SPANK_D = V(0.25, 0, 1.3), SPANK_WP = V(0.4, 0, 2.55), CINE_POS = V(-0.1, 1.55, 4.7), CINE_AT = V(-0.1, 0.95, 1.3), ME_AT = V();
   function updateCine(dt) {
     const job = jb.on && jb.cine;                   // the grouting is watched from outside too (see setJob)
-    cine.on = (wj.on && wj.cine) || job || (bs.on && bs.cine);
+    cine.on = (wj.on && wj.cine) || job || (bs.on && bs.cine) || (pn.on && !!pn.cam);
     if (!cine.on && cine.k <= 0) return;
     cine.k = clamp(cine.k + (cine.on ? dt / 0.45 : -dt / 0.6), 0, 1);
     const e = cine.k * cine.k * (3 - 2 * cine.k);
@@ -1237,6 +1242,7 @@ window.WORLD = (() => {
       }
       P = jCam.p; A = jCam.a; F = jCam.f;
     }
+    if (pn.on && pn.cam) { P = pn.cam.p; A = pn.cam.a; F = pn.cam.f; }      // Poon Daddy's arrival and his unlock: those cut, they do not pan
     dM.lookAt(P, A, UP); dQ.setFromRotationMatrix(dM);
     fQ.copy(camera.quaternion);
     camera.position.lerp(P, e);
@@ -1938,6 +1944,170 @@ window.WORLD = (() => {
       gagTalk(Me, 'me');
     }
   }
+  // ---------- Poon Daddy (js/poon.js runs it) ----------
+  // Purely for show, like the little scenes. setPoon() is called every frame with how far in it is.
+  //   arrive: his truck pulls up and honks, the two helpers walk off the job, and he walks in to where the lead hand
+  //           stands and says his piece (the words are in js/poon.js).
+  //   pose:   the end of the hole, before the report: hands on his hips, chest out, looking off into the distance, in
+  //           a spotlight.
+  const POON_T = { TRUCK_IN: 0.3, TRUCK_AT: 2.8, HONK: 2.95, DOOR: 3.5, CAM2: 3.7, SEE: 3.9, WALK0: 4.1, LEAVE0: 4.7, GO: 5.4, HUH: 7.0, LEAVE1: 8.4, WALK1: 8.6,
+    CAM3: 8.6, SUP: 8.9, HOME: 11.0, NAME: 13.2, END: 16.2 };
+  const PN_CAM = { truck: { p: V(2.6, 2.2, 11.4), a: V(4.4, 1.0, 3.6), f: 46 }, walk: { p: V(-3.8, 2.9, 3.6), a: V(0.2, 0.95, 1.4), f: 52 },
+    close: { p: V(-0.25, 1.78, 3.75), a: V(-0.64, 1.5, 0.42), f: 36 }, pose: { p: V(-0.35, 1.0, 4.6), a: V(-0.62, 0.8, 0.42), f: 48 } };
+  const PT_X = 4.7, PT_Z = 3.5;                                  // where the truck stops, nose toward the rig
+  const PN_AT = V(-0.64, 0, 0.42);                               // where he ends up: the lead hand's spot by the hole
+  const PN_PATH = [V(3.65, 0, 3.0), V(2.95, 0, 3.95), V(1.2, 0, 4.3), V(-0.45, 0, 3.3), V(-0.5, 0, 1.3), PN_AT];
+  const PN_LEAVE = { dale: [V(-0.64, 0, 0.42), V(-3.2, 0, 0.6), V(-9.5, 0, 1.3)], tess: [V(0.74, 0, -0.1), V(0.2, 0, 0.95), V(-1.0, 0, 0.95), V(-4.2, 0, 0.55), V(-10, 0, 1.0)] };
+  const pn = { on: false, kind: '', t: 0, talk: '', cam: null, solo: false };
+  function buildPoon() {
+    const g = new THREE.Group(); scene.add(g); R.poonG = g;
+    // his truck: a lifted black pickup with a light bar, chrome, and his name on the tailgate. Its nose is +z
+    const T = new THREE.Group(); g.add(T); R.pTruck = T;
+    const BLK = 0x17181b, CHR = 0xd9dde2, GLASS = 0x25384a;
+    put(box(1.62, 0.26, 4.3, 0x26282c, 0.01), 0, 0.92, 0, T);                  // the frame
+    put(box(1.8, 0.62, 1.5, BLK), 0, 1.36, 1.5, T);                             // the hood
+    put(box(1.8, 0.98, 1.55, BLK), 0, 1.66, 0.05, T);                           // the cab
+    put(box(1.66, 0.42, 0.05, GLASS, 0.006), 0, 1.86, 0.84, T).rotation.x = -0.32;
+    for (const sx of [-1, 1]) put(box(0.04, 0.38, 1.1, GLASS, 0.006), sx * 0.905, 1.88, 0.02, T);
+    put(box(1.8, 0.1, 2.1, BLK, 0.008), 0, 1.12, -1.75, T);                    // the bed
+    for (const sx of [-1, 1]) put(box(0.08, 0.52, 2.1, BLK), sx * 0.86, 1.42, -1.75, T);
+    put(box(1.8, 0.56, 0.08, BLK), 0, 1.42, -2.78, T);                          // the tailgate
+    const plate = canvasTex(512, 128, (c) => { c.fillStyle = '#17181b'; c.fillRect(0, 0, 512, 128); c.fillStyle = '#ffd84d'; c.font = 'italic 800 76px "Barlow Condensed", "Arial Narrow", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('POON DADDY', 256, 66); });
+    const pm = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: plate })); pm.position.set(0, 1.44, -2.83); pm.rotation.y = Math.PI; T.add(pm);
+    for (const z of [2.27, -2.85]) put(box(1.86, 0.18, 0.14, CHR, 0.006), 0, 0.98, z, T);      // chrome bumpers
+    put(box(1.3, 0.36, 0.04, CHR, 0.006), 0, 1.34, 2.27, T);                    // the grille
+    for (const sx of [-1, 1]) put(cyl(0.11, 0.11, 0.05, 0xfff4c0, 0.004, 12), sx * 0.66, 1.42, 2.27, T).rotation.x = Math.PI / 2;
+    for (const sx of [-1, 1]) put(box(0.18, 0.12, 0.04, 0xd8261c, 0.004), sx * 0.78, 1.5, -2.83, T);
+    put(box(1.5, 0.1, 0.16, 0x26282c, 0.006), 0, 2.2, 0.55, T);                 // the light bar
+    for (let i = 0; i < 6; i++) put(box(0.18, 0.07, 0.03, 0xfff4c0, 0), -0.55 + i * 0.22, 2.2, 0.64, T);
+    R.pWheels = [];
+    for (const z of [1.5, -1.6]) for (const sx of [-1, 1]) {
+      const wh = new THREE.Group(), tyre = cyl(0.5, 0.5, 0.36, 0x1d1e20, 0.012, 20); tyre.rotation.z = Math.PI / 2; wh.add(tyre);
+      const hub = cyl(0.26, 0.26, 0.38, CHR, 0.004, 14); hub.rotation.z = Math.PI / 2; wh.add(hub);
+      wh.add(box(0.39, 0.42, 0.08, 0x9aa3ab, 0));
+      put(wh, sx * 0.86, 0.5, z, T); R.pWheels.push(wh);
+    }
+    R.pDoor = new THREE.Group(); R.pDoor.position.set(0.91, 0, 0.8); T.add(R.pDoor);      // the driver's door, hinged at the front
+    put(box(0.05, 0.9, 1.4, BLK, 0.008), 0, 1.58, -0.72, R.pDoor);
+    put(box(0.02, 0.36, 1.0, GLASS, 0), 0.02, 1.88, -0.72, R.pDoor);
+    // the spotlight: a beam from above, a pool of light on the ground, and a few glints
+    const bm = new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    R.pBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.85, 5.2, 28, 1, true), bm); g.add(R.pBeam);
+    R.pPool = new THREE.Mesh(new THREE.CircleGeometry(0.85, 32), new THREE.MeshBasicMaterial({ color: 0xffe98a, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+    R.pPool.rotation.x = -Math.PI / 2; g.add(R.pPool);
+    R.pGlints = [];
+    const sm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    for (let i = 0; i < 14; i++) {
+      const s = new THREE.Group();
+      for (const r of [0, Math.PI / 2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.014, 0.014), sm); b.rotation.z = r; s.add(b); }
+      s.userData = { a: Math.random() * Math.PI * 2, h: 0.4 + Math.random() * 1.7, r: 0.38 + Math.random() * 0.3, ph: Math.random() * 6, sp: 0.4 + Math.random() * 0.5 };
+      g.add(s); R.pGlints.push(s);
+    }
+    T.visible = R.pBeam.visible = R.pPool.visible = false; for (const s of R.pGlints) s.visible = false;
+  }
+  function setPoon(o) {
+    if (!o) {
+      if (!pn.on) return;
+      pn.on = false; pn.cam = null; pn.kind = '';
+      if (R.poonG) { R.pTruck.visible = R.pBeam.visible = R.pPool.visible = false; for (const s of R.pGlints) s.visible = false; }
+      if (R.poon) { R.poon.g.visible = false; R.poon.gy = null; }
+      for (const P of [R.dale, R.tess]) if (P) { P.gy = null; P.g.visible = true; }
+      return;
+    }
+    if (!R.poonG) buildPoon();
+    if (o.look && R.poonLook !== o.look) { if (R.poon) scene.remove(R.poon.g); R.poon = makePerson(o.look); R.poonLook = o.look; R.poon.g.visible = false; }
+    pn.kind = o.kind; pn.t = o.t; pn.talk = o.talk || ''; pn.on = true;
+  }
+  // the rest of the hole: he is the lead hand, in the lead hand's place, and there is no second helper
+  function poonTakeOver(look) {
+    const old = R.dale, p = makePerson(look);
+    p.g.position.copy(PN_AT); p.g.rotation.y = Math.atan2(-PN_AT.x, -PN_AT.z);
+    scene.remove(old.g); R.dale = p;
+    pn.solo = true;
+  }
+  function setSolo(v) { pn.solo = !!v; if (!v && R.tess) R.tess.g.visible = true; }
+  // his own arms: one way of standing for each thing he says
+  function poonArms(P, how) {
+    const b = Math.sin(t * 5);
+    P.g.rotation.order = 'YXZ'; P.g.rotation.x = 0; P.fores[0].rotation.z = P.fores[1].rotation.z = 0;
+    if (how === 'sup') {                          // chin up, one hand raised, easy
+      P.arms[1].rotation.set(-2.35 + b * 0.05, 0, 0.12); P.fores[1].rotation.x = -0.55;
+      P.arms[0].rotation.set(-0.15, 0, 0); P.fores[0].rotation.x = -1.5;
+      P.head.rotation.set(-0.22, 0, 0);
+    } else if (how === 'home') {                  // both thumbs at his chest
+      P.arms[0].rotation.set(-0.75, 0, 0.35); P.arms[1].rotation.set(-0.75, 0, -0.35); P.fores[0].rotation.x = P.fores[1].rotation.x = -2.05;
+      P.head.rotation.set(-0.12 + Math.abs(b) * 0.06, 0, 0); P.g.position.y += Math.abs(Math.sin(t * 7)) * 0.02;
+    } else if (how === 'hips') {                  // hands on his hips, elbows out, chest out
+      for (let i = 0; i < 2; i++) { const sx = i ? 1 : -1; P.arms[i].rotation.set(0.12, 0, sx * 0.62); P.fores[i].rotation.set(0, 0, -sx * 1.55); }
+      P.g.rotation.x = -0.09; P.head.rotation.set(-0.2, 0, 0);
+    }
+  }
+  function updatePoon(dt) {
+    if (pn.solo && R.tess) R.tess.g.visible = false;
+    if (!pn.on || !R.poon) { pn.cam = null; return; }
+    const T = POON_T, tt = pn.t, Pn = R.poon, Tk = R.pTruck;
+    R.pBeam.visible = R.pPool.visible = false; for (const s of R.pGlints) s.visible = false;
+    if (pn.kind === 'pose') {                     // the end of the hole: the camera finds him
+      pn.cam = PN_CAM.pose;
+      Tk.visible = false;
+      if (R.dale) R.dale.g.visible = false;
+      if (R.tess) R.tess.g.visible = false;
+      Pn.g.visible = true; Pn.g.position.copy(PN_AT); Pn.g.scale.setScalar(1);
+      for (let i = 0; i < 2; i++) { Pn.legs[i].rotation.set(0, 0, i ? -0.09 : 0.09); Pn.shins[i].rotation.x = 0; }
+      poonArms(Pn, 'hips');
+      const look = gSm(gSpan(tt, 1.2, 1.9));       // straight down the lens, then off into the distance
+      Pn.g.rotation.y = Math.atan2(PN_CAM.pose.p.x - PN_AT.x, PN_CAM.pose.p.z - PN_AT.z); Pn.g.rotation.z = 0;
+      Pn.head.rotation.y = 0.62 * look; Pn.head.rotation.x = -0.2 - 0.08 * look;
+      Pn.mouth.scale.y = 1;
+      const on = gSm(gSpan(tt, 0.15, 0.7));
+      R.pBeam.visible = R.pPool.visible = on > 0;
+      R.pBeam.position.set(PN_AT.x, 2.6, PN_AT.z); R.pBeam.material.opacity = 0.2 * on * (0.9 + 0.1 * Math.sin(t * 3));
+      R.pPool.position.set(PN_AT.x, 0.03, PN_AT.z); R.pPool.material.opacity = 0.45 * on;
+      for (const s of R.pGlints) {
+        const u = s.userData, a = u.a + t * u.sp, k = Math.max(0, Math.sin(t * 2.6 + u.ph));
+        s.visible = on > 0.5; s.position.set(PN_AT.x + Math.cos(a) * u.r, u.h + Math.sin(t * 0.8 + u.ph) * 0.08, PN_AT.z + Math.sin(a) * u.r);
+        s.quaternion.copy(camera.quaternion); s.rotateZ(t * 1.5 + u.ph); s.scale.setScalar(0.2 + 1.3 * k * k);
+      }
+      return;
+    }
+    // ---- the arrival ----
+    if (R.bag) R.bag.visible = false;              // nobody is pouring while he walks in
+    pn.cam = tt < T.CAM2 ? PN_CAM.truck : tt < T.CAM3 ? PN_CAM.walk : PN_CAM.close;
+    // the truck: in off the road, hard on the brakes, a rock on its springs, and his door swings open
+    Tk.visible = true;
+    let z = PT_Z;
+    if (tt < T.TRUCK_AT) { const k = 1 - gSpan(tt, T.TRUCK_IN, T.TRUCK_AT); z = PT_Z + 15 * k * k; }
+    const dip = tt >= T.TRUCK_AT ? Math.exp(-(tt - T.TRUCK_AT) * 4) * Math.sin((tt - T.TRUCK_AT) * 12) : 0;
+    Tk.position.set(PT_X, 0, z); Tk.rotation.set(-dip * 0.04, Math.PI, 0);
+    for (const wh of R.pWheels) wh.rotation.x = -z / 0.5;
+    R.pDoor.rotation.y = gSm(gSpan(tt, T.DOOR - 0.3, T.DOOR + 0.1)) * 1.1;
+    if (dt > 0 && tt < T.TRUCK_AT && Math.random() < 0.6) smoke.push({ p: V(PT_X + 0.5, 0.3, z + 2.9), v: V(0, 0.4, 0.7), life: 1.0 });
+    // him: out of the truck and over to the hole with a bit of a swagger
+    Pn.g.visible = tt >= T.DOOR;
+    if (Pn.g.visible) {
+      const k = gSpan(tt, T.WALK0, T.WALK1), face = Math.atan2(PN_CAM.close.p.x - PN_AT.x, PN_CAM.close.p.z - PN_AT.z);
+      const moving = gagWalk(Pn, PN_PATH, k, dt, face);
+      Pn.g.rotation.z = 0;
+      if (moving) { Pn.g.rotation.z = Math.sin(t * 5) * 0.05; Pn.arms[0].rotation.x *= 1.4; Pn.arms[1].rotation.x *= 1.4; }      // the swagger
+      else if (tt >= T.CAM3) poonArms(Pn, tt < T.HOME - 0.1 ? 'sup' : tt < T.NAME - 0.1 ? 'home' : 'hips');
+      if (pn.talk === 'poon') Pn.mouth.scale.y = 1 + 2.5 * Math.abs(Math.sin(t * 11));
+    }
+    // the two helpers: a look at the truck, and off the job
+    for (const id of ['dale', 'tess']) {
+      const P = R[id]; if (!P) continue;
+      const k = gSpan(tt, T.LEAVE0 + (id === 'tess' ? 0.25 : 0), T.LEAVE1);
+      P.g.visible = k < 0.999;
+      if (!P.g.visible) continue;
+      if (tt < T.LEAVE0) {                         // turned to look at the truck
+        if (P.gy == null) P.gy = P.g.rotation.y;
+        const yw = Math.atan2(PT_X - P.g.position.x, PT_Z - P.g.position.z);
+        P.gy += Math.atan2(Math.sin(yw - P.gy), Math.cos(yw - P.gy)) * (1 - Math.exp(-dt * 6));
+        P.g.rotation.y = P.gy; P.head.rotation.x = -0.05;
+        if (tt > T.SEE && id === 'dale') { P.arms[1].rotation.x = -1.5; P.fores[1].rotation.x = -0.1; }      // the lead hand points
+      } else gagWalk(P, PN_LEAVE[id], k, dt, null);
+      if (pn.talk === (id === 'dale' ? 'lead' : 'core')) P.mouth.scale.y = 1 + 2.5 * Math.abs(Math.sin(t * 11));
+    }
+  }
   // where the two helpers are and what their arms are doing, on these jobs. Called from the crew part of update()
   function jobCrew(m, P, pos, dt) {
     const lead = m.id === 'dale', station = jb.kind === 'grout' && jb.station;
@@ -2536,6 +2706,7 @@ window.WORLD = (() => {
       }
       if (!(mad[m.id] > 0)) P.my = null;
     }
+    updatePoon(S.paused ? 0 : dt);
     updateToss(dt);
     updateSleeves(S);
 
@@ -2654,6 +2825,7 @@ window.WORLD = (() => {
   return {
     init, update, render, resize, lookDrag, zoom, zoomBy, preset, project, crewHead, shoulder, walkTo, setInspectCore, smoke: lightUp, cigStyle,
     setPhone(p) { phone = !!p; }, setInsets(fn) { insets = fn; }, setDrone, setOptions, aim, setCrew, portraits, panic: startPanic, setWell, setJob, setBoss, setGag, GAG,
+    setPoon, setSolo, poonTakeOver, POON: POON_T, get panicking() { return panic.t > 0; },
     engHead() { return R.eng ? R.eng.g.position.clone().add(V(0, 2.15 * (R.engLook.height || 1), 0)) : V(0, 2, 0); },
     sadden(id, sec) { sad[id] = sec; sad.len = sec; },
     setVisit, throwSonic, laugh(sec) { laughFx.t = laughFx.dur = sec; }, annoy(id, sec) { mad[id] = sec; mad.len = sec; }, get tossing() { return toss.on && toss.state === 'fly'; },
