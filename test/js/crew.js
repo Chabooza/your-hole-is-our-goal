@@ -128,11 +128,11 @@ window.ROSTER = (() => {
       glasses: 'square', eye: 0x6a8496, brow: 0x5a3d26, stache: 0x5a3d26, stacheStyle: 'thin', stubble: 0x5a3d26, smile: 'closed', shirt: 0x9aa0a6, lens: ['#ffffff', '#ffffff', '#ffffff'], frame: 0xcfd8dd, build: 0.98 }),
     // ---- the secret one ----
     // Poon Daddy: on the crew for over 15 years. Locked until he is unlocked (js/poon.js); until then his card is a black
-    // shape that says LOCKED. A stand-in look until there are reference pictures: a black cowboy hard hat, gold mirrored
-    // shades, a big horseshoe moustache, a gold chain, a smirk, a belly.
-    P('poon', 'Poon Daddy', 'helper', { secret: true, hat: 0x17181b, hatTrim: 0x2c2e33, hatStyle: 'cowboy', skin: 0xe4b08a, nose: 0xd89c78, cheeks: 0xe08070, lines: true, face: { w: 1.05, len: 1.02, jaw: 1.08, nose: 1.1 }, hair: 0x2a211a, sideburns: true,
-      brow: 0x2a211a, browT: 1.2, stache: 0x2a211a, stacheStyle: 'horseshoe', stubble: 0x2a211a, stubbleA: 0.3, smirk: true, chain: true, chainCol: 0xf2c230,
-      lens: ['#ffd84d', '#ff9a2a', '#ffd84d'], frame: 0xd4a52a, build: 1.14, belly: true, height: 1.04 }),
+    // shape that says LOCKED. A stand-in look until there are reference pictures: a regular black hard hat, clear
+    // safety glasses, clean shaven, a gold chain, a smirk, a belly.
+    P('poon', 'Poon Daddy', 'helper', { secret: true, hat: 0x17181b, hatTrim: 0x2c2e33, skin: 0xe4b08a, nose: 0xd89c78, cheeks: 0xe08070, lines: true, face: { w: 1.05, len: 1.02, jaw: 1.08, nose: 1.1 }, hair: 0x2a211a, sideburns: true,
+      glasses: 'clear', eye: 0x4a3524, brow: 0x2a211a, browT: 1.2, smirk: true, chain: true, chainCol: 0xf2c230,
+      lens: ['#ffffff', '#ffffff', '#ffffff'], frame: 0xdfe8ee, build: 1.14, belly: true, height: 1.04 }),
   ];
 })();
 // who is on the crew before the player has picked: the first driller, and the first two people who are not drilling
