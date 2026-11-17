@@ -37,7 +37,7 @@ window.POON = (() => {
   const SHOT_MIN = 1.6, SHOT_MAX = 12;      // the unlock shot: how long before it can be closed, and when it closes by itself
 
   let APP, E = null, st = { unlocked: false, best: { env: 0, geo: 0 } };
-  let A = null, U = null, toastT = 0, face = '';
+  let A = null, U = null, face = '';
 
   function load() {
     try { const o = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; st.unlocked = !!o.unlocked; if (o.best) for (const k in LISTS) st.best[k] = Math.max(0, Math.min(LISTS[k].length, +o.best[k] || 0)); } catch (e) { /* storage blocked */ }
@@ -49,15 +49,15 @@ window.POON = (() => {
   function init(app) {
     APP = app; load();
     E = { root: $('poon'), title: $('poonTitle'), say: $('poonSay'), face: $('poonFace'), who: $('poonWho'), line: $('poonLine'), skip: $('poonSkip'),
-      unlock: $('poonUnlock'), go: $('poonGo'), ticks: $('poonTicks'), boxes: $('poonBoxes') };
+      unlock: $('poonUnlock'), go: $('poonGo') };
     E.skip.addEventListener('click', () => { if (A && A.t > SKIP_AFTER) endArrival(); });
     E.go.addEventListener('click', () => { if (U && U.t > SHOT_MIN) endShot(); });
     E.unlock.addEventListener('click', e => { if (e.target === E.unlock && U && U.t > SHOT_MIN) endShot(); });
   }
   // a new hole: the list starts again
   function reset() {
-    A = null; U = null; toastT = 0;
-    if (E) { E.root.hidden = true; E.ticks.hidden = true; E.root.dataset.mode = ''; }
+    A = null; U = null;
+    if (E) { E.root.hidden = true; E.root.dataset.mode = ''; }
     WORLD.setPoon(null); WORLD.setSolo(false);
     document.body.classList.remove('poon-on');
   }
@@ -72,15 +72,7 @@ window.POON = (() => {
     S.shame.push(key);
     const n = S.shame.length;
     if (n > (st.best[S.site.type] || 0)) { st.best[S.site.type] = n; save(); }
-    if (n >= L.length) S.poonDue = true;
-    showTicks(S);
-  }
-  // a little row of boxes at the top of the screen: one more filled in. It never says what they are
-  function showTicks(S) {
-    const L = listOf(S), n = (S.shame || []).length;
-    E.boxes.innerHTML = L.map((x, i) => `<b class="${i < n ? 'on' : ''}"></b>`).join('');
-    E.ticks.hidden = false; E.ticks.classList.remove('pop'); void E.ticks.offsetWidth; E.ticks.classList.add('pop');
-    toastT = 3.2;
+    if (n >= L.length) S.poonDue = true;      // nothing is shown: it is a secret until he turns up
   }
   // he is on the crew, or he has turned up: the helper's prompts do themselves
   function helps(S) { return !!S && (!!S.poonHere || S.crew.some(m => m.name === NAME)); }
@@ -172,7 +164,6 @@ window.POON = (() => {
 
   // ---------- every frame ----------
   function update(S, dt) {
-    if (toastT > 0) { toastT -= dt; if (toastT <= 0) E.ticks.hidden = true; }
     const off = APP.away || APP.menu || APP.fly;
     E.root.classList.toggle('away', !!off);
     if (U) { if (!off) updateShot(dt); return; }
@@ -196,7 +187,6 @@ window.POON = (() => {
     st.unlocked = false;
     S.shame = L.slice(0, all ? L.length : L.length - 1).map(x => x[0]);
     if (all) S.poonDue = true;
-    showTicks(S);
     return all ? 'Poon Daddy is due.' : `Still needed: ${L[L.length - 1][1]}`;
   }
   // POON.seek(8): jump his arrival (or the unlock shot) to that many seconds in
